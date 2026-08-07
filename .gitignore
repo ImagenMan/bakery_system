@@ -1,0 +1,28 @@
+# Node
+node_modules/
+
+# Database
+data/*.db
+data/*.db-*
+data/*.sqlite
+data/*.sqlite-*
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+
+# Environment variables
+.env
+.env.*
+
+# Editor temporary files
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

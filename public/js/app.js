@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Bakery System</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+<h1>🍩 Bakery System</h1>
+
+<p id="status">
+Connecting...
+</p>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
