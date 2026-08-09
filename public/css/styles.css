@@ -1,20 +1,146 @@
-body{
-
-    font-family:Arial;
-
-    margin:40px;
-
-    background:#f4f4f4;
+* {
+    box-sizing: border-box;
 }
 
-h1{
-
-    color:#444;
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    color: #333;
 }
 
-#status{
+.app-header {
+    background: white;
+    padding: 20px 30px;
+    border-bottom: 1px solid #ddd;
+}
 
-    font-size:22px;
+.app-header h1 {
+    margin: 0 0 8px;
+}
 
-    color:green;
+#connection-status {
+    font-size: 14px;
+}
+
+.connected {
+    color: green;
+}
+
+.disconnected {
+    color: #c00;
+}
+
+main {
+    max-width: 1000px;
+    margin: 30px auto;
+    padding: 0 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.section-header h2 {
+    margin: 0;
+}
+
+button {
+    border: none;
+    background: #333;
+    color: white;
+    padding: 9px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #555;
+}
+
+.order-card {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 12px;
+}
+
+.order-main {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.order-card h3 {
+    margin: 0 0 5px;
+}
+
+.customer {
+    margin: 0;
+    color: #666;
+}
+
+.order-status {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.status,
+.payment {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.status-new {
+    background: #eee;
+}
+
+.status-confirmed {
+    background: #fff3cd;
+}
+
+.status-ready {
+    background: #d1e7dd;
+}
+
+.payment-paid {
+    background: #d1e7dd;
+}
+
+.payment-partial {
+    background: #fff3cd;
+}
+
+.payment-unpaid {
+    background: #f8d7da;
+}
+
+.order-details {
+    display: flex;
+    gap: 25px;
+    margin-top: 15px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+    color: #555;
+    font-size: 14px;
+}
+
+.loading,
+.empty,
+.error {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.error {
+    color: #c00;
 }

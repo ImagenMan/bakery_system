@@ -1,18 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bakery System</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
 
 <body>
 
-    <h1>🍩 Bakery System</h1>
+    <header class="app-header">
+        <h1>🍩 Bakery System</h1>
+        <div id="connection-status">Connecting...</div>
+    </header>
 
-    <p id="status">
-        Connecting...
-    </p>
+    <main>
+        <section class="orders-section">
+            <div class="section-header">
+                <h2>Orders</h2>
+                <button id="refresh-orders">Refresh</button>
+            </div>
+
+            <div id="orders-list">
+                <p class="loading">Loading orders...</p>
+            </div>
+        </section>
+    </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/app.js"></script>
