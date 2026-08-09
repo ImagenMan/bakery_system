@@ -1,21 +1,31 @@
-<!DOCTYPE html>
-<html>
+const socket = io();
 
-<head>
-    <title>Bakery System</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
+const status = document.getElementById("status");
 
-<body>
+async function loadOrders() {
+    try {
+        const response = await fetch("/api/orders");
+        const result = await response.json();
 
-<h1>🍩 Bakery System</h1>
+        if (!result.success) {
+            throw new Error(result.error || "Failed to load orders.");
+        }
 
-<p id="status">
-Connecting...
-</p>
+        console.log("Orders loaded:", result.data);
 
-<script src="/socket.io/socket.io.js"></script>
-<script src="app.js"></script>
+        status.textContent = `Connected — ${result.data.length} orders loaded`;
+    } catch (error) {
+        console.error("Failed to load orders:", error);
+        status.textContent = "Connected, but failed to load orders.";
+    }
+}
 
-</body>
-</html>
+socket.on("connect", () => {
+    console.log("Socket.io connected:", socket.id);
+    loadOrders();
+});
+
+socket.on("disconnect", () => {
+    console.log("Socket.io disconnected.");
+    status.textContent = "Disconnected";
+});
