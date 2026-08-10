@@ -111,27 +111,22 @@ function renderOrderDetail(order) {
             </p>
 
             <div class="status-control">
-
                 <strong>Order Status:</strong>
 
                 <select id="order-status">
-                    <option value="NEW"
-                        ${order.status === "NEW" ? "selected" : ""}>
+                    <option value="NEW" ${order.status === "NEW" ? "selected" : ""}>
                         NEW
                     </option>
 
-                    <option value="CONFIRMED"
-                        ${order.status === "CONFIRMED" ? "selected" : ""}>
+                    <option value="CONFIRMED" ${order.status === "CONFIRMED" ? "selected" : ""}>
                         CONFIRMED
                     </option>
 
-                    <option value="READY"
-                        ${order.status === "READY" ? "selected" : ""}>
+                    <option value="READY" ${order.status === "READY" ? "selected" : ""}>
                         READY
                     </option>
 
-                    <option value="COMPLETED"
-                        ${order.status === "COMPLETED" ? "selected" : ""}>
+                    <option value="COMPLETED" ${order.status === "COMPLETED" ? "selected" : ""}>
                         COMPLETED
                     </option>
                 </select>
@@ -139,7 +134,6 @@ function renderOrderDetail(order) {
                 <button id="save-order-status">
                     Save
                 </button>
-
             </div>
 
             <p>
@@ -148,7 +142,6 @@ function renderOrderDetail(order) {
             </p>
 
             <div class="payment-summary">
-
                 <p>
                     <strong>Total:</strong>
                     $${Number(order.total_amount).toFixed(2)}
@@ -163,7 +156,6 @@ function renderOrderDetail(order) {
                     <strong>Balance:</strong>
                     $${balance.toFixed(2)}
                 </p>
-
             </div>
 
             <h3>Items</h3>
@@ -171,27 +163,54 @@ function renderOrderDetail(order) {
             <div class="order-items">
 
                 ${order.items.map(item => `
+
                     <div class="order-item">
 
                         <div>
-                            <strong>
-                                ${item.product_name}
-                            </strong>
+                            <strong>${item.product_name}</strong>
 
                             <span>
                                 Qty: ${item.quantity}
                             </span>
                         </div>
 
-                        <div>
-                            <span>
-                                ${item.production_status}
-                            </span>
+                        <div class="item-production">
+
+                            <label>
+                                Production:
+                            </label>
+
+                            <select
+                                class="production-status"
+                                data-item-id="${item.id}"
+                            >
+                                <option
+                                    value="PENDING"
+                                    ${item.production_status === "PENDING" ? "selected" : ""}
+                                >
+                                    PENDING
+                                </option>
+
+                                <option
+                                    value="READY"
+                                    ${item.production_status === "READY" ? "selected" : ""}
+                                >
+                                    READY
+                                </option>
+
+                                <option
+                                    value="COMPLETED"
+                                    ${item.production_status === "COMPLETED" ? "selected" : ""}
+                                >
+                                    COMPLETED
+                                </option>
+                            </select>
 
                             <span>
                                 Picked up:
                                 ${item.quantity_picked_up}/${item.quantity}
                             </span>
+
                         </div>
 
                         <strong>
@@ -199,32 +218,20 @@ function renderOrderDetail(order) {
                         </strong>
 
                     </div>
+
                 `).join("")}
 
             </div>
 
             ${order.notes ? `
                 <div class="order-notes">
-
                     <strong>Notes:</strong>
-
-                    <p>
-                        ${order.notes}
-                    </p>
-
+                    <p>${order.notes}</p>
                 </div>
             ` : ""}
 
         </div>
     `;
-
-    /*
-     * The status button must be created after
-     * renderOrderDetail() inserts the HTML above.
-     *
-     * It also needs access to the current order,
-     * so the listener belongs inside this function.
-     */
 
     document
         .getElementById("save-order-status")
@@ -238,14 +245,10 @@ function renderOrderDetail(order) {
                     `/api/orders/${order.id}/status`,
                     {
                         method: "PUT",
-
                         headers: {
                             "Content-Type": "application/json"
                         },
-
-                        body: JSON.stringify({
-                            status
-                        })
+                        body: JSON.stringify({ status })
                     }
                 );
 
@@ -263,6 +266,54 @@ function renderOrderDetail(order) {
             } catch (error) {
                 alert(error.message);
             }
+        });
+
+
+    document
+        .querySelectorAll(".production-status")
+        .forEach(select => {
+
+            select.addEventListener("change", async () => {
+
+                const itemId =
+                    Number(select.dataset.itemId);
+
+                const production_status =
+                    select.value;
+
+                try {
+                    const response = await fetch(
+                        `/api/orders/${order.id}/items/${itemId}/status`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                production_status
+                            })
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!result.success) {
+                        throw new Error(
+                            result.error ||
+                            "Failed to update production status."
+                        );
+                    }
+
+                    renderOrderDetail(result.data);
+
+                } catch (error) {
+                    alert(error.message);
+
+                    // Reload the order so the select
+                    // returns to the actual database value.
+                    loadOrderDetail(order.id);
+                }
+            });
         });
 }
 
