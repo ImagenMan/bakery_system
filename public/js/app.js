@@ -4,7 +4,7 @@ const ordersList = document.getElementById("orders-list");
 const orderDetail = document.getElementById("order-detail");
 
 async function loadOrders() {
-    ordersList.innerHTML = '<p class="loading">Loading orders...</p>';
+    ordersList.innerHTML = "Loading orders...";
 
     try {
         const response = await fetch("/api/orders");
@@ -24,7 +24,7 @@ async function loadOrders() {
 
 function renderOrders(orders) {
     if (!orders.length) {
-        ordersList.innerHTML = "<p>No orders found.</p>";
+        ordersList.innerHTML = "No orders found.";
         return;
     }
 
@@ -45,7 +45,9 @@ function renderOrders(orders) {
                 <span>${order.payment_status}</span>
             </div>
 
-            <strong>$${Number(order.total_amount).toFixed(2)}</strong>
+            <strong>
+                $${Number(order.total_amount).toFixed(2)}
+            </strong>
         </div>
     `).join("");
 
@@ -60,14 +62,18 @@ async function loadOrderDetail(orderId) {
     ordersView.classList.add("hidden");
     orderDetailView.classList.remove("hidden");
 
-    orderDetail.innerHTML = '<p class="loading">Loading order...</p>';
+    orderDetail.innerHTML = `
+        <p class="loading">Loading order...</p>
+    `;
 
     try {
         const response = await fetch(`/api/orders/${orderId}`);
         const result = await response.json();
 
         if (!result.success) {
-            throw new Error(result.error || "Failed to load order.");
+            throw new Error(
+                result.error || "Failed to load order."
+            );
         }
 
         renderOrderDetail(result.data);
@@ -79,7 +85,9 @@ async function loadOrderDetail(orderId) {
 }
 
 function renderOrderDetail(order) {
-    const balance = Number(order.total_amount) - Number(order.amount_paid);
+    const balance =
+        Number(order.total_amount) -
+        Number(order.amount_paid);
 
     orderDetail.innerHTML = `
         <div class="order-summary">
@@ -102,10 +110,37 @@ function renderOrderDetail(order) {
                 ${order.pickup_time || ""}
             </p>
 
-            <p>
+            <div class="status-control">
+
                 <strong>Order Status:</strong>
-                ${order.status}
-            </p>
+
+                <select id="order-status">
+                    <option value="NEW"
+                        ${order.status === "NEW" ? "selected" : ""}>
+                        NEW
+                    </option>
+
+                    <option value="CONFIRMED"
+                        ${order.status === "CONFIRMED" ? "selected" : ""}>
+                        CONFIRMED
+                    </option>
+
+                    <option value="READY"
+                        ${order.status === "READY" ? "selected" : ""}>
+                        READY
+                    </option>
+
+                    <option value="COMPLETED"
+                        ${order.status === "COMPLETED" ? "selected" : ""}>
+                        COMPLETED
+                    </option>
+                </select>
+
+                <button id="save-order-status">
+                    Save
+                </button>
+
+            </div>
 
             <p>
                 <strong>Payment:</strong>
@@ -113,23 +148,46 @@ function renderOrderDetail(order) {
             </p>
 
             <div class="payment-summary">
-                <p><strong>Total:</strong> $${Number(order.total_amount).toFixed(2)}</p>
-                <p><strong>Paid:</strong> $${Number(order.amount_paid).toFixed(2)}</p>
-                <p><strong>Balance:</strong> $${balance.toFixed(2)}</p>
+
+                <p>
+                    <strong>Total:</strong>
+                    $${Number(order.total_amount).toFixed(2)}
+                </p>
+
+                <p>
+                    <strong>Paid:</strong>
+                    $${Number(order.amount_paid).toFixed(2)}
+                </p>
+
+                <p>
+                    <strong>Balance:</strong>
+                    $${balance.toFixed(2)}
+                </p>
+
             </div>
 
             <h3>Items</h3>
 
             <div class="order-items">
+
                 ${order.items.map(item => `
                     <div class="order-item">
+
                         <div>
-                            <strong>${item.product_name}</strong>
-                            <span>Qty: ${item.quantity}</span>
+                            <strong>
+                                ${item.product_name}
+                            </strong>
+
+                            <span>
+                                Qty: ${item.quantity}
+                            </span>
                         </div>
 
                         <div>
-                            <span>${item.production_status}</span>
+                            <span>
+                                ${item.production_status}
+                            </span>
+
                             <span>
                                 Picked up:
                                 ${item.quantity_picked_up}/${item.quantity}
@@ -139,28 +197,86 @@ function renderOrderDetail(order) {
                         <strong>
                             $${Number(item.line_total).toFixed(2)}
                         </strong>
+
                     </div>
                 `).join("")}
+
             </div>
 
             ${order.notes ? `
                 <div class="order-notes">
+
                     <strong>Notes:</strong>
-                    <p>${order.notes}</p>
+
+                    <p>
+                        ${order.notes}
+                    </p>
+
                 </div>
             ` : ""}
 
         </div>
     `;
+
+    /*
+     * The status button must be created after
+     * renderOrderDetail() inserts the HTML above.
+     *
+     * It also needs access to the current order,
+     * so the listener belongs inside this function.
+     */
+
+    document
+        .getElementById("save-order-status")
+        .addEventListener("click", async () => {
+
+            const status =
+                document.getElementById("order-status").value;
+
+            try {
+                const response = await fetch(
+                    `/api/orders/${order.id}/status`,
+                    {
+                        method: "PUT",
+
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+
+                        body: JSON.stringify({
+                            status
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to update status."
+                    );
+                }
+
+                renderOrderDetail(result.data);
+
+            } catch (error) {
+                alert(error.message);
+            }
+        });
 }
 
-document.getElementById("refresh-orders")
+document
+    .getElementById("refresh-orders")
     .addEventListener("click", loadOrders);
 
-document.getElementById("back-to-orders")
+document
+    .getElementById("back-to-orders")
     .addEventListener("click", () => {
+
         orderDetailView.classList.add("hidden");
         ordersView.classList.remove("hidden");
+
     });
 
 loadOrders();
