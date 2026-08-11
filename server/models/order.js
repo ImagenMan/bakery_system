@@ -596,7 +596,7 @@ function getOrderById(id) {
             oi.unit_price,
             oi.notes,
 
-            (oi.quantity * oi.unit_price) AS line_total
+            ROUND(oi.quantity * oi.unit_price, 2) AS line_total
 
         FROM order_items oi
 
