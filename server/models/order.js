@@ -657,6 +657,30 @@ function getAllOrders() {
 }
 
 function updateOrderStatus(id, status) {
+    const validStatuses = [
+        "NEW",
+        "CONFIRMED",
+        "READY",
+        "COMPLETED",
+        "CANCELLED"
+    ];
+
+    if (!validStatuses.includes(status)) {
+        throw new Error(
+            `Invalid order status: ${status}`
+        );
+    }
+
+    const order = db.prepare(`
+        SELECT id
+        FROM orders
+        WHERE id = ?
+    `).get(id);
+
+    if (!order) {
+        throw new Error(`Order ${id} not found.`);
+    }
+
     db.prepare(`
         UPDATE orders
         SET

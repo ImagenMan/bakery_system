@@ -548,26 +548,26 @@ router.put("/orders/:id/status", (req, res) => {
         });
 
     } catch (error) {
-        console.error(
-            "PUT /api/orders/:id/status error:",
-            error
-        );
+    console.error(
+        "PUT /api/orders/:id/status error:",
+        error
+    );
 
-        if (
-            error.message.includes("Invalid order status") ||
-            error.message.includes("not found")
-        ) {
-            return res.status(400).json({
-                success: false,
-                error: error.message
-            });
-        }
-
-        res.status(500).json({
+    if (
+        error.message.includes("Invalid order status") ||
+        error.message.includes("not found")
+    ) {
+        return res.status(400).json({
             success: false,
-            error: "Failed to update order status."
+            error: error.message
         });
     }
+
+    res.status(500).json({
+        success: false,
+        error: "Failed to update order status."
+    });
+}
 });
 
 router.post("/orders/:id/payments", (req, res) => {
