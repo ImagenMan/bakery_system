@@ -8,6 +8,10 @@ function isValidMoney(amount) {
     );
 }
 
+function roundMoney(amount) {
+    return Math.round(amount * 100) / 100;
+}
+
 function createOrder({
     order_number,
     customer_id,
@@ -321,7 +325,7 @@ function getPickupHistory(orderId) {
         SELECT
             oip.id,
             oip.order_item_id,
-            p.name AS product_name,
+            COALESCE(p.name, oi.custom_name) AS product_name,
             p.sku,
             oip.quantity,
             oip.picked_up_by,
@@ -333,7 +337,7 @@ function getPickupHistory(orderId) {
         JOIN order_items oi
             ON oip.order_item_id = oi.id
 
-        JOIN products p
+        LEFT JOIN products p
             ON oi.product_id = p.id
 
         LEFT JOIN users u
@@ -486,7 +490,7 @@ function updateOrderTotal(orderId) {
         WHERE order_id = ?
     `).get(orderId);
 
-    const newTotal = result.total_amount;
+    const newTotal = roundMoney(result.total_amount);
 
     if (order.amount_paid > newTotal) {
         throw new Error(
@@ -703,7 +707,7 @@ function recordPayment({
             );
         }
 
-        const newAmountPaid = order.amount_paid + amount;
+        const newAmountPaid = roundMoney(order.amount_paid + amount);
 
         if (newAmountPaid > order.total_amount) {
             throw new Error(

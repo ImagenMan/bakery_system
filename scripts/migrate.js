@@ -13,7 +13,7 @@ try {
     db.exec(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            filename TEXT NOT NULL UNIQUE,
+            migration TEXT NOT NULL UNIQUE,
             applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     `);
@@ -26,7 +26,7 @@ try {
         const alreadyApplied = db.prepare(`
             SELECT id
             FROM schema_migrations
-            WHERE filename = ?
+            WHERE migration = ?
         `).get(filename);
 
         if (alreadyApplied) {
@@ -48,7 +48,7 @@ try {
             db.exec(sql);
 
             db.prepare(`
-                INSERT INTO schema_migrations (filename)
+                INSERT INTO schema_migrations (migration)
                 VALUES (?)
             `).run(filename);
         });
