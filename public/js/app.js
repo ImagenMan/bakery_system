@@ -288,24 +288,94 @@ function renderOrderDetail(order) {
             </div>
 
 
-            <div class="payment-summary">
+            <div class="payment-section">
 
-                <div>
-                    <span>Total</span>
-                    <strong>${formatMoney(total)}</strong>
+    <h3>Payment</h3>
+
+    <div class="payment-summary">
+
+        <div>
+            <span>Total</span>
+            <strong>${formatMoney(total)}</strong>
+        </div>
+
+        <div>
+            <span>Paid</span>
+            <strong>${formatMoney(paid)}</strong>
+        </div>
+
+        <div>
+            <span>Balance</span>
+            <strong>${formatMoney(balance)}</strong>
+        </div>
+
+    </div>
+
+    <div class="payment-section">
+
+    <div class="payment-section-header">
+        <h3>Payments</h3>
+
+        <button
+            type="button"
+            id="refresh-payments"
+        >
+            Refresh Payments
+        </button>
+    </div>
+
+    <div id="payment-history">
+        <p>Loading payments...</p>
+    </div>
+
+</div>
+
+    
+
+    ${
+        balance > 0
+            ? `
+                <div class="payment-control">
+
+                    <input
+                        type="number"
+                        id="payment-amount"
+                        min="0.01"
+                        max="${balance.toFixed(2)}"
+                        step="0.01"
+                        value="${balance.toFixed(2)}"
+                        inputmode="decimal"
+                    >
+
+                    <select id="payment-method">
+
+                        <option value="CASH">
+                            CASH
+                        </option>
+
+                        <option value="BANK_TRANSFER">
+                            BANK TRANSFER
+                        </option>
+
+                    </select>
+
+                    <button
+                        type="button"
+                        id="record-payment"
+                    >
+                        Record Payment
+                    </button>
+
                 </div>
+            `
+            : `
+                <p class="payment-complete">
+                    ✓ Fully Paid
+                </p>
+            `
+    }
 
-                <div>
-                    <span>Paid</span>
-                    <strong>${formatMoney(paid)}</strong>
-                </div>
-
-                <div>
-                    <span>Balance</span>
-                    <strong>${formatMoney(balance)}</strong>
-                </div>
-
-            </div>
+</div>
 
 
             <h3>Items</h3>
@@ -345,6 +415,119 @@ function renderOrderDetail(order) {
     `;
 
     attachOrderDetailListeners(order);
+    loadPaymentHistory(order.id);
+}
+
+// =========================================================
+// Payment History
+// =========================================================
+
+async function loadPaymentHistory(orderId) {
+
+    const paymentHistory =
+        document.getElementById("payment-history");
+
+    if (!paymentHistory) {
+        return;
+    }
+
+    paymentHistory.innerHTML = `
+        <p class="loading">
+            Loading payments...
+        </p>
+    `;
+
+    try {
+
+        const response = await fetch(
+            `/api/orders/${orderId}/payments`
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Server returned ${response.status}.`
+            );
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to load payments."
+            );
+        }
+
+        renderPaymentHistory(result.data);
+
+    } catch (error) {
+
+        console.error(
+            "loadPaymentHistory error:",
+            error
+        );
+
+        paymentHistory.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+
+function renderPaymentHistory(payments) {
+
+    const paymentHistory =
+        document.getElementById("payment-history");
+
+    if (!paymentHistory) {
+        return;
+    }
+
+    if (
+        !Array.isArray(payments) ||
+        payments.length === 0
+    ) {
+
+        paymentHistory.innerHTML = `
+            <p>
+                No payments recorded.
+            </p>
+        `;
+
+        return;
+    }
+
+    paymentHistory.innerHTML = payments.map(
+        payment => `
+
+            <div class="payment-record">
+
+                <div>
+
+                    <strong>
+                        ${escapeHTML(
+                            payment.payment_method
+                        )}
+                    </strong>
+
+                    <span>
+                        ${escapeHTML(
+                            payment.created_at
+                        )}
+                    </span>
+
+                </div>
+
+                <strong>
+                    ${formatMoney(payment.amount)}
+                </strong>
+
+            </div>
+
+        `
+    ).join("");
 }
 
 
@@ -562,6 +745,16 @@ function attachOrderDetailListeners(order) {
                 }
             }
         );
+
+    }
+    const refreshPaymentsButton =
+        document.getElementById("refresh-payments");
+
+    if (refreshPaymentsButton) {
+        refreshPaymentsButton.addEventListener(
+            "click",
+            () => loadPaymentHistory(order.id)
+        );
     }
 
 
@@ -732,6 +925,118 @@ function attachOrderDetailListeners(order) {
                 }
             );
         });
+    
+    // -----------------------------------------------------
+    // Payment
+    // -----------------------------------------------------
+
+const recordPaymentButton =
+    document.getElementById("record-payment");
+
+if (recordPaymentButton) {
+
+    recordPaymentButton.addEventListener(
+        "click",
+        async () => {
+
+            const amountInput =
+                document.getElementById("payment-amount");
+
+            const paymentMethodInput =
+                document.getElementById("payment-method");
+
+            if (!amountInput || !paymentMethodInput) {
+                return;
+            }
+
+            const amount =
+                Number(amountInput.value);
+
+            const payment_method =
+                paymentMethodInput.value;
+
+            const total =
+                Number(order.total_amount) || 0;
+
+            const paid =
+                Number(order.amount_paid) || 0;
+
+            const balance =
+                Math.max(0, total - paid);
+
+            if (
+                !Number.isFinite(amount) ||
+                amount <= 0
+            ) {
+                alert(
+                    "Payment amount must be greater than zero."
+                );
+
+                amountInput.focus();
+                return;
+            }
+
+            if (amount > balance) {
+                alert(
+                    `Payment cannot exceed the remaining balance of ${formatMoney(balance)}.`
+                );
+
+                amountInput.focus();
+                return;
+            }
+
+            recordPaymentButton.disabled = true;
+            recordPaymentButton.textContent =
+                "Recording...";
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/api/orders/${order.id}/payments`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                amount,
+                                payment_method
+                            })
+                        }
+                    );
+
+                const result =
+                    await response.json();
+
+                if (!result.success) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to record payment."
+                    );
+                }
+
+                renderOrderDetail(result.data);
+
+            } catch (error) {
+
+                console.error(
+                    "record payment error:",
+                    error
+                );
+
+                alert(error.message);
+
+                recordPaymentButton.disabled =
+                    false;
+
+                recordPaymentButton.textContent =
+                    "Record Payment";
+            }
+        }
+    );
+}
 }
 
 
