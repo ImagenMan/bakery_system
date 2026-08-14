@@ -7,8 +7,12 @@
 
 const ordersView = document.getElementById("orders-view");
 const orderDetailView = document.getElementById("order-detail-view");
+const newOrderView = document.getElementById("new-order-view");
+
 const ordersList = document.getElementById("orders-list");
 const orderDetail = document.getElementById("order-detail");
+const newOrderForm = document.getElementById("new-order-form");
+
 
 
 // =========================================================
@@ -1062,6 +1066,32 @@ document
             ordersView.classList.remove("hidden");
 
             loadOrders();
+        }
+    );
+
+document
+    .getElementById("new-order")
+    .addEventListener(
+        "click",
+        () => {
+
+            ordersView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+            newOrderView.classList.remove("hidden");
+
+        }
+    );
+
+
+document
+    .getElementById("cancel-new-order")
+    .addEventListener(
+        "click",
+        () => {
+
+            newOrderView.classList.add("hidden");
+            ordersView.classList.remove("hidden");
+
         }
     );
 

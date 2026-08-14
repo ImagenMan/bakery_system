@@ -17,29 +17,74 @@
 
     <main>
 
+    <!-- Orders List -->
+
     <section id="orders-view" class="view">
 
         <div class="section-header">
+
             <h2>Orders</h2>
-            <button id="refresh-orders">Refresh</button>
+
+            <div class="header-actions">
+                <button id="new-order">
+                    + New Order
+                </button>
+
+                <button id="refresh-orders">
+                    Refresh
+                </button>
+            </div>
+
         </div>
 
         <div id="orders-list">
-            <p class="loading">Loading orders...</p>
+            <p class="loading">
+                Loading orders...
+            </p>
         </div>
 
     </section>
 
 
+    <!-- New Order -->
+
+    <section id="new-order-view" class="view hidden">
+
+        <div class="section-header">
+            <button id="cancel-new-order">
+                ← Orders
+            </button>
+
+            <h2>New Order</h2>
+        </div>
+
+        <div id="new-order-form">
+
+            <p class="loading">
+                Loading order form...
+            </p>
+
+        </div>
+
+    </section>
+
+
+    <!-- Order Details -->
+
     <section id="order-detail-view" class="view hidden">
 
         <div class="section-header">
-            <button id="back-to-orders">← Orders</button>
+            <button id="back-to-orders">
+                ← Orders
+            </button>
+
             <h2>Order Details</h2>
         </div>
 
         <div id="order-detail">
-            <p class="loading">Loading order...</p>
+            <p class="loading">
+                Loading order...
+            </p>
         </div>
 
     </section>

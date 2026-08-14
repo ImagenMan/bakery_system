@@ -2,6 +2,180 @@ const express = require("express");
 const router = express.Router();
 
 const orders = require("../models/order");
+const customers = require("../models/customer");
+const products = require("../models/product");
+
+// =========================================================
+// Customers
+// =========================================================
+
+router.get("/customers", (req, res) => {
+    try {
+        const result = customers.getAllCustomers();
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error("GET /api/customers error:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve customers."
+        });
+    }
+});
+
+
+router.get("/customers/:id", (req, res) => {
+    try {
+        const customerId = Number(req.params.id);
+
+        if (
+            !Number.isInteger(customerId) ||
+            customerId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid customer ID."
+            });
+        }
+
+        const customer =
+            customers.getCustomerById(customerId);
+
+        if (!customer) {
+            return res.status(404).json({
+                success: false,
+                error: "Customer not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            data: customer
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/customers/:id error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve customer."
+        });
+    }
+});
+
+// =========================================================
+// Products
+// =========================================================
+
+router.get("/products", (req, res) => {
+    try {
+        const result = products.getAllProducts();
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error("GET /api/products error:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve products."
+        });
+    }
+});
+
+
+router.get("/products/:id", (req, res) => {
+    try {
+        const productId = Number(req.params.id);
+
+        if (
+            !Number.isInteger(productId) ||
+            productId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid product ID."
+            });
+        }
+
+        const product =
+            products.getProductById(productId);
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                error: "Product not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/products/:id error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve product."
+        });
+    }
+});
+
+
+router.get("/categories/:id/products", (req, res) => {
+    try {
+        const categoryId = Number(req.params.id);
+
+        if (
+            !Number.isInteger(categoryId) ||
+            categoryId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid category ID."
+            });
+        }
+
+        const result =
+            products.getProductsByCategory(categoryId);
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/categories/:id/products error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve products."
+        });
+    }
+});
+
+// =========================================================
+// Orders
+// =========================================================
 
 router.get("/orders", (req, res) => {
     try {
