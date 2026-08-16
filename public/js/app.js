@@ -443,14 +443,32 @@ function renderOrderDetail(order) {
                         Quantity
                     </label>
 
-                    <input
-                        type="number"
-                        id="add-item-quantity"
-                        min="1"
-                        step="1"
-                        value="1"
-                        inputmode="numeric"
-                    >
+                    <div class="quantity-control">
+
+                        <button
+                            type="button"
+                            id="decrease-add-item-quantity"
+                        >
+                            −
+                        </button>
+
+                        <input
+                            type="number"
+                            id="add-item-quantity"
+                            min="1"
+                            step="1"
+                            value="1"
+                            inputmode="numeric"
+                        >
+
+                        <button
+                            type="button"
+                            id="increase-add-item-quantity"
+                        >
+                            +
+                        </button>
+
+                    </div>
 
                 </div>
 
@@ -1157,6 +1175,61 @@ function attachOrderDetailListeners(order) {
     const saveAddItemButton =
         document.getElementById("save-add-item");
 
+    const decreaseQuantityButton =
+    document.getElementById(
+        "decrease-add-item-quantity"
+    );
+
+    const increaseQuantityButton =
+        document.getElementById(
+            "increase-add-item-quantity"
+        );
+
+    const quantityInput =
+        document.getElementById(
+            "add-item-quantity"
+        );
+
+
+    if (
+        decreaseQuantityButton &&
+        quantityInput
+    ) {
+
+        decreaseQuantityButton.addEventListener(
+            "click",
+            () => {
+
+                const currentQuantity =
+                    Number(quantityInput.value) || 1;
+
+                quantityInput.value =
+                    Math.max(
+                        1,
+                        currentQuantity - 1
+                    );
+            }
+        );
+    }
+
+
+    if (
+        increaseQuantityButton &&
+        quantityInput
+    ) {
+
+        increaseQuantityButton.addEventListener(
+            "click",
+            () => {
+
+                const currentQuantity =
+                    Number(quantityInput.value) || 1;
+
+                quantityInput.value =
+                    currentQuantity + 1;
+            }
+        );
+    }
 
     if (addItemButton && addItemForm) {
 
@@ -1182,45 +1255,45 @@ function attachOrderDetailListeners(order) {
     const categorySelect =
     document.getElementById("add-item-category");
 
-if (categorySelect) {
+    if (categorySelect) {
 
-    categorySelect.addEventListener(
-        "change",
-        async () => {
+        categorySelect.addEventListener(
+            "change",
+            async () => {
 
-            const categoryId =
-                Number(categorySelect.value);
+                const categoryId =
+                    Number(categorySelect.value);
 
-            if (
-                !Number.isInteger(categoryId) ||
-                categoryId <= 0
-            ) {
+                if (
+                    !Number.isInteger(categoryId) ||
+                    categoryId <= 0
+                ) {
 
-                const productSelect =
-                    document.getElementById(
-                        "add-item-product"
-                    );
+                    const productSelect =
+                        document.getElementById(
+                            "add-item-product"
+                        );
 
-                if (productSelect) {
+                    if (productSelect) {
 
-                    productSelect.innerHTML = `
-                        <option value="">
-                            Select a category first...
-                        </option>
-                    `;
+                        productSelect.innerHTML = `
+                            <option value="">
+                                Select a category first...
+                            </option>
+                        `;
 
-                    productSelect.disabled = true;
+                        productSelect.disabled = true;
+                    }
+
+                    return;
                 }
 
-                return;
+                await loadProductsForAddItem(
+                    categoryId
+                );
             }
-
-            await loadProductsForAddItem(
-                categoryId
-            );
-        }
-    );
-}
+        );
+    }
 
 
     if (
