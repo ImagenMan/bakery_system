@@ -312,7 +312,8 @@ router.post("/orders/:id/items", (req, res) => {
             custom_name = null,
             unit_price = null,
             quantity,
-            notes = null
+            notes = null,
+            user_id = null
         } = req.body;
 
 
@@ -358,7 +359,8 @@ router.post("/orders/:id/items", (req, res) => {
             custom_name,
             unit_price,
             quantity,
-            notes
+            notes,
+            user_id
         });
 
 
@@ -378,7 +380,9 @@ router.post("/orders/:id/items", (req, res) => {
             error.message.includes("not found") ||
             error.message.includes("inactive") ||
             error.message.includes("Quantity") ||
-            error.message.includes("Custom")
+            error.message.includes("Custom") ||
+            error.message.includes("authorization") ||
+            error.message.includes("valid user ID")
         ) {
             return res.status(400).json({
                 success: false,

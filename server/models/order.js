@@ -8,6 +8,38 @@ function isValidMoney(amount) {
     );
 }
 
+function getActiveUser(userId) {
+  if (!Number.isInteger(userId)) {
+    throw new Error("A valid user ID is required.");
+  }
+
+  const user = db.prepare(`
+    SELECT id, name, role, active
+    FROM users
+    WHERE id = ?
+  `).get(userId);
+
+  if (!user) {
+    throw new Error("User not found.");
+  }
+
+  if (!user.active) {
+    throw new Error("User is not active.");
+  }
+
+  return user;
+}
+
+function requireAdmin(userId) {
+  const user = getActiveUser(userId);
+
+  if (user.role !== "ADMIN") {
+    throw new Error("Admin authorization is required.");
+  }
+
+  return user;
+}
+
 function roundMoney(amount) {
     return Math.round(amount * 100) / 100;
 }
@@ -54,7 +86,8 @@ function addOrderItem({
     custom_name = null,
     unit_price = null,
     quantity,
-    notes = null
+    notes = null,
+    user_id
 }) {
     const order = db.prepare(`
         SELECT id
@@ -108,15 +141,13 @@ function addOrderItem({
             );
         }
 
-        if (
-            !Number.isFinite(unit_price) ||
-            unit_price < 0
-        ) {
+        if (!isValidMoney(unit_price)) {
             throw new Error(
-                "Custom item price is required."
+                "Custom item price must be greater than zero and use no more than two decimal places."
             );
         }
 
+        requireAdmin(user_id);
         finalProductId = null;
     }
 
