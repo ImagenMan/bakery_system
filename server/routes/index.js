@@ -137,6 +137,27 @@ router.get("/products/:id", (req, res) => {
     }
 });
 
+router.get("/categories", (req, res) => {
+    try {
+        const result = products.getAllCategories();
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/categories error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve categories."
+        });
+    }
+});
 
 router.get("/categories/:id/products", (req, res) => {
     try {

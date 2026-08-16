@@ -66,8 +66,26 @@ function getProductsByCategory(categoryId) {
     `).all(categoryId);
 }
 
+function getAllCategories() {
+    return db.prepare(`
+        SELECT
+            id,
+            code,
+            name,
+            description,
+            display_order,
+            active
+        FROM categories
+        WHERE active = 1
+        ORDER BY
+            display_order,
+            name
+    `).all();
+}
+
 module.exports = {
     getAllProducts,
     getProductById,
-    getProductsByCategory
+    getProductsByCategory,
+    getAllCategories
 };

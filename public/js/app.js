@@ -396,9 +396,26 @@ function renderOrderDetail(order) {
             </div>
 
             <div
-                id="add-item-form"
-                class="add-item-form hidden"
-            >
+                    id="add-item-form"
+                    class="add-item-form hidden"
+                >
+
+                <div class="add-item-field">
+
+                    <label for="add-item-category">
+                        Category
+                    </label>
+
+                    <select id="add-item-category">
+
+                        <option value="">
+                            Loading categories...
+                        </option>
+
+                    </select>
+
+            </div>
+
 
                 <div class="add-item-field">
 
@@ -406,10 +423,15 @@ function renderOrderDetail(order) {
                         Product
                     </label>
 
-                    <select id="add-item-product">
+                    <select
+                        id="add-item-product"
+                        disabled
+                    >
+
                         <option value="">
-                            Loading products...
+                            Select a category first...
                         </option>
+
                     </select>
 
                 </div>
@@ -776,9 +798,9 @@ function renderOrderItem(item) {
 // Add Item
 // =========================================================
 
-async function loadProductsForAddItem() {
+async function loadCategoriesForAddItem() {
     const select =
-        document.getElementById("add-item-product");
+        document.getElementById("add-item-category");
 
     if (!select) {
         return;
@@ -786,7 +808,89 @@ async function loadProductsForAddItem() {
 
     try {
         const response =
-            await fetch("/api/products");
+            await fetch("/api/categories");
+
+        if (!response.ok) {
+            throw new Error(
+                `Server returned ${response.status}.`
+            );
+        }
+
+        const result =
+            await response.json();
+
+        if (!result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to load categories."
+            );
+        }
+
+        const categories =
+            Array.isArray(result.data)
+                ? result.data
+                : [];
+
+        if (categories.length === 0) {
+
+            select.innerHTML = `
+                <option value="">
+                    No categories available
+                </option>
+            `;
+
+            return;
+        }
+
+        select.innerHTML = `
+            <option value="">
+                Select a category...
+            </option>
+
+            ${categories.map(category => `
+                <option value="${Number(category.id)}">
+                    ${escapeHTML(category.name)}
+                </option>
+            `).join("")}
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "loadCategoriesForAddItem error:",
+            error
+        );
+
+        select.innerHTML = `
+            <option value="">
+                Failed to load categories
+            </option>
+        `;
+    }
+}
+
+
+async function loadProductsForAddItem(categoryId) {
+    const select =
+        document.getElementById("add-item-product");
+
+    if (!select) {
+        return;
+    }
+
+    select.disabled = true;
+
+    select.innerHTML = `
+        <option value="">
+            Loading products...
+        </option>
+    `;
+
+    try {
+        const response =
+            await fetch(
+                `/api/categories/${Number(categoryId)}/products`
+            );
 
         if (!response.ok) {
             throw new Error(
@@ -804,14 +908,16 @@ async function loadProductsForAddItem() {
             );
         }
 
-        const products = Array.isArray(result.data)
-            ? result.data
-            : [];
+        const products =
+            Array.isArray(result.data)
+                ? result.data
+                : [];
 
         if (products.length === 0) {
+
             select.innerHTML = `
                 <option value="">
-                    No products available
+                    No products in this category
                 </option>
             `;
 
@@ -824,14 +930,14 @@ async function loadProductsForAddItem() {
             </option>
 
             ${products.map(product => `
-                <option
-                    value="${Number(product.id)}"
-                >
+                <option value="${Number(product.id)}">
                     ${escapeHTML(product.name)}
                     — ${formatMoney(product.price)}
                 </option>
             `).join("")}
         `;
+
+        select.disabled = false;
 
     } catch (error) {
 
@@ -1066,12 +1172,55 @@ function attachOrderDetailListeners(order) {
                     "hidden"
                 );
 
-                await loadProductsForAddItem();
+                await loadCategoriesForAddItem();
 
             }
         );
 
     }
+
+    const categorySelect =
+    document.getElementById("add-item-category");
+
+if (categorySelect) {
+
+    categorySelect.addEventListener(
+        "change",
+        async () => {
+
+            const categoryId =
+                Number(categorySelect.value);
+
+            if (
+                !Number.isInteger(categoryId) ||
+                categoryId <= 0
+            ) {
+
+                const productSelect =
+                    document.getElementById(
+                        "add-item-product"
+                    );
+
+                if (productSelect) {
+
+                    productSelect.innerHTML = `
+                        <option value="">
+                            Select a category first...
+                        </option>
+                    `;
+
+                    productSelect.disabled = true;
+                }
+
+                return;
+            }
+
+            await loadProductsForAddItem(
+                categoryId
+            );
+        }
+    );
+}
 
 
     if (
