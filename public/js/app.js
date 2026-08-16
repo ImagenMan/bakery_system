@@ -1043,16 +1043,362 @@ if (recordPaymentButton) {
 }
 }
 
+// =========================================================
+// New Order Form
+// =========================================================
+
+function renderNewOrderForm() {
+
+    const today = new Date()
+        .toISOString()
+        .split("T")[0];
+
+    newOrderForm.innerHTML = `
+        <form id="create-order-form">
+
+            <div class="form-group">
+
+                <label for="order-number">
+                    Order Number
+                </label>
+
+                <input
+                    type="text"
+                    id="order-number"
+                    required
+                >
+
+        </div>
+
+            <div class="form-group">
+
+                <label for="customer-id">
+                    Customer ID
+                </label>
+
+                <input
+                    type="number"
+                    id="customer-id"
+                    min="1"
+                    step="1"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="pickup-date">
+                    Pickup Date
+                </label>
+
+                <input
+                    type="date"
+                    id="pickup-date"
+                    value="${today}"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="pickup-time">
+                    Pickup Time
+                </label>
+
+                <input
+                    type="time"
+                    id="pickup-time"
+                >
+
+            </div>
+
+
+            <div class="form-group checkbox-group">
+
+                <label>
+                    <input
+                        type="checkbox"
+                        id="delivery"
+                    >
+
+                    Delivery
+                </label>
+
+            </div>
+
+
+            <div
+                class="form-group hidden"
+                id="delivery-address-group"
+            >
+
+                <label for="delivery-address">
+                    Delivery Address
+                </label>
+
+                <textarea
+                    id="delivery-address"
+                    rows="3"
+                ></textarea>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="order-notes-input">
+                    Notes
+                </label>
+
+                <textarea
+                    id="order-notes-input"
+                    rows="4"
+                ></textarea>
+
+            </div>
+
+
+            <button type="submit">
+                Create Order
+            </button>
+
+        </form>
+    `;
+
+    attachNewOrderFormListeners();
+}
+function attachNewOrderFormListeners() {
+
+    const deliveryCheckbox =
+        document.getElementById("delivery");
+
+    const deliveryAddressGroup =
+        document.getElementById(
+            "delivery-address-group"
+        );
+
+    deliveryCheckbox.addEventListener(
+        "change",
+        () => {
+
+            if (deliveryCheckbox.checked) {
+                deliveryAddressGroup.classList.remove(
+                    "hidden"
+                );
+            } else {
+                deliveryAddressGroup.classList.add(
+                    "hidden"
+                );
+
+                document.getElementById(
+                    "delivery-address"
+                ).value = "";
+            }
+            
+        }
+    );
+    
+        const createOrderForm =
+        document.getElementById("create-order-form");
+
+    createOrderForm.addEventListener(
+        "submit",
+        async event => {
+
+            event.preventDefault();
+
+            const orderNumber =
+                document.getElementById("order-number").value.trim();
+
+            const customerId = Number(
+                document.getElementById("customer-id").value
+            );
+
+            const pickupDate =
+                document.getElementById("pickup-date").value;
+
+            const pickupTime =
+                document.getElementById("pickup-time").value;
+
+            const delivery =
+                document.getElementById("delivery").checked;
+
+            const deliveryAddress =
+                document.getElementById("delivery-address").value.trim();
+
+            const notes =
+                document.getElementById("order-notes-input").value.trim();
+
+            if (!orderNumber) {
+                alert("Please enter an order number.");
+                return;
+            }
+
+            if (
+                !Number.isInteger(customerId) ||
+                customerId <= 0
+            ) {
+                alert("Please enter a valid customer ID.");
+                return;
+            }
+
+            if (!pickupDate) {
+                alert("Please select a pickup date.");
+                return;
+            }
+
+            if (
+                delivery &&
+                !deliveryAddress
+            ) {
+                alert(
+                    "Please enter a delivery address."
+                );
+                return;
+            }
+
+
+            const submitButton =
+                createOrderForm.querySelector(
+                    'button[type="submit"]'
+                );
+
+            submitButton.disabled = true;
+            submitButton.textContent =
+                "Creating...";
+
+
+            try {
+
+                const response =
+                    await fetch(
+                        "/api/orders",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                order_number: orderNumber,
+                                customer_id: customerId,
+                                pickup_date: pickupDate,
+                                pickup_time:
+                                    pickupTime || null,
+                                delivery: delivery
+                                    ? 1
+                                    : 0,
+                                delivery_address: delivery
+                                    ? deliveryAddress
+                                    : null,
+                                notes: notes || null
+                            })
+                        }
+                    );
+
+
+                const result =
+                    await response.json();
+
+                    console.log(
+    "Create order response:",
+    response.status,
+    result
+);
+
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to create order."
+                    );
+                }
+
+
+                newOrderView.classList.add("hidden");
+
+                orderDetailView.classList.remove(
+                    "hidden"
+                );
+
+                renderOrderDetail(result.data);
+
+
+            } catch (error) {
+
+                console.error(
+                    "create order error:",
+                    error
+                );
+
+                alert(error.message);
+
+                submitButton.disabled = false;
+                submitButton.textContent =
+                    "Create Order";
+            }
+        }
+    );
+}
+
+
 
 // =========================================================
 // Navigation
 // =========================================================
 
+// Open New Order view
+
 document
-    .getElementById("refresh-orders")
+    .getElementById("new-order")
     .addEventListener(
         "click",
-        loadOrders
+        () => {
+
+            ordersView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+
+            newOrderView.classList.remove("hidden");
+
+            renderNewOrderForm();
+        }
+    );
+
+
+// Cancel New Order and return to Orders
+
+document
+    .getElementById("cancel-new-order")
+    .addEventListener(
+        "click",
+        () => {
+
+            newOrderView.classList.add("hidden");
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
+
+
+// Back from Order Detail to Orders
+
+document
+    .getElementById("back-to-orders")
+    .addEventListener(
+        "click",
+        () => {
+
+            orderDetailView.classList.add("hidden");
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
     );
 
 
