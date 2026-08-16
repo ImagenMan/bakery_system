@@ -1402,46 +1402,6 @@ document
     );
 
 
-document
-    .getElementById("back-to-orders")
-    .addEventListener(
-        "click",
-        () => {
-
-            orderDetailView.classList.add("hidden");
-            ordersView.classList.remove("hidden");
-
-            loadOrders();
-        }
-    );
-
-document
-    .getElementById("new-order")
-    .addEventListener(
-        "click",
-        () => {
-
-            ordersView.classList.add("hidden");
-            orderDetailView.classList.add("hidden");
-            newOrderView.classList.remove("hidden");
-
-        }
-    );
-
-
-document
-    .getElementById("cancel-new-order")
-    .addEventListener(
-        "click",
-        () => {
-
-            newOrderView.classList.add("hidden");
-            ordersView.classList.remove("hidden");
-
-        }
-    );
-
-
 // =========================================================
 // Initial Load
 // =========================================================
