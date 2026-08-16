@@ -382,7 +382,97 @@ function renderOrderDetail(order) {
 </div>
 
 
-            <h3>Items</h3>
+            <div class="order-items-header">
+
+                <h3>Items</h3>
+
+                <button
+                    type="button"
+                    id="add-item-button"
+                >
+                    + Add Item
+                </button>
+
+            </div>
+
+            <div
+                id="add-item-form"
+                class="add-item-form hidden"
+            >
+
+                <div class="add-item-field">
+
+                    <label for="add-item-product">
+                        Product
+                    </label>
+
+                    <select id="add-item-product">
+                        <option value="">
+                            Loading products...
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div class="add-item-field">
+
+                    <label for="add-item-quantity">
+                        Quantity
+                    </label>
+
+                    <input
+                        type="number"
+                        id="add-item-quantity"
+                        min="1"
+                        step="1"
+                        value="1"
+                        inputmode="numeric"
+                    >
+
+                </div>
+
+
+                <div class="add-item-field">
+
+                    <label for="add-item-notes">
+                        Notes
+                    </label>
+
+                    <input
+                        type="text"
+                        id="add-item-notes"
+                        placeholder="Optional"
+                    >
+
+                </div>
+
+
+                <div class="add-item-actions">
+
+                    <button
+                        type="button"
+                        id="cancel-add-item"
+                    >
+                        Cancel
+                    </button>
+
+                    <button
+                        type="button"
+                        id="save-add-item"
+                    >
+                        Add to Order
+                    </button>
+
+                </div>
+
+                <p
+                    id="add-item-error"
+                    class="error hidden"
+                ></p>
+
+            </div>
+
 
             <div class="order-items">
 
@@ -682,12 +772,344 @@ function renderOrderItem(item) {
     `;
 }
 
+// =========================================================
+// Add Item
+// =========================================================
+
+async function loadProductsForAddItem() {
+    const select =
+        document.getElementById("add-item-product");
+
+    if (!select) {
+        return;
+    }
+
+    try {
+        const response =
+            await fetch("/api/products");
+
+        if (!response.ok) {
+            throw new Error(
+                `Server returned ${response.status}.`
+            );
+        }
+
+        const result =
+            await response.json();
+
+        if (!result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to load products."
+            );
+        }
+
+        const products = Array.isArray(result.data)
+            ? result.data
+            : [];
+
+        if (products.length === 0) {
+            select.innerHTML = `
+                <option value="">
+                    No products available
+                </option>
+            `;
+
+            return;
+        }
+
+        select.innerHTML = `
+            <option value="">
+                Select a product...
+            </option>
+
+            ${products.map(product => `
+                <option
+                    value="${Number(product.id)}"
+                >
+                    ${escapeHTML(product.name)}
+                    — ${formatMoney(product.price)}
+                </option>
+            `).join("")}
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "loadProductsForAddItem error:",
+            error
+        );
+
+        select.innerHTML = `
+            <option value="">
+                Failed to load products
+            </option>
+        `;
+    }
+}
+
+
+function showAddItemError(message) {
+
+    const errorElement =
+        document.getElementById("add-item-error");
+
+    if (!errorElement) {
+        return;
+    }
+
+    errorElement.textContent = message;
+    errorElement.classList.remove("hidden");
+}
+
+
+function clearAddItemError() {
+
+    const errorElement =
+        document.getElementById("add-item-error");
+
+    if (!errorElement) {
+        return;
+    }
+
+    errorElement.textContent = "";
+    errorElement.classList.add("hidden");
+}
+
+
+function resetAddItemForm() {
+
+    const form =
+        document.getElementById("add-item-form");
+
+    const product =
+        document.getElementById("add-item-product");
+
+    const quantity =
+        document.getElementById("add-item-quantity");
+
+    const notes =
+        document.getElementById("add-item-notes");
+
+    if (!form) {
+        return;
+    }
+
+    form.classList.add("hidden");
+
+    if (product) {
+        product.value = "";
+    }
+
+    if (quantity) {
+        quantity.value = "1";
+    }
+
+    if (notes) {
+        notes.value = "";
+    }
+
+    clearAddItemError();
+}
+
+
+async function addItemToOrder(orderId) {
+
+    const productSelect =
+        document.getElementById("add-item-product");
+
+    const quantityInput =
+        document.getElementById("add-item-quantity");
+
+    const notesInput =
+        document.getElementById("add-item-notes");
+
+    const saveButton =
+        document.getElementById("save-add-item");
+
+    if (
+        !productSelect ||
+        !quantityInput ||
+        !notesInput ||
+        !saveButton
+    ) {
+        return;
+    }
+
+    clearAddItemError();
+
+    const productId =
+        Number(productSelect.value);
+
+    const quantity =
+        Number(quantityInput.value);
+
+    const notes =
+        notesInput.value.trim();
+
+    if (
+        !Number.isInteger(productId) ||
+        productId <= 0
+    ) {
+        showAddItemError(
+            "Please select a product."
+        );
+
+        return;
+    }
+
+    if (
+        !Number.isInteger(quantity) ||
+        quantity <= 0
+    ) {
+        showAddItemError(
+            "Quantity must be greater than zero."
+        );
+
+        return;
+    }
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Adding...";
+
+    try {
+
+        const response = await fetch(
+            `/api/orders/${Number(orderId)}/items`,
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
+
+                body: JSON.stringify({
+                    product_id: productId,
+                    quantity,
+                    notes: notes || null
+                })
+            }
+        );
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to add item."
+            );
+        }
+
+        /*
+         * The backend has already recalculated
+         * the order total.
+         *
+         * Reload the complete order so the UI
+         * uses the backend as the source of truth.
+         */
+
+        await loadOrderDetail(orderId);
+
+    } catch (error) {
+
+        console.error(
+            "addItemToOrder error:",
+            error
+        );
+
+        showAddItemError(
+            error.message
+        );
+
+        saveButton.disabled = false;
+        saveButton.textContent =
+            "Add to Order";
+    }
+}
 
 // =========================================================
 // Order Detail Event Listeners
 // =========================================================
 
 function attachOrderDetailListeners(order) {
+
+    // -----------------------------------------------------
+    // Add Item
+    // -----------------------------------------------------
+
+    const addItemButton =
+        document.getElementById("add-item-button");
+
+    const addItemForm =
+        document.getElementById("add-item-form");
+
+    const cancelAddItemButton =
+        document.getElementById("cancel-add-item");
+
+    const saveAddItemButton =
+        document.getElementById("save-add-item");
+
+
+    if (addItemButton && addItemForm) {
+
+        addItemButton.addEventListener(
+            "click",
+            async () => {
+
+                addItemForm.classList.remove(
+                    "hidden"
+                );
+
+                addItemButton.classList.add(
+                    "hidden"
+                );
+
+                await loadProductsForAddItem();
+
+            }
+        );
+
+    }
+
+
+    if (
+        cancelAddItemButton &&
+        addItemForm &&
+        addItemButton
+    ) {
+
+        cancelAddItemButton.addEventListener(
+            "click",
+            () => {
+
+                resetAddItemForm();
+
+                addItemButton.classList.remove(
+                    "hidden"
+                );
+
+            }
+        );
+
+    }
+
+
+    if (saveAddItemButton) {
+
+        saveAddItemButton.addEventListener(
+            "click",
+            async () => {
+
+                await addItemToOrder(
+                    order.id
+                );
+
+            }
+        );
+
+    }
 
     // -----------------------------------------------------
     // Overall Order Status
