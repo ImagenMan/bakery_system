@@ -6,7 +6,8 @@
     "dev": "nodemon server/app.js",
     "start": "node server/app.js",
     "init-db": "node scripts/init-db.js",
-    "migrate": "node scripts/migrate.js"
+    "migrate": "node scripts/migrate.js",
+    "setup-auth": "node scripts/setup-auth.js"
   },
   "keywords": [],
   "author": "",

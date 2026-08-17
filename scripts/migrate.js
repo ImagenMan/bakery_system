@@ -26,7 +26,7 @@ try {
         const alreadyApplied = db.prepare(`
             SELECT id
             FROM schema_migrations
-            WHERE migration = ?
+            WHERE filename = ?
         `).get(filename);
 
         if (alreadyApplied) {
@@ -48,7 +48,7 @@ try {
             db.exec(sql);
 
             db.prepare(`
-                INSERT INTO schema_migrations (migration)
+                INSERT INTO schema_migrations (filename)
                 VALUES (?)
             `).run(filename);
         });
