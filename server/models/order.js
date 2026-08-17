@@ -4,7 +4,7 @@ function isValidMoney(amount) {
     return (
         Number.isFinite(amount) &&
         amount > 0 &&
-        Math.round(amount * 100) === amount * 100
+        roundMoney(amount) === amount
     );
 }
 
