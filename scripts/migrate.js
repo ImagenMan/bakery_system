@@ -18,6 +18,29 @@ try {
         )
     `);
 
+const migrationColumns = db
+.prepare(`PRAGMA table_info(schema_migrations)`)
+.all();
+
+const hasMigrationColumn = migrationColumns.some(
+    column => column.name === "migration"
+);
+
+const hasFilenameColumn = migrationColumns.some(
+    column => column.name === "filename"
+);
+
+if (!hasMigrationColumn && hasFilenameColumn) {
+    db.exec(`
+        ALTER TABLE schema_migrations
+        RENAME COLUMN filename TO migration
+    `);
+
+    console.log(
+        "🔧 Upgraded legacy schema_migrations column."
+    );
+}
+
     const migrations = fs.readdirSync(migrationsPath)
         .filter(file => file.endsWith(".sql"))
         .sort();
@@ -26,7 +49,7 @@ try {
         const alreadyApplied = db.prepare(`
             SELECT id
             FROM schema_migrations
-            WHERE filename = ?
+            WHERE migration = ?
         `).get(filename);
 
         if (alreadyApplied) {
@@ -48,7 +71,7 @@ try {
             db.exec(sql);
 
             db.prepare(`
-                INSERT INTO schema_migrations (filename)
+                INSERT INTO schema_migrations (migration)
                 VALUES (?)
             `).run(filename);
         });
