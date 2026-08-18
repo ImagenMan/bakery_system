@@ -1,17 +1,6 @@
 const db = require("../config/database");
 const user = require("./user");
-
-function isValidMoney(amount) {
-    return (
-        Number.isFinite(amount) &&
-        amount > 0 &&
-        roundMoney(amount) === amount
-    );
-}
-
-function roundMoney(amount) {
-    return Math.round(amount * 100) / 100;
-}
+const { isValidMoney, roundMoney } = require("../utils/money");
 
 function createOrder({
     order_number,
