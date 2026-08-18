@@ -4,6 +4,7 @@ const router = express.Router();
 const orders = require("../models/order");
 const customers = require("../models/customer");
 const products = require("../models/product");
+const { requireAdmin } = require("../middleware/auth");
 
 // =========================================================
 // Customers
@@ -190,6 +191,189 @@ router.get("/categories/:id/products", (req, res) => {
         res.status(500).json({
             success: false,
             error: "Failed to retrieve products."
+        });
+    }
+});
+
+// =========================================================
+// Product Administration
+// =========================================================
+
+router.post("/products", requireAdmin, (req, res) => {
+    try {
+        const {
+            sku,
+            category_id,
+            name,
+            description = null,
+            price,
+            unit = "each",
+            display_order = 0
+        } = req.body;
+
+        const product = products.createProduct({
+            sku,
+            category_id,
+            name,
+            description,
+            price,
+            unit,
+            display_order,
+            user_id: req.user.id
+        });
+
+        res.status(201).json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error("POST /api/products error:", error);
+
+        if (
+            error.message.includes("required") ||
+            error.message.includes("valid") ||
+            error.message.includes("price") ||
+            error.message.includes("Category") ||
+            error.message.includes("SKU already exists")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to create product."
+        });
+    }
+});
+
+
+router.put("/products/:id", requireAdmin, (req, res) => {
+    try {
+        const productId = Number(req.params.id);
+
+        if (!Number.isInteger(productId) || productId <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid product ID."
+            });
+        }
+
+        const {
+            sku,
+            category_id,
+            name,
+            description = null,
+            price,
+            unit = "each",
+            display_order = 0
+        } = req.body;
+
+        const product = products.updateProduct({
+            id: productId,
+            sku,
+            category_id,
+            name,
+            description,
+            price,
+            unit,
+            display_order,
+            user_id: req.user.id
+        });
+
+        res.json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error("PUT /api/products/:id error:", error);
+
+        if (
+            error.message.includes("not found")
+        ) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        if (
+            error.message.includes("required") ||
+            error.message.includes("valid") ||
+            error.message.includes("price") ||
+            error.message.includes("Category") ||
+            error.message.includes("SKU already exists")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to update product."
+        });
+    }
+});
+
+
+router.patch("/products/:id/active", requireAdmin, (req, res) => {
+    try {
+        const productId = Number(req.params.id);
+
+        if (!Number.isInteger(productId) || productId <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid product ID."
+            });
+        }
+
+        const { active } = req.body;
+
+        const product = products.setProductActive({
+            id: productId,
+            active,
+            user_id: req.user.id
+        });
+
+        res.json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error(
+            "PATCH /api/products/:id/active error:",
+            error
+        );
+
+        if (
+            error.message.includes("not found")
+        ) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        if (
+            error.message.includes("valid") ||
+            error.message.includes("Active")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to update product status."
         });
     }
 });
@@ -537,7 +721,6 @@ router.put(
             "PUT /api/orders/:id/items/:itemId/status error:",
             error
         );
-
 
         res.status(400).json({
             success: false,
