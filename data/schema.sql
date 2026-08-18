@@ -161,22 +161,20 @@ CREATE TABLE IF NOT EXISTS customers (
 
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-
     name TEXT NOT NULL,
-
-    pin TEXT NOT NULL,
-
     role TEXT NOT NULL DEFAULT 'COUNTER',
-
     language TEXT NOT NULL DEFAULT 'ENGLISH',
-
     active INTEGER NOT NULL DEFAULT 1,
-
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    username TEXT,
+    password_hash TEXT,
+    pin_hash TEXT
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username
+ON users(username)
+WHERE username IS NOT NULL;
 
 -- ==========================================
 -- Orders
