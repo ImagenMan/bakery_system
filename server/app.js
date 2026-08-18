@@ -1,16 +1,26 @@
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
+const session = require("express-session");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 const apiRoutes = require("./routes");
+const authRoutes = require("./routes/auth");
 
 app.use(express.json());
+
+app.use(session({
+    secret: "bakery-development-secret",
+    resave: false,
+    saveUninitialized: false
+}));
+
 app.use(express.static("public"));
 
+app.use("/api/auth", authRoutes);
 app.use("/api", apiRoutes);
 
 io.on("connection", (socket) => {
