@@ -1,4 +1,5 @@
 const db = require("../config/database");
+const user = require("./user");
 
 function isValidMoney(amount) {
     return (
@@ -6,38 +7,6 @@ function isValidMoney(amount) {
         amount > 0 &&
         roundMoney(amount) === amount
     );
-}
-
-function getActiveUser(userId) {
-  if (!Number.isInteger(userId)) {
-    throw new Error("A valid user ID is required.");
-  }
-
-  const user = db.prepare(`
-    SELECT id, name, role, active
-    FROM users
-    WHERE id = ?
-  `).get(userId);
-
-  if (!user) {
-    throw new Error("User not found.");
-  }
-
-  if (!user.active) {
-    throw new Error("User is not active.");
-  }
-
-  return user;
-}
-
-function requireAdmin(userId) {
-  const user = getActiveUser(userId);
-
-  if (user.role !== "ADMIN") {
-    throw new Error("Admin authorization is required.");
-  }
-
-  return user;
 }
 
 function roundMoney(amount) {
@@ -147,7 +116,7 @@ function addOrderItem({
             );
         }
 
-        requireAdmin(user_id);
+        user.requireAdmin(user_id);
         finalProductId = null;
     }
 
