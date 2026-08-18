@@ -2,6 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const session = require("express-session");
+const { requireAuth } = require("./middleware/auth");
 
 const app = express();
 const server = http.createServer(app);
@@ -21,7 +22,7 @@ app.use(session({
 app.use(express.static("public"));
 
 app.use("/api/auth", authRoutes);
-app.use("/api", apiRoutes);
+app.use("/api", requireAuth, apiRoutes);
 
 io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);

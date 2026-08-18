@@ -259,8 +259,7 @@ router.post("/orders", (req, res) => {
             pickup_time,
             delivery,
             delivery_address,
-            notes,
-            created_by
+            notes
         } = req.body;
 
         if (!order_number) {
@@ -285,7 +284,7 @@ router.post("/orders", (req, res) => {
             delivery,
             delivery_address,
             notes,
-            created_by
+            created_by: req.user.id
         });
 
         res.status(201).json({
@@ -312,8 +311,7 @@ router.post("/orders/:id/items", (req, res) => {
             custom_name = null,
             unit_price = null,
             quantity,
-            notes = null,
-            user_id = null
+            notes = null
         } = req.body;
 
 
@@ -360,7 +358,7 @@ router.post("/orders/:id/items", (req, res) => {
             unit_price,
             quantity,
             notes,
-            user_id
+            user_id: req.user.id
         });
 
 
@@ -377,11 +375,19 @@ router.post("/orders/:id/items", (req, res) => {
         );
 
         if (
+            error.message.includes("authorization")
+        ) {
+            return res.status(403).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        if (
             error.message.includes("not found") ||
             error.message.includes("inactive") ||
             error.message.includes("Quantity") ||
             error.message.includes("Custom") ||
-            error.message.includes("authorization") ||
             error.message.includes("valid user ID")
         ) {
             return res.status(400).json({
@@ -617,7 +623,6 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
 
         const {
             quantity,
-            picked_up_by,
             notes
         } = req.body;
 
@@ -646,7 +651,7 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
             orderId,
             itemId,
             quantity,
-            picked_up_by,
+            req.user.id,
             notes
         );
 
@@ -777,7 +782,6 @@ router.post("/orders/:id/payments", (req, res) => {
             amount,
             payment_method,
             reference,
-            recorded_by,
             notes
         } = req.body;
 
@@ -807,7 +811,7 @@ router.post("/orders/:id/payments", (req, res) => {
             amount,
             paymentMethod: payment_method,
             reference,
-            recordedBy: recorded_by,
+            recordedBy: req.user.id,
             notes
         });
 
