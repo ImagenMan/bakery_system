@@ -5,6 +5,7 @@ const { isValidMoney, roundMoney } = require("../utils/money");
 function createOrder({
     order_number,
     customer_id,
+    order_type = "PREORDER",
     pickup_date = null,
     pickup_time = null,
     delivery = 0,
@@ -16,6 +17,7 @@ function createOrder({
         INSERT INTO orders (
             order_number,
             customer_id,
+            order_type,
             pickup_date,
             pickup_time,
             delivery,
@@ -23,10 +25,11 @@ function createOrder({
             notes,
             created_by
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
         order_number,
         customer_id,
+        order_type,
         pickup_date,
         pickup_time,
         delivery,
@@ -518,6 +521,7 @@ function getOrderById(id) {
         SELECT
             o.id,
             o.order_number,
+            o.order_type,
             o.status,
             o.payment_status,
             o.total_amount,
@@ -619,6 +623,7 @@ function getAllOrders() {
         SELECT
             o.id,
             o.order_number,
+            o.order_type,
             o.status,
             o.payment_status,
             o.total_amount,

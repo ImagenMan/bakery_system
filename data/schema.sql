@@ -188,6 +188,14 @@ CREATE TABLE IF NOT EXISTS orders (
 
     customer_id INTEGER NOT NULL,
 
+    order_type TEXT NOT NULL DEFAULT 'PREORDER'
+    CHECK (
+        order_type IN (
+            'PREORDER',
+            'COUNTER_SALE'
+        )
+    ),
+
     status TEXT NOT NULL DEFAULT 'NEW',
 
     payment_status TEXT NOT NULL DEFAULT 'UNPAID'

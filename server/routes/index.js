@@ -439,6 +439,7 @@ router.post("/orders", (req, res) => {
         const {
             order_number,
             customer_id,
+            order_type = "PREORDER",
             pickup_date,
             pickup_time,
             delivery,
@@ -460,9 +461,17 @@ router.post("/orders", (req, res) => {
             });
         }
 
+        if (!["PREORDER", "COUNTER_SALE"].includes(order_type)) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid order type."
+            });
+        }
+
         const order = orders.createOrder({
             order_number,
             customer_id,
+            order_type,
             pickup_date,
             pickup_time,
             delivery,
