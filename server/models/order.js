@@ -89,7 +89,23 @@ function addOrderItem({
             );
         }
 
-        finalPrice = product.price;
+        // Normal catalog price
+        if (unit_price === null) {
+            finalPrice = product.price;
+        }
+
+        // Special/custom catalog price
+        else {
+            if (!isValidMoney(unit_price)) {
+                throw new Error(
+                    "Custom price must be greater than zero and use no more than two decimal places."
+                );
+            }
+
+            user.requireAdmin(user_id);
+            finalPrice = unit_price;
+        }
+
         finalCustomName = null;
     }
 
@@ -111,7 +127,6 @@ function addOrderItem({
         user.requireAdmin(user_id);
         finalProductId = null;
     }
-
 
     const transaction = db.transaction(() => {
 
