@@ -2,6 +2,32 @@ const db = require("../config/database");
 const user = require("./user");
 const { isValidMoney, roundMoney } = require("../utils/money");
 
+function getMutableOrder(orderId) {
+    const order = db.prepare(`
+        SELECT
+            id,
+            order_type,
+            status
+        FROM orders
+        WHERE id = ?
+    `).get(orderId);
+
+    if (!order) {
+        throw new Error(`Order ${orderId} not found.`);
+    }
+
+    if (
+        order.order_type === "COUNTER_SALE" &&
+        order.status === "COMPLETED"
+    ) {
+        throw new Error(
+            `Completed counter sale ${orderId} cannot be modified.`
+        );
+    }
+
+    return order;
+}
+
 function createOrder({
     order_number,
     customer_id,
@@ -13,9 +39,59 @@ function createOrder({
     notes = null,
     created_by = null
 }) {
-    const result = db.prepare(`
-        INSERT INTO orders (
-            order_number,
+    const transaction = db.transaction(() => {
+        let finalOrderNumber = order_number;
+
+        if (order_type === "COUNTER_SALE") {
+            const now = new Date();
+
+            const yy = String(now.getFullYear()).slice(-2);
+            const mm = String(now.getMonth() + 1).padStart(2, "0");
+            const dd = String(now.getDate()).padStart(2, "0");
+
+            const datePart = `${yy}${mm}${dd}`;
+            const prefix = `CS-${datePart}-`;
+
+            const lastOrder = db.prepare(`
+                SELECT order_number
+                FROM orders
+                WHERE order_type = 'COUNTER_SALE'
+                  AND order_number LIKE ?
+                ORDER BY order_number DESC
+                LIMIT 1
+            `).get(`${prefix}%`);
+
+            let sequence = 1;
+
+            if (lastOrder) {
+                const lastSequence = Number(
+                    lastOrder.order_number.slice(prefix.length)
+                );
+
+                if (Number.isInteger(lastSequence)) {
+                    sequence = lastSequence + 1;
+                }
+            }
+
+            finalOrderNumber =
+                `${prefix}${String(sequence).padStart(3, "0")}`;
+        }
+
+        const result = db.prepare(`
+            INSERT INTO orders (
+                order_number,
+                customer_id,
+                order_type,
+                pickup_date,
+                pickup_time,
+                delivery,
+                delivery_address,
+                notes,
+                created_by
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            finalOrderNumber,
             customer_id,
             order_type,
             pickup_date,
@@ -24,32 +100,28 @@ function createOrder({
             delivery_address,
             notes,
             created_by
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-        order_number,
-        customer_id,
-        order_type,
-        pickup_date,
-        pickup_time,
-        delivery,
-        delivery_address,
-        notes,
-        created_by
-    );
+        );
 
-    return getOrderById(result.lastInsertRowid);
+        return result.lastInsertRowid;
+    });
+
+    const orderId = transaction();
+
+    return getOrderById(orderId);
 }
 
 function addOrderItem({
     order_id,
     product_id = null,
+    custom_product_id = null,
     custom_name = null,
     unit_price = null,
     quantity,
     notes = null,
     user_id
 }) {
+    getMutableOrder(order_id);
+
     const order = db.prepare(`
         SELECT id
         FROM orders
@@ -66,12 +138,61 @@ function addOrderItem({
         );
     }
 
+    if (
+        product_id !== null &&
+        custom_product_id !== null
+    ) {
+        throw new Error(
+            "An order item cannot reference both a catalog product and a custom product."
+        );
+    }
+
+    if (
+        custom_product_id !== null &&
+        custom_name !== null
+    ) {
+        throw new Error(
+            "An approved custom product cannot also use a custom item name."
+        );
+    }
+
     let finalPrice = unit_price;
     let finalProductId = product_id;
+    let finalCustomProductId = custom_product_id;
     let finalCustomName = custom_name;
 
+    // Approved custom product
+    if (custom_product_id !== null) {
+
+        if (unit_price !== null) {
+            throw new Error(
+                "Price cannot be supplied when using an approved custom product."
+            );
+        }
+
+        const customProduct = db.prepare(`
+            SELECT
+                id,
+                name,
+                price
+            FROM custom_products
+            WHERE id = ?
+              AND active = 1
+        `).get(custom_product_id);
+
+        if (!customProduct) {
+            throw new Error(
+                `Custom product ${custom_product_id} not found or inactive.`
+            );
+        }
+
+        finalPrice = customProduct.price;
+        finalProductId = null;
+        finalCustomName = null;
+    }
+
     // Catalog item
-    if (product_id !== null) {
+    else if (product_id !== null) {
 
         const product = db.prepare(`
             SELECT
@@ -106,10 +227,11 @@ function addOrderItem({
             finalPrice = unit_price;
         }
 
+        finalCustomProductId = null;
         finalCustomName = null;
     }
 
-    // Custom item
+    // Free-form custom item
     else {
 
         if (!custom_name) {
@@ -126,6 +248,7 @@ function addOrderItem({
 
         user.requireAdmin(user_id);
         finalProductId = null;
+        finalCustomProductId = null;
     }
 
     const transaction = db.transaction(() => {
@@ -134,15 +257,17 @@ function addOrderItem({
             INSERT INTO order_items (
                 order_id,
                 product_id,
+                custom_product_id,
                 custom_name,
                 quantity,
                 unit_price,
                 notes
             )
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `).run(
             order_id,
             finalProductId,
+            finalCustomProductId,
             finalCustomName,
             quantity,
             finalPrice,
@@ -158,6 +283,9 @@ function addOrderItem({
 }
 
 function removeOrderItem(orderId, orderItemId) {
+
+    getMutableOrder(orderId);
+
     const item = db.prepare(`
         SELECT
             id,
@@ -359,6 +487,9 @@ function getPickupHistory(orderId) {
 }
 
 function updateOrderItem(orderId, orderItemId, { quantity, notes = null }) {
+
+    getMutableOrder(orderId);
+
     const item = db.prepare(`
         SELECT
             id,
@@ -557,7 +688,7 @@ function getOrderById(id) {
 
         FROM orders o
 
-        JOIN customers c
+        LEFT JOIN customers c
             ON o.customer_id = c.id
 
         WHERE o.id = ?
@@ -571,10 +702,12 @@ function getOrderById(id) {
         SELECT
             oi.id,
             oi.product_id,
+            oi.custom_product_id,
             p.sku,
 
             COALESCE(
                 p.name,
+                cp.name,
                 oi.custom_name
             ) AS product_name,
 
@@ -610,6 +743,9 @@ function getOrderById(id) {
 
         LEFT JOIN products p
             ON oi.product_id = p.id
+
+        LEFT JOIN custom_products cp
+            ON oi.custom_product_id = cp.id
 
         WHERE oi.order_id = ?
 
@@ -653,7 +789,7 @@ function getAllOrders() {
 
         FROM orders o
 
-        JOIN customers c
+        LEFT JOIN customers c
             ON o.customer_id = c.id
 
         ORDER BY
@@ -681,13 +817,25 @@ function updateOrderStatus(id, status) {
     }
 
     const order = db.prepare(`
-        SELECT id
+        SELECT
+            id,
+            order_type,
+            status
         FROM orders
         WHERE id = ?
     `).get(id);
 
     if (!order) {
         throw new Error(`Order ${id} not found.`);
+    }
+
+    if (
+        order.order_type === "COUNTER_SALE" &&
+        order.status === "COMPLETED"
+    ) {
+        throw new Error(
+            `Completed counter sale ${id} cannot be modified.`
+        );
     }
 
     db.prepare(`
@@ -709,10 +857,13 @@ function recordPayment({
     recordedBy = null,
     notes = null
 }) {
+    getMutableOrder(orderId);
+
     const transaction = db.transaction(() => {
         const order = db.prepare(`
             SELECT
                 id,
+                order_type,
                 total_amount,
                 amount_paid
             FROM orders
@@ -754,6 +905,15 @@ function recordPayment({
             paymentStatus = "PAID";
         }
 
+        let orderStatus = null;
+
+        if (
+            order.order_type === "COUNTER_SALE" &&
+            paymentStatus === "PAID"
+        ) {
+            orderStatus = "COMPLETED";
+        }
+
         db.prepare(`
             INSERT INTO payments (
                 order_id,
@@ -778,11 +938,13 @@ function recordPayment({
             SET
                 amount_paid = ?,
                 payment_status = ?,
+                status = COALESCE(?, status),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `).run(
             newAmountPaid,
             paymentStatus,
+            orderStatus,
             orderId
         );
     });

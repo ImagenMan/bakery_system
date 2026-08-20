@@ -4,6 +4,7 @@ const router = express.Router();
 const orders = require("../models/order");
 const customers = require("../models/customer");
 const products = require("../models/product");
+const customProducts = require("../models/customProduct");
 const { requireAdmin } = require("../middleware/auth");
 
 // =========================================================
@@ -379,6 +380,182 @@ router.patch("/products/:id/active", requireAdmin, (req, res) => {
 });
 
 // =========================================================
+// Custom Products
+// =========================================================
+
+router.get("/custom-products", (req, res) => {
+    try {
+        const result =
+            customProducts.getActiveCustomProducts();
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/custom-products error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve custom products."
+        });
+    }
+});
+
+router.get("/custom-products/:id", (req, res) => {
+    try {
+        const customProductId = Number(req.params.id);
+
+        if (
+            !Number.isInteger(customProductId) ||
+            customProductId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid custom product ID."
+            });
+        }
+
+        const product =
+            customProducts.getCustomProductById(
+                customProductId
+            );
+
+        if (!product) {
+            return res.status(404).json({
+                success: false,
+                error: "Custom product not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/custom-products/:id error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve custom product."
+        });
+    }
+});
+
+router.post("/custom-products", requireAdmin, (req, res) => {
+    try {
+        const {
+            name,
+            price,
+            description = null
+        } = req.body;
+
+        const product =
+            customProducts.createCustomProduct({
+                name,
+                price,
+                description,
+                user_id: req.user.id
+            });
+
+        res.status(201).json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error(
+            "POST /api/custom-products error:",
+            error
+        );
+
+        if (
+            error.message.includes("required") ||
+            error.message.includes("price") ||
+            error.message.includes("valid")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to create custom product."
+        });
+    }
+});
+
+router.patch("/custom-products/:id/active", requireAdmin, (req, res) => {
+    try {
+        const customProductId = Number(req.params.id);
+
+        if (
+            !Number.isInteger(customProductId) ||
+            customProductId <= 0
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid custom product ID."
+            });
+        }
+
+        const { active } = req.body;
+
+        const product =
+            customProducts.setCustomProductActive({
+                id: customProductId,
+                active,
+                user_id: req.user.id
+            });
+
+        res.json({
+            success: true,
+            data: product
+        });
+
+    } catch (error) {
+        console.error(
+            "PATCH /api/custom-products/:id/active error:",
+            error
+        );
+
+        if (
+            error.message.includes("not found")
+        ) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        if (
+            error.message.includes("Active") ||
+            error.message.includes("authorization")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to update custom product status."
+        });
+    }
+});
+
+// =========================================================
 // Orders
 // =========================================================
 
@@ -447,14 +624,14 @@ router.post("/orders", (req, res) => {
             notes
         } = req.body;
 
-        if (!order_number) {
+        if (order_type === "PREORDER" && !order_number) {
             return res.status(400).json({
                 success: false,
                 error: "Order number is required."
             });
         }
 
-        if (!customer_id) {
+        if (order_type === "PREORDER" && !customer_id) {
             return res.status(400).json({
                 success: false,
                 error: "Customer ID is required."
@@ -501,6 +678,7 @@ router.post("/orders/:id/items", (req, res) => {
 
         const {
             product_id = null,
+            custom_product_id = null,
             custom_name = null,
             unit_price = null,
             quantity,
@@ -520,6 +698,9 @@ router.post("/orders/:id/items", (req, res) => {
             Number.isInteger(product_id) &&
             product_id > 0;
 
+        const hasCustomProduct =
+            Number.isInteger(custom_product_id) &&
+            custom_product_id > 0;
 
         const hasCustomItem =
             typeof custom_name === "string" &&
@@ -527,11 +708,16 @@ router.post("/orders/:id/items", (req, res) => {
             Number.isFinite(unit_price) &&
             unit_price >= 0;
 
+        const itemSourceCount =
+            Number(hasProduct) +
+            Number(hasCustomProduct) +
+            Number(hasCustomItem);
 
-        if (!hasProduct && !hasCustomItem) {
+        if (itemSourceCount !== 1) {
             return res.status(400).json({
                 success: false,
-                error: "Provide either a valid product ID or a custom item name and price."
+                error:
+                    "Provide exactly one of product_id, custom_product_id, or custom_name with unit_price."
             });
         }
 
@@ -547,6 +733,7 @@ router.post("/orders/:id/items", (req, res) => {
         const order = orders.addOrderItem({
             order_id: orderId,
             product_id,
+            custom_product_id,
             custom_name,
             unit_price,
             quantity,
@@ -581,6 +768,7 @@ router.post("/orders/:id/items", (req, res) => {
             error.message.includes("inactive") ||
             error.message.includes("Quantity") ||
             error.message.includes("Custom") ||
+            error.message.includes("Price") ||
             error.message.includes("valid user ID")
         ) {
             return res.status(400).json({
@@ -1022,7 +1210,8 @@ router.post("/orders/:id/payments", (req, res) => {
             error.message.includes("not found") ||
             error.message.includes("Payment amount") ||
             error.message.includes("Invalid payment method") ||
-            error.message.includes("Payment exceeds")
+            error.message.includes("Payment exceeds") ||
+            error.message.includes("cannot be modified")
         ) {
             return res.status(400).json({
                 success: false,
