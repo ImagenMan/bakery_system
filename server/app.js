@@ -10,6 +10,7 @@ const io = new Server(server);
 
 const apiRoutes = require("./routes");
 const authRoutes = require("./routes/auth");
+const productionRoutes = require("./routes/production");
 
 app.use(express.json());
 
@@ -22,6 +23,7 @@ app.use(session({
 app.use(express.static("public"));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/production", requireAuth, productionRoutes);
 app.use("/api", requireAuth, apiRoutes);
 
 io.on("connection", (socket) => {
