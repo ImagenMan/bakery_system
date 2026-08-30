@@ -283,25 +283,35 @@ function updateProductionPlan({
 }) {
     const existingPlan = findProductionPlanById(id);
 
-    validateProductionDate(production_date);
-    validatePlannedQuantity(planned_quantity);
+    const newProductionDate =
+        production_date !== undefined
+            ? production_date
+            : existingPlan.production_date;
+
+    const newPlannedQuantity =
+        planned_quantity !== undefined
+            ? planned_quantity
+            : existingPlan.planned_quantity;
+
+    validateProductionDate(newProductionDate);
+    validatePlannedQuantity(newPlannedQuantity);
 
     const totalProduced = getTotalProduced(existingPlan.id);
 
-        if (planned_quantity < totalProduced) {
-            throw new Error(
-                `Planned quantity cannot be less than the total already produced (${totalProduced}).`
-            );
-        }
+    if (newPlannedQuantity < totalProduced) {
+        throw new Error(
+            `Planned quantity cannot be less than the total already produced (${totalProduced}).`
+        );
+    }
 
-        if (
-            totalProduced > 0 &&
-            production_date !== existingPlan.production_date
-        ) {
-            throw new Error(
-                "Production date cannot be changed after production has started."
-            );
-        }
+    if (
+        totalProduced > 0 &&
+        newProductionDate !== existingPlan.production_date
+    ) {
+        throw new Error(
+            "Production date cannot be changed after production has started."
+        );
+    }
 
     const conflictingPlan = db.prepare(`
         SELECT id
@@ -311,7 +321,7 @@ function updateProductionPlan({
           AND id != ?
     `).get(
         existingPlan.production_item_id,
-        production_date,
+        newProductionDate,
         existingPlan.id
     );
 
@@ -329,12 +339,142 @@ function updateProductionPlan({
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     `).run(
-        production_date,
-        planned_quantity,
+        newProductionDate,
+        newPlannedQuantity,
         existingPlan.id
     );
 
     return findProductionPlanById(id);
+}
+
+function getProductionDemandByDate(production_date) {
+    if (!production_date) {
+        throw new Error("Production date is required.");
+    }
+
+    validateProductionDate(production_date);
+
+    return db.prepare(`
+        SELECT
+            pi.id AS production_item_id,
+            pi.product_id,
+            p.sku,
+            p.name AS product_name,
+            p.unit,
+
+            SUM(oi.quantity) AS demand_quantity
+
+        FROM orders o
+
+        JOIN order_items oi
+            ON oi.order_id = o.id
+
+        JOIN production_items pi
+            ON pi.product_id = oi.product_id
+
+        JOIN products p
+            ON p.id = pi.product_id
+
+        WHERE o.order_type = 'PREORDER'
+          AND o.pickup_date = ?
+          AND o.status != 'CANCELLED'
+          AND pi.active = 1
+          AND p.active = 1
+
+        GROUP BY
+            pi.id,
+            pi.product_id,
+            p.sku,
+            p.name,
+            p.unit
+
+        ORDER BY
+            p.name ASC
+    `).all(production_date);
+}
+
+function getProductionOverviewByDate(production_date) {
+    if (!production_date) {
+        throw new Error("Production date is required.");
+    }
+
+    validateProductionDate(production_date);
+
+    const rows = db.prepare(`
+        SELECT
+            pi.id AS production_item_id,
+            pi.product_id,
+            p.sku,
+            p.name AS product_name,
+            p.unit,
+
+            COALESCE(d.demand_quantity, 0) AS demand_quantity,
+
+            COALESCE(pp.planned_quantity, 0) AS planned_quantity,
+
+            COALESCE(po.total_produced, 0) AS produced_quantity,
+
+            COALESCE(po.total_finished, 0) AS finished_quantity
+
+        FROM production_items pi
+
+        JOIN products p
+            ON p.id = pi.product_id
+
+        LEFT JOIN (
+            SELECT
+                pi.id AS production_item_id,
+                SUM(oi.quantity) AS demand_quantity
+
+            FROM orders o
+
+            JOIN order_items oi
+                ON oi.order_id = o.id
+
+            JOIN production_items pi
+                ON pi.product_id = oi.product_id
+
+            WHERE o.order_type = 'PREORDER'
+              AND o.pickup_date = ?
+              AND o.status != 'CANCELLED'
+              AND pi.active = 1
+
+            GROUP BY pi.id
+        ) d
+            ON d.production_item_id = pi.id
+
+        LEFT JOIN production_plans pp
+            ON pp.production_item_id = pi.id
+           AND pp.production_date = ?
+
+        LEFT JOIN (
+            SELECT
+                production_plan_id,
+                SUM(produced_quantity) AS total_produced,
+                SUM(finished_quantity) AS total_finished
+
+            FROM production_outputs
+
+            GROUP BY production_plan_id
+        ) po
+            ON po.production_plan_id = pp.id
+
+        WHERE pi.active = 1
+          AND p.active = 1
+          AND (
+              COALESCE(d.demand_quantity, 0) > 0
+              OR COALESCE(pp.planned_quantity, 0) > 0
+          )
+
+        ORDER BY
+            p.name ASC,
+            pi.id ASC
+    `).all(
+        production_date,
+        production_date
+    );
+
+    return rows;
 }
 
 module.exports = {
@@ -345,5 +485,7 @@ module.exports = {
     getProductionPlansByDate,
     getProductionPlansByItem,
     createProductionPlan,
-    updateProductionPlan
+    updateProductionPlan,
+    getProductionDemandByDate,
+    getProductionOverviewByDate
 };

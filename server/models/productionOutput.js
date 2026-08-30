@@ -64,6 +64,16 @@ function getProductionOutputsByPlanId(production_plan_id) {
         throw new Error("A valid production plan ID is required.");
     }
 
+    const plan = db.prepare(`
+            SELECT id
+            FROM production_plans
+            WHERE id = ?
+    `).get(production_plan_id);
+
+    if (!plan) {
+        throw new Error("Production plan not found.");
+    }
+
     return db.prepare(`
         SELECT
             po.id,
@@ -85,6 +95,16 @@ function getProductionTotals(production_plan_id) {
         production_plan_id <= 0
     ) {
         throw new Error("A valid production plan ID is required.");
+    }
+
+    const plan = db.prepare(`
+        SELECT id
+        FROM production_plans
+        WHERE id = ?
+    `).get(production_plan_id);
+
+    if (!plan) {
+        throw new Error("Production plan not found.");
     }
 
     return db.prepare(`

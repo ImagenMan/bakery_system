@@ -449,6 +449,86 @@ router.post("/plans", requireAdmin, (req, res) => {
     }
 });
 
+router.get("/demand", (req, res) => {
+    try {
+        const { date } = req.query;
+
+        if (!date) {
+            return res.status(400).json({
+                success: false,
+                error: "Production date is required."
+            });
+        }
+
+        const result =
+            productionPlan.getProductionDemandByDate(date);
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/production/demand error:",
+            error
+        );
+
+        if (
+            error.message.includes("required") ||
+            error.message.includes("valid date")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve production demand."
+        });
+    }
+});
+
+router.get("/overview", (req, res) => {
+    try {
+        const { date } = req.query;
+
+        if (!date) {
+            return res.status(400).json({
+                success: false,
+                error: "Production date is required."
+            });
+        }
+
+        const result =
+            productionPlan.getProductionOverviewByDate(date);
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/production/overview error:",
+            error
+        );
+
+        if (error.message.includes("valid date")) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve production overview."
+        });
+    }
+});
 
 router.put("/plans/:id", requireAdmin, (req, res) => {
     try {
@@ -461,17 +541,20 @@ router.put("/plans/:id", requireAdmin, (req, res) => {
             });
         }
 
-        const {
-            production_date,
-            planned_quantity
-        } = req.body;
+        const updateData = {
+            id
+        };
+
+        if (req.body.production_date !== undefined) {
+            updateData.production_date = req.body.production_date;
+        }
+
+        if (req.body.planned_quantity !== undefined) {
+            updateData.planned_quantity = req.body.planned_quantity;
+        }
 
         const plan =
-            productionPlan.updateProductionPlan({
-                id,
-                production_date,
-                planned_quantity
-            });
+            productionPlan.updateProductionPlan(updateData);
 
         res.json({
             success: true,
@@ -484,9 +567,7 @@ router.put("/plans/:id", requireAdmin, (req, res) => {
             error
         );
 
-        if (
-            error.message.includes("not found")
-        ) {
+        if (error.message.includes("not found")) {
             return res.status(404).json({
                 success: false,
                 error: error.message
@@ -591,6 +672,23 @@ router.get(
                 error
             );
 
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
             res.status(500).json({
                 success: false,
                 error: "Failed to retrieve production outputs."
@@ -629,6 +727,23 @@ router.get(
                 "GET /api/production/plans/:planId/totals error:",
                 error
             );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
 
             res.status(500).json({
                 success: false,
@@ -676,13 +791,19 @@ router.post(
                 error
             );
 
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
             if (
                 error.message.includes("required") ||
                 error.message.includes("valid") ||
                 error.message.includes("positive") ||
                 error.message.includes("non-negative") ||
-                error.message.includes("cannot exceed") ||
-                error.message.includes("not found")
+                error.message.includes("cannot exceed")
             ) {
                 return res.status(400).json({
                     success: false,
@@ -692,7 +813,7 @@ router.post(
 
             res.status(500).json({
                 success: false,
-                error: "Failed to record production output."
+                error: "Failed to create production output."
             });
         }
     }
@@ -895,11 +1016,17 @@ router.post("/supply", requireAdmin, (req, res) => {
             error
         );
 
+        if (error.message.includes("not found")) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
         if (
             error.message.includes("required") ||
             error.message.includes("valid") ||
             error.message.includes("positive") ||
-            error.message.includes("not found") ||
             error.message.includes("inactive") ||
             error.message.includes("already exists")
         ) {
