@@ -625,7 +625,7 @@ function renderProductionItem(
         Math.max(planned - made, 0);
 
     const readyToSell =
-        Math.max(made - available, 0);
+        available;
 
     productionItemDetail.innerHTML = `
 
@@ -663,6 +663,29 @@ function renderProductionItem(
 
         </div>
 
+                <div class="production-plan-editor">
+
+            <label for="planned-quantity">
+                Planned quantity
+            </label>
+
+            <input
+                type="number"
+                id="planned-quantity"
+                min="1"
+                step="1"
+                value="${planned}"
+            >
+
+            <button
+                type="button"
+                id="save-production-plan"
+            >
+                Save
+            </button>
+
+        </div>
+
         <div class="production-actions">
 
             <button
@@ -681,6 +704,19 @@ function renderProductionItem(
 
         </div>
     `;
+
+    document
+        .getElementById("save-production-plan")
+        .addEventListener(
+            "click",
+            () => {
+                saveProductionPlan(
+                    item,
+                    plan,
+                    productionDate
+                );
+            }
+        );
 
     document
         .getElementById("add-made")
@@ -889,7 +925,7 @@ function renderProductionOverview(
             Math.max(planned - made, 0);
 
         const readyToSell =
-            Math.max(made - available, 0);
+            available;
 
         const productionItemId =
             Number(item.production_item_id);
