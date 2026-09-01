@@ -1160,6 +1160,7 @@ router.post("/orders/:id/payments", (req, res) => {
 
         const {
             amount,
+            cash_received,
             payment_method,
             reference,
             notes
@@ -1186,10 +1187,11 @@ router.post("/orders/:id/payments", (req, res) => {
             });
         }
 
-        const order = orders.recordPayment({
+        const result = orders.recordPayment({
             orderId,
             amount,
             paymentMethod: payment_method,
+            cashReceived: cash_received,
             reference,
             recordedBy: req.user.id,
             notes
@@ -1197,7 +1199,8 @@ router.post("/orders/:id/payments", (req, res) => {
 
         res.status(201).json({
             success: true,
-            data: order
+            data: result.order,
+            change: result.change
         });
 
     } catch (error) {
@@ -1211,6 +1214,7 @@ router.post("/orders/:id/payments", (req, res) => {
             error.message.includes("Payment amount") ||
             error.message.includes("Invalid payment method") ||
             error.message.includes("Payment exceeds") ||
+            error.message.includes("Cash received") ||
             error.message.includes("cannot be modified")
         ) {
             return res.status(400).json({

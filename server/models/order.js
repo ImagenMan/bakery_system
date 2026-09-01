@@ -853,6 +853,7 @@ function recordPayment({
     orderId,
     amount,
     paymentMethod,
+    cashReceived = null,
     reference = null,
     recordedBy = null,
     notes = null
@@ -882,7 +883,9 @@ function recordPayment({
 
         const validMethods = [
             "CASH",
-            "BANK_TRANSFER"
+            "CARD",
+            "BANK_TRANSFER",
+            "OTHER"
         ];
 
         if (!validMethods.includes(paymentMethod)) {
@@ -892,6 +895,22 @@ function recordPayment({
         }
 
         const newAmountPaid = roundMoney(order.amount_paid + amount);
+
+        let change = 0;
+
+        if (paymentMethod === "CASH") {
+
+            if (
+                !Number.isFinite(cashReceived) ||
+                cashReceived < amount
+            ) {
+                throw new Error(
+                    "Cash received must be greater than or equal to the payment amount."
+                );
+            }
+
+            change = roundMoney(cashReceived - amount);
+        }
 
         if (newAmountPaid > order.total_amount) {
             throw new Error(
@@ -951,7 +970,16 @@ function recordPayment({
 
     transaction();
 
-    return getOrderById(orderId);
+    let change = 0;
+
+    if (paymentMethod === "CASH") {
+        change = roundMoney(cashReceived - amount);
+    }
+
+    return {
+        order: getOrderById(orderId),
+        change
+    };
 }
 
 function getPaymentHistory(orderId) {

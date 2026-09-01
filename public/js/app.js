@@ -9,6 +9,7 @@ const loginView = document.getElementById("login-view");
 const ordersView = document.getElementById("orders-view");
 const orderDetailView = document.getElementById("order-detail-view");
 const newOrderView = document.getElementById("new-order-view");
+const counterSaleView = document.getElementById("counter-sale-view");
 const productionView = document.getElementById("production-view");
 
 const loginForm = document.getElementById("login-form");
@@ -41,6 +42,7 @@ function showLogin() {
     ordersView.classList.add("hidden");
     orderDetailView.classList.add("hidden");
     newOrderView.classList.add("hidden");
+    counterSaleView.classList.add("hidden");
 
     loginUsername.focus();
 }
@@ -1231,47 +1233,71 @@ function renderOrderDetail(order) {
     
 
     ${
-        balance > 0
-            ? `
-                <div class="payment-control">
+    balance > 0
+        ? `
+            <div class="payment-control">
+
+                <input
+                    type="number"
+                    id="payment-amount"
+                    min="0.01"
+                    max="${balance.toFixed(2)}"
+                    step="0.01"
+                    value="${balance.toFixed(2)}"
+                    inputmode="decimal"
+                >
+
+                <select id="payment-method">
+
+                    <option value="CASH">
+                        CASH
+                    </option>
+
+                    <option value="BANK_TRANSFER">
+                        BANK TRANSFER
+                    </option>
+
+                </select>
+
+                <div
+                    id="cash-received-field"
+                    class="payment-field"
+                >
+
+                    <label for="cash-received">
+                        Cash Received
+                    </label>
 
                     <input
                         type="number"
-                        id="payment-amount"
-                        min="0.01"
-                        max="${balance.toFixed(2)}"
+                        id="cash-received"
+                        min="0"
                         step="0.01"
-                        value="${balance.toFixed(2)}"
                         inputmode="decimal"
+                        placeholder="0.00"
                     >
 
-                    <select id="payment-method">
-
-                        <option value="CASH">
-                            CASH
-                        </option>
-
-                        <option value="BANK_TRANSFER">
-                            BANK TRANSFER
-                        </option>
-
-                    </select>
-
-                    <button
-                        type="button"
-                        id="record-payment"
-                    >
-                        Record Payment
-                    </button>
+                    <p id="cash-change">
+                        Change: $0.00
+                    </p>
 
                 </div>
-            `
-            : `
-                <p class="payment-complete">
-                    ✓ Fully Paid
-                </p>
-            `
-    }
+
+                <button
+                    type="button"
+                    id="record-payment"
+                >
+                    Record Payment
+                </button>
+
+            </div>
+        `
+        : `
+            <p class="payment-complete">
+                ✓ Fully Paid
+            </p>
+        `
+}
 
 </div>
 
@@ -2472,6 +2498,79 @@ function attachOrderDetailListeners(order) {
     // Payment
     // -----------------------------------------------------
 
+const paymentMethodInput =
+    document.getElementById("payment-method");
+
+const cashReceivedField =
+    document.getElementById("cash-received-field");
+
+function updateCashReceivedVisibility() {
+
+    if (!paymentMethodInput || !cashReceivedField) {
+        return;
+    }
+
+    cashReceivedField.style.display =
+        paymentMethodInput.value === "CASH"
+            ? ""
+            : "none";
+}
+
+if (paymentMethodInput) {
+
+    paymentMethodInput.addEventListener(
+        "change",
+        updateCashReceivedVisibility
+    );
+
+    updateCashReceivedVisibility();
+}
+
+const cashReceivedInput =
+    document.getElementById("cash-received");
+
+const cashChangeDisplay =
+    document.getElementById("cash-change");
+
+function updateCashChange() {
+
+    if (
+        !cashReceivedInput ||
+        !cashChangeDisplay
+    ) {
+        return;
+    }
+
+    const amountInput =
+        document.getElementById("payment-amount");
+
+    if (!amountInput) {
+        return;
+    }
+
+    const amount =
+        Number(amountInput.value) || 0;
+
+    const cashReceived =
+        Number(cashReceivedInput.value) || 0;
+
+    const change =
+        Math.max(0, cashReceived - amount);
+
+    cashChangeDisplay.textContent =
+        `Change: ${formatMoney(change)}`;
+}
+
+if (cashReceivedInput) {
+
+    cashReceivedInput.addEventListener(
+        "input",
+        updateCashChange
+    );
+
+    updateCashChange();
+}
+
 const recordPaymentButton =
     document.getElementById("record-payment");
 
@@ -2544,7 +2643,13 @@ if (recordPaymentButton) {
                             },
                             body: JSON.stringify({
                                 amount,
-                                payment_method
+                                payment_method,
+                                cash_received:
+                                    payment_method === "CASH"
+                                        ? Number(
+                                            document.getElementById("cash-received")?.value
+                                        )
+                                        : null
                             })
                         }
                     );
@@ -2970,6 +3075,22 @@ document
             newOrderView.classList.remove("hidden");
 
             renderNewOrderForm();
+        }
+    );
+
+    // Open Counter Sale view
+
+document
+    .getElementById("new-counter-sale")
+    .addEventListener(
+        "click",
+        () => {
+
+            ordersView.classList.add("hidden");
+            newOrderView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+
+            counterSaleView.classList.remove("hidden");
         }
     );
 
