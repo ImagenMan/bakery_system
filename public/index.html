@@ -17,34 +17,101 @@
 
     <main>
 
-    <!-- Orders List -->
+    <!-- Login -->
 
-    <section id="orders-view" class="view">
+    <section id="login-view" class="view">
 
         <div class="section-header">
 
-            <h2>Orders</h2>
+            <h2>Login</h2>
+        </div>
 
-            <div class="header-actions">
-                <button id="new-order">
-                    + New Order
-                </button>
+        <form id="login-form">
 
-                <button id="refresh-orders">
-                    Refresh
-                </button>
+            <div class="form-group">
+
+                <label for="login-username">
+                    Username
+                </label>
+
+                <input
+                    type="text"
+                    id="login-username"
+                    name="username"
+                    autocomplete="username"
+                    required
+                >
+
             </div>
 
-        </div>
+            <div class="form-group">
 
-        <div id="orders-list">
-            <p class="loading">
-                Loading orders...
-            </p>
-        </div>
+                <label for="login-password">
+                    Password
+                </label>
+
+                <input
+                    type="password"
+                    id="login-password"
+                    name="password"
+                    autocomplete="current-password"
+                    required
+                >
+
+            </div>
+
+            <p
+                id="login-error"
+                class="error hidden"
+            ></p>
+
+            <button
+                type="submit"
+                id="login-submit"
+            >
+                Login
+            </button>
+
+        </form>
 
     </section>
 
+
+     <!-- Orders List -->
+
+<section id="orders-view" class="view hidden">
+
+    <div class="section-header">
+
+        <h2>Orders</h2>
+
+        <div class="header-actions">
+
+            <button id="production">
+                Production
+            </button>
+
+            <button id="new-order">
+                + New Order
+            </button>
+
+            <button id="refresh-orders">
+                Refresh
+            </button>
+
+        </div>
+
+    </div>
+
+    <div id="orders-list">
+
+        <p class="loading">
+            Loading orders...
+        </p>
+
+    </div>
+
+</section>
 
     <!-- New Order -->
 
@@ -88,6 +155,67 @@
         </div>
 
     </section>
+
+        <!-- Production Overview -->
+    <section id="production-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-orders-from-production">
+                ← Orders
+            </button>
+
+            <h2>Production</h2>
+
+        </div>
+
+                <div class="production-date">
+
+            <label for="production-date">
+                Production date
+            </label>
+
+            <input
+                type="date"
+                id="production-date"
+            >
+
+        </div>
+
+        <div id="production-overview">
+
+            <p class="loading">
+                Production overview will appear here.
+            </p>
+
+        </div>
+
+    </section>
+
+    <!-- Production Item Planning -->
+<section id="production-item-view" class="view hidden">
+
+    <div class="section-header">
+
+        <button id="back-to-production">
+            ← Production
+        </button>
+
+        <h2 id="production-item-title">
+            Production
+        </h2>
+
+    </div>
+
+    <div id="production-item-detail">
+
+        <p class="loading">
+            Loading production item...
+        </p>
+
+    </div>
+
+</section>
 
 </main>
 

@@ -4,6 +4,8 @@ const router = express.Router();
 const { requireAdmin } = require("../middleware/auth");
 
 const productionItem = require("../models/productionItem");
+const productionAvailable =
+    require("../models/productionAvailable");
 
 // =========================================================
 // Production Items
@@ -762,8 +764,7 @@ router.post(
                 Number(req.params.planId);
 
             const {
-                produced_quantity,
-                finished_quantity = 0
+                produced_quantity
             } = req.body;
 
             if (!Number.isInteger(planId) || planId <= 0) {
@@ -776,8 +777,7 @@ router.post(
             const output =
                 productionOutput.createProductionOutput({
                     production_plan_id: planId,
-                    produced_quantity,
-                    finished_quantity
+                    produced_quantity
                 });
 
             res.status(201).json({
@@ -801,9 +801,7 @@ router.post(
             if (
                 error.message.includes("required") ||
                 error.message.includes("valid") ||
-                error.message.includes("positive") ||
-                error.message.includes("non-negative") ||
-                error.message.includes("cannot exceed")
+                error.message.includes("positive")
             ) {
                 return res.status(400).json({
                     success: false,
@@ -814,6 +812,132 @@ router.post(
             res.status(500).json({
                 success: false,
                 error: "Failed to create production output."
+            });
+        }
+    }
+);
+
+// =========================================================
+// Production Available
+// =========================================================
+
+router.get(
+    "/plans/:planId/available",
+    (req, res) => {
+        try {
+            const planId =
+                Number(req.params.planId);
+
+            if (!Number.isInteger(planId) || planId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production plan ID."
+                });
+            }
+
+            const result =
+                productionAvailable
+                    .getProductionAvailableByPlanId(
+                        planId
+                    );
+
+            res.json({
+                success: true,
+                data: result
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/production/plans/:planId/available error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error:
+                    "Failed to retrieve production available records."
+            });
+        }
+    }
+);
+
+
+router.post(
+    "/plans/:planId/available",
+    (req, res) => {
+        try {
+            const planId =
+                Number(req.params.planId);
+
+            const {
+                available_quantity
+            } = req.body;
+
+            if (!Number.isInteger(planId) || planId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production plan ID."
+                });
+            }
+
+            const available =
+                productionAvailable
+                    .createProductionAvailable({
+                        production_plan_id: planId,
+                        available_quantity
+                    });
+
+            res.status(201).json({
+                success: true,
+                data: available
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/production/plans/:planId/available error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive") ||
+                error.message.includes("cannot exceed")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error:
+                    "Failed to create production available record."
             });
         }
     }

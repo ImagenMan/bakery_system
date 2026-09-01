@@ -5,15 +5,176 @@
 
 // --- DOM Elements ---
 
+const loginView = document.getElementById("login-view");
 const ordersView = document.getElementById("orders-view");
 const orderDetailView = document.getElementById("order-detail-view");
 const newOrderView = document.getElementById("new-order-view");
+const productionView = document.getElementById("production-view");
+
+const loginForm = document.getElementById("login-form");
+const loginUsername = document.getElementById("login-username");
+const loginPassword = document.getElementById("login-password");
+const loginError = document.getElementById("login-error");
 
 const ordersList = document.getElementById("orders-list");
 const orderDetail = document.getElementById("order-detail");
 const newOrderForm = document.getElementById("new-order-form");
 
+const productionOverview =
+    document.getElementById("production-overview");
+const productionItemView =
+    document.getElementById("production-item-view");
 
+const productionItemTitle =
+    document.getElementById("production-item-title");
+
+const productionItemDetail =
+    document.getElementById("production-item-detail");
+
+// =========================================================
+// Authentication
+// =========================================================
+
+function showLogin() {
+    loginView.classList.remove("hidden");
+
+    ordersView.classList.add("hidden");
+    orderDetailView.classList.add("hidden");
+    newOrderView.classList.add("hidden");
+
+    loginUsername.focus();
+}
+
+
+function showApplication() {
+    loginView.classList.add("hidden");
+
+    ordersView.classList.remove("hidden");
+
+    loadOrders();
+}
+
+
+async function checkAuthentication() {
+    try {
+        const response = await fetch("/api/auth/me");
+
+        if (response.status === 401) {
+            showLogin();
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                `Authentication check failed (${response.status}).`
+            );
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            showLogin();
+            return;
+        }
+
+        showApplication();
+
+    } catch (error) {
+        console.error(
+            "Authentication check error:",
+            error
+        );
+
+        loginError.textContent =
+            "Unable to connect to the server.";
+
+        loginError.classList.remove("hidden");
+
+        showLogin();
+    }
+}
+
+
+loginForm.addEventListener(
+    "submit",
+    async event => {
+
+        event.preventDefault();
+
+        loginError.textContent = "";
+        loginError.classList.add("hidden");
+
+        const username =
+            loginUsername.value.trim();
+
+        const password =
+            loginPassword.value;
+
+        if (!username || !password) {
+            loginError.textContent =
+                "Username and password are required.";
+
+            loginError.classList.remove("hidden");
+
+            return;
+        }
+
+        const submitButton =
+            document.getElementById("login-submit");
+
+        submitButton.disabled = true;
+        submitButton.textContent = "Logging in...";
+
+        try {
+
+            const response = await fetch(
+                "/api/auth/login/password",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                }
+            );
+
+            const result =
+                await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(
+                    result.error ||
+                    "Login failed."
+                );
+            }
+
+            loginPassword.value = "";
+
+            showApplication();
+
+        } catch (error) {
+
+            console.error(
+                "Login error:",
+                error
+            );
+
+            loginError.textContent =
+                error.message;
+
+            loginError.classList.remove("hidden");
+
+        } finally {
+
+            submitButton.disabled = false;
+            submitButton.textContent = "Login";
+        }
+    }
+);
 
 // =========================================================
 // Utility Functions
@@ -151,6 +312,818 @@ function renderOrders(orders) {
         });
 }
 
+// =========================================================
+// Production Overview
+// =========================================================
+
+async function loadProductionOverview(date) {
+
+    productionOverview.innerHTML = `
+        <p class="loading">
+            Loading production...
+        </p>
+    `;
+
+    try {
+
+        const response = await fetch(
+            `/api/production/overview?date=${encodeURIComponent(date)}`
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Server returned ${response.status}.`
+            );
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to load production overview."
+            );
+        }
+
+        renderProductionOverview(
+            result.data,
+            date
+        );
+
+    } catch (error) {
+
+        console.error(
+            "loadProductionOverview error:",
+            error
+        );
+
+        productionOverview.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+// =========================================================
+// Production Item
+// =========================================================
+
+async function loadProductionItem(
+    productionItemId,
+    productionDate
+) {
+
+    productionView.classList.add("hidden");
+    productionItemView.classList.remove("hidden");
+
+    productionItemDetail.innerHTML = `
+        <p class="loading">
+            Loading production item...
+        </p>
+    `;
+
+    try {
+
+        // -------------------------------------------------
+        // Load production item
+        // -------------------------------------------------
+
+        const itemResponse =
+            await fetch(
+                `/api/production/items/${productionItemId}`
+            );
+
+        if (!itemResponse.ok) {
+            throw new Error(
+                `Server returned ${itemResponse.status}.`
+            );
+        }
+
+        const itemResult =
+            await itemResponse.json();
+
+        if (!itemResult.success) {
+            throw new Error(
+                itemResult.error ||
+                "Failed to load production item."
+            );
+        }
+
+        const item =
+            itemResult.data;
+
+
+        // -------------------------------------------------
+        // Load production plan for this date
+        // -------------------------------------------------
+
+        const planResponse =
+            await fetch(
+                `/api/production/plans/item/${productionItemId}/date/${productionDate}`
+            );
+
+        let plan = null;
+
+        if (planResponse.status === 404) {
+
+            plan = null;
+
+        } else {
+
+            if (!planResponse.ok) {
+                throw new Error(
+                    `Server returned ${planResponse.status}.`
+                );
+            }
+
+            const planResult =
+                await planResponse.json();
+
+            if (!planResult.success) {
+                throw new Error(
+                    planResult.error ||
+                    "Failed to load production plan."
+                );
+            }
+
+            plan =
+                planResult.data;
+        }
+
+
+        // -------------------------------------------------
+        // Load demand for this date
+        // -------------------------------------------------
+
+        const demandResponse =
+            await fetch(
+                `/api/production/demand?date=${encodeURIComponent(productionDate)}`
+            );
+
+        if (!demandResponse.ok) {
+            throw new Error(
+                `Server returned ${demandResponse.status}.`
+            );
+        }
+
+        const demandResult =
+            await demandResponse.json();
+
+        if (!demandResult.success) {
+            throw new Error(
+                demandResult.error ||
+                "Failed to load production demand."
+            );
+        }
+
+        const demandItem =
+            demandResult.data.find(
+                row =>
+                    Number(row.production_item_id) ===
+                    Number(productionItemId)
+            );
+
+        // -------------------------------------------------
+        // Load production totals
+        // -------------------------------------------------
+
+        let totals = {
+            total_produced: 0
+        };
+
+        let availableQuantity = 0;
+
+        if (
+            plan &&
+            Number.isInteger(Number(plan.id)) &&
+            Number(plan.id) > 0
+        ) {
+
+            const totalsResponse =
+                await fetch(
+                    `/api/production/plans/${Number(plan.id)}/totals`
+                );
+
+            if (!totalsResponse.ok) {
+                throw new Error(
+                    `Server returned ${totalsResponse.status}.`
+                );
+            }
+
+            const totalsResult =
+                await totalsResponse.json();
+
+            if (!totalsResult.success) {
+                throw new Error(
+                    totalsResult.error ||
+                    "Failed to load production totals."
+                );
+            }
+
+            totals =
+                totalsResult.data;
+
+            const availableResponse =
+                await fetch(
+                    `/api/production/plans/${Number(plan.id)}/available`
+                );
+
+            if (!availableResponse.ok) {
+                throw new Error(
+                    `Server returned ${availableResponse.status}.`
+                );
+            }
+
+            const availableResult =
+                await availableResponse.json();
+
+            if (!availableResult.success) {
+                throw new Error(
+                    availableResult.error ||
+                    "Failed to load available production."
+                );
+            }
+
+            availableQuantity =
+                availableResult.data.reduce(
+                    (total, row) =>
+                        total +
+                        (Number(row.available_quantity) || 0),
+                    0
+                );
+        }
+
+        // -------------------------------------------------
+        // Render
+        // -------------------------------------------------
+
+        renderProductionItem(
+            {
+                ...item,
+
+                demand_quantity:
+                    demandItem
+                        ? demandItem.demand_quantity
+                        : 0,
+
+                made_quantity:
+                    Number(totals.total_produced) || 0,
+
+                available_quantity:
+                    availableQuantity
+            },
+            plan,
+            productionDate,
+            productionItemId
+        );
+
+    } catch (error) {
+
+        console.error(
+            "loadProductionItem error:",
+            error
+        );
+
+        productionItemDetail.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+// =========================================================
+// Render Production Item
+// =========================================================
+
+function renderProductionItem(
+    item,
+    plan,
+    productionDate,
+    productionItemId
+) {
+
+    productionItemTitle.textContent =
+        item.product_name;
+
+    const demand =
+        Number(item.demand_quantity) || 0;
+
+    const planned =
+        plan
+            ? Number(plan.planned_quantity) || 0
+            : 0;
+
+    const made =
+    Number(item.made_quantity) || 0;
+
+    const available =
+        Number(item.available_quantity) || 0;
+
+    const toMake =
+        Math.max(planned - made, 0);
+
+    const readyToSell =
+        Math.max(made - available, 0);
+
+    productionItemDetail.innerHTML = `
+
+        <div class="production-plan">
+
+            <div>
+                <strong>Committed</strong>
+                <span>${demand}</span>
+            </div>
+
+            <div>
+                <strong>Planned</strong>
+                <span>${planned}</span>
+            </div>
+
+            <div>
+                <strong>Made</strong>
+                <span>${made}</span>
+            </div>
+
+            <div>
+                <strong>Available</strong>
+                <span>${available}</span>
+            </div>
+
+            <div>
+                <strong>To Make</strong>
+                <span>${toMake}</span>
+            </div>
+
+            <div>
+                <strong>Ready to Sell</strong>
+                <span>${readyToSell}</span>
+</div>
+
+        </div>
+
+        <div class="production-actions">
+
+            <button
+                type="button"
+                id="add-made"
+            >
+                + Made
+            </button>
+
+            <button
+                type="button"
+                id="add-available"
+            >
+                + Available
+            </button>
+
+        </div>
+    `;
+
+    document
+        .getElementById("add-made")
+        .addEventListener(
+            "click",
+            () => {
+                recordProductionMade(
+                    plan,
+                    productionDate,
+                    productionItemId
+                );
+            }
+        );
+
+    document
+        .getElementById("add-available")
+        .addEventListener(
+            "click",
+            () => {
+                recordProductionAvailable(
+                    plan,
+                    productionDate,
+                    productionItemId
+                );
+            }
+        );
+}
+
+async function recordProductionMade(
+    plan,
+    productionDate,
+    productionItemId
+) {
+
+    if (!plan || !Number(plan.id)) {
+        alert("Save a production plan first.");
+        return;
+    }
+
+    const button =
+        document.getElementById("add-made");
+
+    if (!button) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Recording...";
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/production/plans/${Number(plan.id)}/outputs`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        produced_quantity: 1
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to record production."
+            );
+        }
+
+        await loadProductionItem(
+            productionItemId,
+            productionDate
+        );
+
+    } catch (error) {
+
+        console.error(
+            "recordProductionMade error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Failed to record production."
+        );
+
+        button.disabled = false;
+        button.textContent = "+ Made";
+    }
+}
+
+async function recordProductionAvailable(
+    plan,
+    productionDate,
+    productionItemId
+) {
+
+    if (!plan || !Number(plan.id)) {
+        alert("Save a production plan first.");
+        return;
+    }
+
+    const button =
+        document.getElementById("add-available");
+
+    if (!button) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Recording...";
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/production/plans/${Number(plan.id)}/available`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        available_quantity: 1
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to record available quantity."
+            );
+        }
+
+        await loadProductionItem(
+            productionItemId,
+            productionDate
+        );
+
+    } catch (error) {
+
+        console.error(
+            "recordProductionAvailable error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Failed to record available quantity."
+        );
+
+        button.disabled = false;
+        button.textContent = "+ Available";
+    }
+}
+
+// =========================================================
+// Render Production Overview
+// =========================================================
+
+function renderProductionOverview(
+    items,
+    productionDate
+) {
+
+    if (!Array.isArray(items) || items.length === 0) {
+
+        productionOverview.innerHTML = `
+            <p>No production demand for this date.</p>
+        `;
+
+        return;
+    }
+
+    productionOverview.innerHTML = items.map(item => {
+
+        const demand =
+            Number(item.demand_quantity) || 0;
+
+        const planned =
+            Number(item.planned_quantity) || 0;
+
+        const made =
+            Number(item.made_quantity) || 0;
+
+        const available =
+            Number(item.available_quantity) || 0;
+
+        const toMake =
+            Math.max(planned - made, 0);
+
+        const readyToSell =
+            Math.max(made - available, 0);
+
+        const productionItemId =
+            Number(item.production_item_id);
+
+        return `
+            <button
+                type="button"
+                class="production-item"
+                data-production-item-id="${productionItemId}"
+            >
+
+                <strong>
+                    ${escapeHTML(item.product_name)}
+                </strong>
+
+                <span>
+                    ${demand} committed
+                    ·
+                    ${planned} planned
+                    ·
+                    ${made} made
+                    ·
+                    ${available} available
+                    ·
+                    ${toMake} to make
+                    ·
+                    ${readyToSell} ready to sell
+                </span>
+
+            </button>
+        `;
+
+    }).join("");
+
+    document
+        .querySelectorAll(".production-item")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const productionItemId =
+                        Number(
+                            button.dataset.productionItemId
+                        );
+
+                    if (
+                        !Number.isInteger(productionItemId) ||
+                        productionItemId <= 0
+                    ) {
+                        return;
+                    }
+
+                    loadProductionItem(
+                        productionItemId,
+                        productionDate
+                    );
+                }
+            );
+        });
+}
+
+// =========================================================
+// Save Production Plan
+// =========================================================
+
+async function saveProductionPlan(
+    item,
+    plan,
+    productionDate
+) {
+
+    const input =
+        document.getElementById("planned-quantity");
+
+    const saveButton =
+        document.getElementById("save-production-plan");
+
+    if (!input || !saveButton) {
+        console.error(
+            "Production plan controls not found."
+        );
+
+        return;
+    }
+
+    const productionItemId =
+        Number(item && item.id);
+
+    if (
+        !Number.isInteger(productionItemId) ||
+        productionItemId <= 0
+    ) {
+        alert(
+            "Invalid production item."
+        );
+
+        console.error(
+            "Invalid production item:",
+            item
+        );
+
+        return;
+    }
+
+    const plannedQuantity =
+        Number(input.value);
+
+    if (
+        !Number.isInteger(plannedQuantity) ||
+        plannedQuantity <= 0
+    ) {
+        alert(
+            "Planned quantity must be a positive whole number."
+        );
+
+        input.focus();
+
+        return;
+    }
+
+    if (!productionDate) {
+        alert(
+            "Production date is required."
+        );
+
+        return;
+    }
+
+    saveButton.disabled = true;
+    saveButton.textContent = "Saving...";
+
+    try {
+
+        let response;
+
+        /*
+         * Existing plan
+         */
+        if (
+            plan &&
+            Number.isInteger(Number(plan.id)) &&
+            Number(plan.id) > 0
+        ) {
+
+            const planId =
+                Number(plan.id);
+
+            response = await fetch(
+                `/api/production/plans/${planId}`,
+                {
+                    method: "PUT",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        planned_quantity:
+                            plannedQuantity
+                    })
+                }
+            );
+
+        }
+
+        /*
+         * No existing plan
+         */
+        else {
+
+            response = await fetch(
+                "/api/production/plans",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        production_item_id:
+                            productionItemId,
+
+                        production_date:
+                            productionDate,
+
+                        planned_quantity:
+                            plannedQuantity
+                    })
+                }
+            );
+        }
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to save production plan."
+            );
+        }
+
+        /*
+         * Reload the item so the screen reflects
+         * the plan that was actually saved.
+         */
+        await loadProductionItem(
+            productionItemId,
+            productionDate
+        );
+
+    } catch (error) {
+
+        console.error(
+            "saveProductionPlan error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Failed to save production plan."
+        );
+
+    } finally {
+
+        saveButton.disabled = false;
+        saveButton.textContent = "Save";
+    }
+}
 
 // =========================================================
 // Order Detail
@@ -1995,6 +2968,73 @@ function attachNewOrderFormListeners() {
 // Navigation
 // =========================================================
 
+// Open Production view
+
+document
+    .getElementById("production")
+    .addEventListener(
+        "click",
+        () => {
+
+            ordersView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+            newOrderView.classList.add("hidden");
+
+            productionView.classList.remove("hidden");
+
+            const productionDate =
+                document.getElementById("production-date");
+
+            if (productionDate) {
+
+                if (!productionDate.value) {
+                    productionDate.value =
+                        new Date().toISOString().split("T")[0];
+                }
+
+                loadProductionOverview(
+                    productionDate.value
+                );
+            }
+        }
+    );
+
+document
+    .getElementById("production-date")
+    .addEventListener(
+        "change",
+        (event) => {
+
+            loadProductionOverview(
+                event.target.value
+            );
+        }
+    );
+
+
+// Back from Production Item to Production Overview
+
+document
+    .getElementById("back-to-production")
+    .addEventListener(
+        "click",
+        () => {
+
+            productionItemView.classList.add("hidden");
+            productionView.classList.remove("hidden");
+
+            const productionDate =
+                document.getElementById("production-date");
+
+            if (productionDate) {
+                loadProductionOverview(
+                    productionDate.value
+                );
+            }
+        }
+    );
+
+
 // Open New Order view
 
 document
@@ -2050,4 +3090,4 @@ document
 // Initial Load
 // =========================================================
 
-loadOrders();
+checkAuthentication();

@@ -412,9 +412,9 @@ function getProductionOverviewByDate(production_date) {
 
             COALESCE(pp.planned_quantity, 0) AS planned_quantity,
 
-            COALESCE(po.total_produced, 0) AS produced_quantity,
+            COALESCE(po.total_produced, 0) AS made_quantity,
 
-            COALESCE(po.total_finished, 0) AS finished_quantity
+            COALESCE(pa.total_available, 0) AS available_quantity
 
         FROM production_items pi
 
@@ -450,8 +450,7 @@ function getProductionOverviewByDate(production_date) {
         LEFT JOIN (
             SELECT
                 production_plan_id,
-                SUM(produced_quantity) AS total_produced,
-                SUM(finished_quantity) AS total_finished
+                SUM(produced_quantity) AS total_produced
 
             FROM production_outputs
 
@@ -459,12 +458,20 @@ function getProductionOverviewByDate(production_date) {
         ) po
             ON po.production_plan_id = pp.id
 
+        LEFT JOIN (
+            SELECT
+                production_plan_id,
+                SUM(available_quantity) AS total_available
+
+            FROM production_available
+
+            GROUP BY production_plan_id
+        ) pa
+            ON pa.production_plan_id = pp.id
+
         WHERE pi.active = 1
-          AND p.active = 1
-          AND (
-              COALESCE(d.demand_quantity, 0) > 0
-              OR COALESCE(pp.planned_quantity, 0) > 0
-          )
+            AND p.active = 1
+            AND COALESCE(d.demand_quantity, 0) > 0
 
         ORDER BY
             p.name ASC,

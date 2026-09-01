@@ -8,18 +8,18 @@ function validatePositiveInteger(value, fieldName) {
     }
 }
 
-function getProductionOutputById(id) {
+function getProductionAvailableById(id) {
     if (!Number.isInteger(id) || id <= 0) {
         throw new Error(
-            "A valid production output ID is required."
+            "A valid production available ID is required."
         );
     }
 
     return db.prepare(`
         SELECT
-            po.id,
-            po.production_plan_id,
-            po.produced_quantity,
+            pa.id,
+            pa.production_plan_id,
+            pa.available_quantity,
             pp.production_item_id,
             pp.production_date,
             pp.planned_quantity,
@@ -27,31 +27,31 @@ function getProductionOutputById(id) {
             p.sku,
             p.name AS product_name,
             p.unit,
-            po.created_at
-        FROM production_outputs po
+            pa.created_at
+        FROM production_available pa
         JOIN production_plans pp
-            ON po.production_plan_id = pp.id
+            ON pa.production_plan_id = pp.id
         JOIN production_items pi
             ON pp.production_item_id = pi.id
         JOIN products p
             ON pi.product_id = p.id
-        WHERE po.id = ?
+        WHERE pa.id = ?
     `).get(id);
 }
 
-function findProductionOutputById(id) {
-    const output = getProductionOutputById(id);
+function findProductionAvailableById(id) {
+    const available = getProductionAvailableById(id);
 
-    if (!output) {
+    if (!available) {
         throw new Error(
-            `Production output ${id} not found.`
+            `Production available ${id} not found.`
         );
     }
 
-    return output;
+    return available;
 }
 
-function getProductionOutputsByPlanId(production_plan_id) {
+function getProductionAvailableByPlanId(production_plan_id) {
     if (
         !Number.isInteger(production_plan_id) ||
         production_plan_id <= 0
@@ -75,9 +75,9 @@ function getProductionOutputsByPlanId(production_plan_id) {
         SELECT
             id,
             production_plan_id,
-            produced_quantity,
+            available_quantity,
             created_at
-        FROM production_outputs
+        FROM production_available
         WHERE production_plan_id = ?
         ORDER BY
             created_at ASC,
@@ -85,7 +85,7 @@ function getProductionOutputsByPlanId(production_plan_id) {
     `).all(production_plan_id);
 }
 
-function getProductionTotals(production_plan_id) {
+function getAvailableTotal(production_plan_id) {
     if (
         !Number.isInteger(production_plan_id) ||
         production_plan_id <= 0
@@ -105,20 +105,22 @@ function getProductionTotals(production_plan_id) {
         throw new Error("Production plan not found.");
     }
 
-    return db.prepare(`
+    const result = db.prepare(`
         SELECT
             COALESCE(
-                SUM(produced_quantity),
+                SUM(available_quantity),
                 0
-            ) AS total_produced
-        FROM production_outputs
+            ) AS total_available
+        FROM production_available
         WHERE production_plan_id = ?
     `).get(production_plan_id);
+
+    return result.total_available;
 }
 
-function createProductionOutput({
+function createProductionAvailable({
     production_plan_id,
-    produced_quantity
+    available_quantity
 }) {
     if (
         !Number.isInteger(production_plan_id) ||
@@ -130,55 +132,70 @@ function createProductionOutput({
     }
 
     validatePositiveInteger(
-        produced_quantity,
-        "Produced quantity"
+        available_quantity,
+        "Available quantity"
     );
 
     const plan = db.prepare(`
         SELECT
-            pp.id,
-            pp.production_item_id,
-            pp.production_date,
-            pp.planned_quantity,
-            pi.active AS production_item_active,
-            p.active AS product_active
-        FROM production_plans pp
-        JOIN production_items pi
-            ON pp.production_item_id = pi.id
-        JOIN products p
-            ON pi.product_id = p.id
-        WHERE pp.id = ?
+            id
+        FROM production_plans
+        WHERE id = ?
     `).get(production_plan_id);
 
     if (!plan) {
         throw new Error("Production plan not found.");
     }
 
-    /*
-     * Production outputs represent historical production.
-     * The total made may exceed the original plan.
-     */
+    const totalProduced = db.prepare(`
+        SELECT
+            COALESCE(
+                SUM(produced_quantity),
+                0
+            ) AS total_produced
+        FROM production_outputs
+        WHERE production_plan_id = ?
+    `).get(production_plan_id).total_produced;
+
+    const totalAvailable = db.prepare(`
+        SELECT
+            COALESCE(
+                SUM(available_quantity),
+                0
+            ) AS total_available
+        FROM production_available
+        WHERE production_plan_id = ?
+    `).get(production_plan_id).total_available;
+
+    if (
+        totalAvailable + available_quantity >
+        totalProduced
+    ) {
+        throw new Error(
+            `Available quantity cannot exceed total made quantity (${totalProduced}).`
+        );
+    }
 
     const result = db.prepare(`
-        INSERT INTO production_outputs (
+        INSERT INTO production_available (
             production_plan_id,
-            produced_quantity
+            available_quantity
         )
         VALUES (?, ?)
     `).run(
         production_plan_id,
-        produced_quantity
+        available_quantity
     );
 
-    return findProductionOutputById(
+    return findProductionAvailableById(
         result.lastInsertRowid
     );
 }
 
 module.exports = {
-    getProductionOutputById,
-    findProductionOutputById,
-    getProductionOutputsByPlanId,
-    getProductionTotals,
-    createProductionOutput
+    getProductionAvailableById,
+    findProductionAvailableById,
+    getProductionAvailableByPlanId,
+    getAvailableTotal,
+    createProductionAvailable
 };
