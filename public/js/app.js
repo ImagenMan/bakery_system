@@ -492,8 +492,6 @@ async function loadProductionItem(
             total_produced: 0
         };
 
-        let availableQuantity = 0;
-
         if (
             plan &&
             Number.isInteger(Number(plan.id)) &&
@@ -523,35 +521,6 @@ async function loadProductionItem(
 
             totals =
                 totalsResult.data;
-
-            const availableResponse =
-                await fetch(
-                    `/api/production/plans/${Number(plan.id)}/available`
-                );
-
-            if (!availableResponse.ok) {
-                throw new Error(
-                    `Server returned ${availableResponse.status}.`
-                );
-            }
-
-            const availableResult =
-                await availableResponse.json();
-
-            if (!availableResult.success) {
-                throw new Error(
-                    availableResult.error ||
-                    "Failed to load available production."
-                );
-            }
-
-            availableQuantity =
-                availableResult.data.reduce(
-                    (total, row) =>
-                        total +
-                        (Number(row.available_quantity) || 0),
-                    0
-                );
         }
 
         // -------------------------------------------------
@@ -568,10 +537,7 @@ async function loadProductionItem(
                         : 0,
 
                 made_quantity:
-                    Number(totals.total_produced) || 0,
-
-                available_quantity:
-                    availableQuantity
+                    Number(totals.total_produced) || 0
             },
             plan,
             productionDate,
@@ -618,14 +584,8 @@ function renderProductionItem(
     const made =
     Number(item.made_quantity) || 0;
 
-    const available =
-        Number(item.available_quantity) || 0;
-
     const toMake =
         Math.max(planned - made, 0);
-
-    const readyToSell =
-        available;
 
     productionItemDetail.innerHTML = `
 
@@ -647,19 +607,10 @@ function renderProductionItem(
             </div>
 
             <div>
-                <strong>Available</strong>
-                <span>${available}</span>
-            </div>
-
-            <div>
                 <strong>To Make</strong>
                 <span>${toMake}</span>
             </div>
 
-            <div>
-                <strong>Ready to Sell</strong>
-                <span>${readyToSell}</span>
-</div>
 
         </div>
 
@@ -688,18 +639,23 @@ function renderProductionItem(
 
         <div class="production-actions">
 
+            <label for="made-quantity">
+                Quantity made
+            </label>
+
+            <input
+                type="number"
+                id="made-quantity"
+                min="1"
+                step="1"
+                placeholder="e.g. 50"
+            >
+
             <button
                 type="button"
                 id="add-made"
             >
                 + Made
-            </button>
-
-            <button
-                type="button"
-                id="add-available"
-            >
-                + Available
             </button>
 
         </div>
@@ -731,18 +687,6 @@ function renderProductionItem(
             }
         );
 
-    document
-        .getElementById("add-available")
-        .addEventListener(
-            "click",
-            () => {
-                recordProductionAvailable(
-                    plan,
-                    productionDate,
-                    productionItemId
-                );
-            }
-        );
 }
 
 async function recordProductionMade(
@@ -763,6 +707,29 @@ async function recordProductionMade(
         return;
     }
 
+    const input =
+        document.getElementById("made-quantity");
+
+    if (!input) {
+        return;
+    }
+
+    const madeQuantity =
+        Number(input.value);
+
+    if (
+        !Number.isInteger(madeQuantity) ||
+        madeQuantity <= 0
+    ) {
+        alert(
+            "Quantity made must be a positive whole number."
+        );
+
+        input.focus();
+
+        return;
+    }
+
     button.disabled = true;
     button.textContent = "Recording...";
 
@@ -780,7 +747,7 @@ async function recordProductionMade(
                     },
 
                     body: JSON.stringify({
-                        produced_quantity: 1
+                        produced_quantity: madeQuantity
                     })
                 }
             );
@@ -817,78 +784,6 @@ async function recordProductionMade(
     }
 }
 
-async function recordProductionAvailable(
-    plan,
-    productionDate,
-    productionItemId
-) {
-
-    if (!plan || !Number(plan.id)) {
-        alert("Save a production plan first.");
-        return;
-    }
-
-    const button =
-        document.getElementById("add-available");
-
-    if (!button) {
-        return;
-    }
-
-    button.disabled = true;
-    button.textContent = "Recording...";
-
-    try {
-
-        const response =
-            await fetch(
-                `/api/production/plans/${Number(plan.id)}/available`,
-                {
-                    method: "POST",
-
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-
-                    body: JSON.stringify({
-                        available_quantity: 1
-                    })
-                }
-            );
-
-        const result =
-            await response.json();
-
-        if (!response.ok || !result.success) {
-            throw new Error(
-                result.error ||
-                "Failed to record available quantity."
-            );
-        }
-
-        await loadProductionItem(
-            productionItemId,
-            productionDate
-        );
-
-    } catch (error) {
-
-        console.error(
-            "recordProductionAvailable error:",
-            error
-        );
-
-        alert(
-            error.message ||
-            "Failed to record available quantity."
-        );
-
-        button.disabled = false;
-        button.textContent = "+ Available";
-    }
-}
-
 // =========================================================
 // Render Production Overview
 // =========================================================
@@ -918,14 +813,8 @@ function renderProductionOverview(
         const made =
             Number(item.made_quantity) || 0;
 
-        const available =
-            Number(item.available_quantity) || 0;
-
         const toMake =
             Math.max(planned - made, 0);
-
-        const readyToSell =
-            available;
 
         const productionItemId =
             Number(item.production_item_id);
@@ -946,13 +835,9 @@ function renderProductionOverview(
                     ·
                     ${planned} planned
                     ·
-                    ${made} made
-                    ·
-                    ${available} available
-                    ·
                     ${toMake} to make
                     ·
-                    ${readyToSell} ready to sell
+                    ${made} made
                 </span>
 
             </button>
