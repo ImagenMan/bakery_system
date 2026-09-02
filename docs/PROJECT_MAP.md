@@ -612,787 +612,594 @@ Next checkpoint:
 Checkpoint Sep 1 2026
 I have asked GPT to rewrite our map and to include some of the newest features we have been working on. I will leave our original map here ONLY for a reference. From here on this is the newest version of our map and this is what we will be using.
 
-# Vicky's Sourdough Donuts — Project Map
+# Bakery System — Project Map
 
-## 1. Purpose of This Document
+**Project:** Vicky’s Sourdough Donuts
+**Repository:** `bakery_system`
+**Primary runtime:** Raspberry Pi / Debian Bullseye
+**Stack:** Node.js, Express, SQLite (`better-sqlite3`), vanilla JavaScript, HTML/CSS
+**Current branch:** `main`
 
-This document is the architectural and operational memory of the Bakery System.
+---
 
-It records:
+## 1. Purpose
 
+This document is the high-level map of the Bakery System.
+
+It describes:
+
+* the current application architecture
+* implemented business behavior
 * important business rules
-* architectural decisions
-* database concepts
 * security boundaries
-* workflow decisions
-* implementation status
-* known technical constraints
-* major lessons learned
-* guidance for AI assistants working on the project
+* production workflow
+* current implementation status
+* intended future architecture
+* immediate development priorities
 
-It is **not** a command-by-command development diary.
+This document distinguishes **implemented behavior** from **planned or intended architecture**. A feature described as planned is not assumed to exist in the current code.
 
-When a major architectural, business-rule, schema, security, or workflow decision is made, this document should be updated so that future development sessions begin from the correct understanding of the system.
+The guiding principle is:
 
-The actual source code, database schema, migrations, and tests remain the final authority for what is implemented. This document describes the intended architecture and the current known state.
-
----
-
-# 2. Project Overview
-
-Vicky's Sourdough Donuts is a local bakery order-management and production workflow system.
-
-The system is intended to replace the current combination of:
-
-* Google Sheets
-* Facebook Messenger
-* WhatsApp
-* phone orders
-* in-person communication
-* informal kitchen communication
-
-The application is intended to provide a shared workflow for bakery staff across devices on the local network.
-
-Primary operational goals:
-
-* Capture customer orders reliably.
-* Reduce errors caused by searching and editing spreadsheets.
-* Keep customer and order information centralized.
-* Support preorder and same-day counter-sale workflows.
-* Track payments and partial payments.
-* Track production and pickup quantities.
-* Support shared bakery production workflows.
-* Restrict sensitive actions such as special pricing to authorized users.
-* Provide useful customer history.
-* Provide a safe training environment for employees.
-* Provide a foundation for future inventory, reporting, promotions, and dashboard features.
-
-The guiding UX principle is:
-
-> **Simple is King.**
-
-The application should follow the real bakery workflow rather than forcing the bakery to adopt an unnecessarily complicated software workflow.
+> **Keep the system simple, trustworthy, and aligned with the real bakery workflow.**
 
 ---
 
-# 3. Core UX / Architecture Principles
+# 2. Core Architecture
 
-These principles should guide future decisions.
+```text
+Browser
+  ↓
+Vanilla JavaScript UI
+  ↓
+Express API
+  ↓
+Authentication / Authorization
+  ↓
+Models
+  ↓
+SQLite
+```
 
-## 3.1 Design around the worker
+The application is designed for use on the bakery's local network.
 
-Worker-facing workflows should be:
+The browser provides the user interface and temporary workflow state.
 
-* simple
-* fast
-* obvious
-* low-friction
-* tolerant of ordinary human mistakes
+The server is authoritative for:
 
-Avoid requiring workers to enter information that the system already knows.
+* authentication
+* authorization
+* business rules
+* pricing
+* order state
+* payment state
+* production state
+* database transactions
 
-Information should be recorded at the point where the responsible worker naturally knows it.
-
-## 3.2 Do not over-engineer
-
-Prefer the smallest architecture that correctly supports the bakery's real workflow.
-
-Do not introduce:
-
-* formal assignment systems
-* unnecessary approval workflows
-* complicated state machines
-* duplicate data entry
-* artificial enterprise-style processes
-
-unless the bakery actually needs them.
-
-## 3.3 Backend rules are authoritative
-
-Important business rules must be enforced in the backend/model layer.
-
-Frontend controls are for usability, not security.
-
-A user should not be able to bypass a business rule by manually calling an API.
-
-## 3.4 Preserve trustworthy business data
-
-Real transactions should be reliable and auditable.
-
-Do not silently rewrite completed transactions.
-
-When a genuine completed transaction needs correction, use a controlled adjustment mechanism such as a future void/refund workflow.
-
-## 3.5 Separate training from real operations
-
-Employees need a safe place to learn the system.
-
-Training should not contaminate real business data.
-
-Training Mode is therefore an architectural concept, not merely a cosmetic UI feature.
+The client must not be trusted to enforce business rules by itself.
 
 ---
 
-# 4. Technology / Architecture
+# 3. Technology
 
-## Current stack
+## Backend
 
 * Node.js
 * Express
+* `better-sqlite3`
+* `bcryptjs`
+* `express-session`
+* Socket.io infrastructure
+
+## Frontend
+
+* HTML
+* CSS
+* Vanilla JavaScript
+* ES6+
+
+## Database
+
 * SQLite
-* better-sqlite3
-* JavaScript
-* HTML/CSS/JS frontend
-* Socket.io server integration
-* Git/GitHub
-* Raspberry Pi deployment
-
-Earlier EJS/frontend work may remain in project history, but the current frontend workflow is primarily HTML/CSS/vanilla JavaScript.
-
-## Runtime
-
-Application entry point:
-
-`server/app.js`
-
-API routes:
-
-`server/routes/index.js`
-
-Database connection:
-
-`server/config/database.js`
+* Foreign keys enabled
+* Migration-based schema evolution
 
 Database:
 
-`data/bakery.db`
+```text
+data/bakery.db
+```
 
 Schema:
 
-`data/schema.sql`
+```text
+data/schema.sql
+```
 
 Migrations:
 
-`data/migrations/`
-
-Frontend:
-
-`public/index.html`
-
-`public/js/app.js`
-
-`public/css/styles.css`
+```text
+migrations/
+```
 
 ---
 
-# 5. Deployment / Technical Constraints
+# 4. Application Areas
 
-The production application runs on a Raspberry Pi.
+The application is organized around the bakery's actual workflow.
 
-Important compatibility requirements:
+Current and planned areas include:
 
-* Raspberry Pi deployment compatibility is critical.
-* The Pi runs Debian 11 / Bullseye.
-* The Pi uses an ARM64/aarch64 environment.
-* The installed GLIBC version constrains native Node modules.
-* `better-sqlite3` is used because of the project's Raspberry Pi compatibility requirements.
-* Database migrations must preserve existing production data.
-* The application should remain practical for LAN use.
-* The bakery may shut down the Raspberry Pi when the bakery is closed.
+* Orders
+* Counter Sale
+* Production
+* Customers
+* Products
+* Reports
+* Users
+* Settings
 
-Do not introduce dependencies that unnecessarily compromise Raspberry Pi compatibility.
+Not every area is equally complete.
 
----
-
-# 6. Database Architecture
-
-The application uses SQLite.
-
-Foreign keys are explicitly enabled by the database connection:
-
-`PRAGMA foreign_keys = ON`
-
-Database schema changes are handled through numbered migrations in:
-
-`data/migrations/`
-
-Migrations should be incremental and preserve existing production data.
-
-Do not solve schema problems by casually deleting and recreating the production database.
-
-Before destructive schema work:
-
-1. Back up the database.
-2. Inspect the existing schema.
-3. Inspect existing data.
-4. Apply the migration.
-5. Verify the resulting schema.
-6. Verify important existing records.
-7. Test the affected workflows.
+The project prioritizes the operational workflows that staff use every day.
 
 ---
 
-# 7. Customers
+# 5. Authentication and Authorization
 
-Customers may contain:
+## Roles
 
-* name
-* phone
-* contact method
-* preferred language
-* address
-* notes
-* active status
+### ADMIN
 
-Customer information that is especially valuable to the bakery includes:
+Authenticated with:
 
-* allergies
-* packaging preferences
-* bread cooked preference
-* last order
-* contact origin such as WhatsApp, telephone, Facebook, etc.
-* preferred language
+* username
+* password
 
-A preorder requires a customer.
+Administrative capabilities include:
 
-A counter sale may optionally have a customer.
+* product management
+* custom product management
+* pricing overrides
+* user/administrative operations where implemented
 
-A walk-in customer does not need to be identified.
+### COUNTER
 
----
+Authenticated with:
 
-# 8. Orders
+* 4-digit PIN
 
-The `orders` table represents the main transaction record.
+Counter users can perform normal counter/order workflows but cannot perform administrative operations that require ADMIN authorization.
 
-Important fields include:
+### Staff without login
 
-* `id`
-* `order_number`
-* `customer_id`
-* `order_type`
-* `status`
-* `payment_status`
-* `total_amount`
-* `amount_paid`
-* `pickup_date`
-* `pickup_time`
-* `delivery`
-* `delivery_address`
-* `notes`
-* `created_by`
-* timestamps
+Not every bakery employee is required to have an application login.
 
-## Order types
-
-Supported order types:
-
-* `PREORDER`
-* `COUNTER_SALE`
-
-The order type is stored explicitly.
-
-Preorders and counter sales share core order infrastructure but have different business workflows.
+The system is intentionally not designed around assigning every physical task to a named worker.
 
 ---
 
-# 9. Preorders
+# 6. Authorization Boundary
 
-Preorders represent customer orders created for a planned pickup or delivery.
+Authorization is enforced server-side.
 
-They may be:
+The UI may hide unavailable actions, but hiding a button is not considered security.
 
-* unpaid
-* partially paid
-* fully paid
+Examples of server-enforced authorization include:
 
-They participate in:
+* product creation/update restrictions
+* custom product administration
+* catalog pricing overrides
+* administrative operations
 
-* normal order workflow
-* production workflow
-* pickup workflow
-* payment workflow
-
-Existing preorder behavior must be preserved when implementing counter-sale features.
-
-Counter-sale development must not casually modify the existing preorder workflow.
+The server must remain the final authority.
 
 ---
 
-# 10. Counter Sales
+# 7. Orders
 
-Counter sales represent direct same-day sales at the bakery counter.
+The order system supports two major order types.
 
-They are still orders and use the same underlying order/item/payment architecture.
+```text
+PREORDER
+COUNTER_SALE
+```
 
-They are distinguished by:
+## PREORDER
 
-`order_type = COUNTER_SALE`
+Preorders represent orders placed ahead of pickup.
 
-## Counter-sale order numbers
+They may include:
 
-Counter sales use:
+* customer
+* contact information
+* pickup date
+* pickup time
+* order items
+* payment information
+* production requirements
+* pickup tracking
 
-`CS-YYMMDD-NNN`
+Existing preorder behavior must remain intact as Counter Sale is developed.
+
+## COUNTER_SALE
+
+Counter Sales represent completed purchases made directly at the bakery counter.
+
+Current implemented behavior includes:
+
+* `order_type = COUNTER_SALE`
+* optional customer
+* dedicated counter-sale order numbering
+* catalog products
+* custom/non-catalog products
+* payment method
+* cash received
+* change calculation
+* completed-sale protection
+
+Counter Sales remain visible in the normal Orders area.
+
+---
+
+# 8. Counter Sale Architecture
+
+## Implemented foundation
+
+The database and model layer already support Counter Sales.
+
+Counter-sale order numbers use:
+
+```text
+CS-YYMMDD-NNN
+```
 
 Example:
 
-`CS-260901-001`
+```text
+CS-260901-001
+```
 
-The sequence identifies the counter sale for that date.
+Counter Sales may optionally have a customer.
 
-The backend generates the number.
+A walk-in customer does not need to be identified by name.
 
-The cashier does not type the order number.
+Counter Sales may contain:
 
-## Counter-sale business rules
+* normal catalog products
+* custom/non-catalog products
 
-1. A counter sale is immediately considered paid when successfully completed.
-2. A counter sale may optionally have a customer.
-3. Catalog products use their current catalog price by default.
-4. Only authorized admins may explicitly override a catalog price.
-5. Counter sales may contain catalog products.
-6. Counter sales may contain custom/non-catalog items.
-7. A successfully completed counter sale automatically becomes `COMPLETED`.
-8. Completed counter sales are not editable through normal order editing.
-9. Counter sales remain part of the normal Orders architecture.
-10. Counter sales are identified by `order_type`.
-11. Payment methods include:
+Catalog pricing overrides require ADMIN authorization.
 
-    * `CASH`
-    * `CARD`
-    * `BANK_TRANSFER`
-    * `OTHER`
-12. A counter sale uses one payment method per sale.
-13. Cash sales require the amount of cash received.
-14. Cash sales calculate and display change.
-15. The backend remains responsible for final payment validation.
-16. The cashier should not have to manually enter an order number.
-17. The cashier should not see preorder-specific fields such as pickup date/time on the counter-sale screen.
+## Completed-sale protection
+
+Once a Counter Sale is completed, normal order mutation is rejected.
+
+This protects completed business transactions from accidental editing.
+
+The model contains explicit protection for completed counter sales.
 
 ---
 
-# 11. Counter-Sale Transaction Architecture
+# 9. Counter Sale Payment Model
 
-The counter-sale UI should maintain an unfinished sale in browser/application state.
+Counter Sales are designed around a single payment method per sale.
 
-Do **not** create a real database order merely because the cashier opened the Counter Sale screen.
-
-The intended flow is:
+Supported payment methods are:
 
 ```text
-Open Counter Sale
-        ↓
-Browser-only sale state
-        ↓
-Add products
-        ↓
-Change quantities
-        ↓
-Optional customer
-        ↓
-Choose payment method
-        ↓
-If CASH → enter cash received
-        ↓
-Show total / change
-        ↓
-Complete Sale
-        ↓
-Single atomic backend transaction
-        ↓
-Real order + items + payment + COMPLETED status
+CASH
+CARD
+BANK_TRANSFER
+OTHER
 ```
 
-## Why this architecture matters
+Counter Sales are immediately considered paid when successfully completed.
 
-If an order were created immediately when the screen opened, an abandoned counter-sale screen could leave a `NEW` order in the real database.
-
-That would contaminate:
-
-* the Orders list
-* reports
-* order history
-* sales counts
-
-Therefore:
-
-> **An unfinished counter sale is not a database transaction.**
-
-Only the successful completion of a normal-mode sale creates the real transaction.
-
-## Atomic completion
-
-The eventual counter-sale API should create the required records as one transaction.
-
-Conceptually:
+For cash payments:
 
 ```text
+cash received
+      -
+sale total
+      =
+change
+```
+
+The server validates that cash received is sufficient before accepting the payment.
+
+The system calculates the change amount.
+
+Payment behavior is enforced server-side.
+
+---
+
+# 10. Counter Sale Transaction Boundary
+
+The Counter Sale foundation exists, but the final dedicated transaction workflow is still a development step.
+
+The intended architecture is:
+
+```text
+Counter Sale browser state
+        ↓
 POST /api/counter-sales
-
         ↓
-
-validate complete request
-
+server validation
         ↓
-
-create order
-
+atomic database transaction
         ↓
-
-create order items
-
-        ↓
-
-record payment
-
-        ↓
-
-mark paid / completed
-
-        ↓
-
-commit
+real completed sale
 ```
 
-If any required step fails, the transaction should roll back rather than leave a partial counter sale.
+The unfinished sale should remain in browser state while the employee builds it.
+
+Adding or changing items should not create a real order.
+
+The real business transaction should occur only when the employee presses **Complete Sale**.
+
+The server should then atomically:
+
+1. validate the request
+2. validate products/custom products
+3. enforce pricing authorization
+4. calculate/verify the sale total
+5. create the order
+6. create order items
+7. record the payment
+8. complete the order
+9. commit the transaction
+
+If any step fails, the transaction must roll back.
+
+The browser may calculate totals for user feedback, but the server must independently validate the transaction before committing it.
+
+### Current status
+
+Implemented:
+
+* Counter Sale database support
+* order type
+* order numbering
+* optional customer
+* custom products
+* pricing authorization
+* payment methods
+* cash/change handling
+* completed-sale protection
+* Counter Sale UI foundation
+
+Remaining:
+
+* dedicated Counter Sale browser-state workflow
+* dedicated `POST /api/counter-sales` endpoint
+* atomic creation/payment/completion transaction
+* end-to-end Counter Sale testing
 
 ---
 
-# 12. Training Mode / Playground
+# 11. Custom Products
 
-Training Mode is a core application concept.
+Custom products allow a Counter Sale to contain an item that is not part of the normal product catalog.
 
-It exists so employees can learn the system without creating real business records.
-
-The goal is to allow employees to practice the actual application workflow rather than merely being shown screenshots or instructions.
-
-## Training Mode rules
-
-When Training Mode is active:
-
-* Counter sales must not create real orders.
-* Payments must not be recorded as real payments.
-* Real sales totals must not change.
-* Production actions must not change real production totals.
-* Real pickup history must not be changed.
-* Other operational/business records must not be contaminated by training activity.
-* Employees may make mistakes freely.
-* Employees may complete fake transactions repeatedly.
-* Employees may start over without needing database cleanup.
-
-The UI should clearly communicate:
-
-> **TRAINING MODE — Nothing you do here affects real bakery data.**
-
-## Training Mode should be safe by design
-
-Training Mode should not simply create fake real records and mark them as "training."
-
-Prefer a separate application state in which business writes are simulated or otherwise prevented.
-
-The real database should remain trustworthy.
-
-Conceptually:
+The database supports:
 
 ```text
-                     ┌── Training Mode ──→ Playground
-Employee uses app ───┤
-                     └── Normal Mode ────→ Real database
+custom_products
 ```
 
-## Training Mode applies beyond Counter Sales
+Order items can reference either:
 
-Training Mode should eventually support:
+```text
+products
+```
 
-* Counter Sale practice
-* Order-entry practice
-* Kitchen/Production practice
-* "Made" workflow practice
-* navigation practice
-* employee onboarding
+or:
 
-Kitchen workers should be able to practice production workflows before being expected to use the live system.
+```text
+custom_products
+```
 
-This is especially important because the bakery has multiple employees with different levels of computer experience.
+Custom product administration is restricted to ADMIN users.
 
-## Training Mode and real mistakes are different concepts
-
-Training Mode handles:
-
-> "I am learning or practicing."
-
-A future Void/Refund system handles:
-
-> "This was a genuine real transaction that needs to be reversed."
-
-These should not be conflated.
+Counter users can use active custom products according to the implemented workflow.
 
 ---
 
-# 13. Future Void / Refund Mechanism
+# 12. Order Mutation Rules
 
-A future controlled Void/Refund mechanism is desirable.
+The system protects completed business records.
 
-It is intentionally separate from Training Mode.
+Important rules include:
 
-If a genuine completed sale is wrong after payment has been received:
+* completed Counter Sales cannot be normally edited
+* an order item cannot be reduced below the quantity already picked up
+* an order item cannot be deleted after relevant pickup has occurred
+* pickup quantity cannot exceed ordered quantity
+* payment cannot reduce an order total below the amount already paid
 
-* do not silently edit the completed sale
-* do not silently delete the sale
-* record that the original transaction was voided/refunded
-* preserve an audit trail
-* allow a replacement transaction when appropriate
-
-The exact refund/void workflow has not yet been implemented.
-
-The business details still need to be defined before implementation, including:
-
-* who is authorized to void/refund
-* whether a reason is required
-* how cash refunds are recorded
-* how card/bank refunds are represented
-* how reports display voided transactions
-* whether a replacement sale is linked to the original
-
-Do not invent these rules prematurely.
+These rules are enforced at the model/server layer rather than relying only on the UI.
 
 ---
 
-# 14. Order Items
+# 13. Pickup Tracking
 
-Order items belong to an order.
+Pickup tracking is part of the order workflow.
 
-An item may reference:
+The system records pickup quantities and prevents impossible states.
 
-* a catalog product
-* an approved custom product
-* a free-form custom/non-catalog item
+Examples:
 
-Important item information includes:
+```text
+picked up > ordered quantity
+```
 
-* product
-* custom product
-* custom name
-* quantity
-* unit price
-* notes
-* production status
+is rejected.
 
-Catalog products normally use the current catalog price.
+Likewise:
 
-Explicit alternate catalog pricing requires admin authorization.
+```text
+new ordered quantity < already picked-up quantity
+```
 
-Custom/non-catalog items are supported independently of the normal catalog.
+is rejected.
 
----
+Deleting an item that has already been picked up is prevented.
 
-# 15. Pricing / Authorization
-
-Pricing authorization is enforced at the backend/model layer.
-
-## Normal catalog price
-
-When a catalog product is added without an explicit alternate price:
-
-* use the product's current catalog price.
-
-## Explicit catalog price override
-
-When an alternate price is supplied:
-
-* validate the price
-* require admin authorization
-* store the authorized transaction price on the order item
-
-A normal counter user must not be able to bypass this restriction by directly calling the API.
-
-## Custom/non-catalog items
-
-Free-form custom items require appropriate authorization according to the existing model rules.
-
-Approved custom products are separate from free-form custom pricing.
-
-## Promotions
-
-Promotions are a separate future concept.
-
-A negotiated/special price is transaction-specific.
-
-A promotion is a reusable business rule.
-
-Examples of future promotions:
-
-* 6 for the price of 5
-* baker's dozen
-* scheduled discounts
-* other reusable promotional pricing
-
-Do not conflate special pricing with the future promotion engine.
+The goal is to ensure the database reflects what physically happened at the bakery.
 
 ---
 
-# 16. Payments
+# 14. Production
 
-Payment status values:
+Production is treated as a shared bakery workflow rather than a worker-assignment system.
 
-* `UNPAID`
-* `PARTIAL`
-* `PAID`
+The system distinguishes:
 
-Payments are stored separately in the `payments` table.
+```text
+DEMAND
+```
 
-Current payment methods:
+from:
 
-* `CASH`
-* `CARD`
-* `BANK_TRANSFER`
-* `OTHER`
+```text
+PRODUCTION
+```
 
-Payment operations must protect the accounting relationship between:
-
-`total_amount`
-
-and
-
-`amount_paid`
-
-Important protections include:
-
-* no invalid payment states
-* no payment exceeding the remaining amount
-* no reducing an order total below the amount already paid
-* cash received must be sufficient for the sale
-* cash change must be calculated correctly
-
-Money calculations must be performed using safe cent/money handling.
-
-Do not rely on raw floating-point equality.
-
----
-
-# 17. Pickup Tracking
-
-The system supports partial and multiple pickups.
-
-Pickup history is recorded separately.
-
-Protections include:
-
-* preventing pickup quantities greater than ordered quantity
-* preventing over-pickup
-* preventing reduction of item quantity below quantity already picked up
-* preventing deletion of an item after any quantity has been picked up
-
-The order response exposes:
-
-* quantity ordered
-* quantity picked up
-* quantity remaining
-
-Counter sales normally do not participate in the preorder pickup workflow.
-
----
-
-# 18. Production Architecture
-
-Production is a shared bakery workflow.
-
-There is no formal worker assignment/ownership model.
-
-Multiple workers may view and contribute to production.
-
-Workers may move between stages according to the real bakery workflow.
-
-Do not introduce artificial task ownership unless the bakery actually needs it.
-
-## Demand vs production
-
-The system must distinguish:
-
-**Demand**
-
-from
-
-**Production planning**
-
-Demand may come from:
+Demand comes from sources such as:
 
 * preorders
 * expected counter demand
-* other known bakery requirements
 
-Production planning represents what the bakery intends to make.
+Production planning determines what needs to be made.
 
-Production output represents what was actually made.
+Workers can move between production stages and contribute where needed.
 
-These are not the same thing.
-
-## Production output is historical
-
-Once something has actually been produced, that fact should not be casually rewritten just because the plan changes.
-
-The system should preserve the relationship between:
-
-* planned quantity
-* produced quantity
-* remaining requirement
-
-The recent production UX work established that production planning should not be reduced below what has already been produced.
+There is intentionally no formal task-ownership architecture.
 
 ---
 
-# 19. Production UX
+# 15. Production Workflow
 
-The production interface should be optimized for bakery workers rather than office administration.
+The general production flow is:
 
-The worker should primarily see the information needed to perform the current task.
+```text
+Demand
+  ↓
+Production planning
+  ↓
+Dough / preparation
+  ↓
+Shaping / cutting
+  ↓
+Frying / baking
+  ↓
+Finishing / decorating
+  ↓
+Ready / available
+```
 
-For example, a dough worker should not need:
+Different products may skip or modify individual stages.
+
+The workflow is designed to support the majority of bakery products without requiring a separate complicated system for every product.
+
+---
+
+# 16. Production UX
+
+The production interface should remain extremely simple.
+
+The worker should see the information needed to perform the current production task.
+
+The system should not require workers to re-enter information the system already knows.
+
+Examples:
+
+### Dough / preparation view
+
+Shows:
+
+* what needs to be produced
+* quantities
+* relevant product information
+
+It should not require:
 
 * customer names
 * payment information
 * order numbers
 
-when the task is simply determining how much dough/product needs to be made.
+unless those details are genuinely necessary for the task.
 
-The broader production workflow may include:
+### Finishing
 
-```text
-Demand
-   ↓
-Production Plan
-   ↓
-Dough / Preparation
-   ↓
-Shaping
-   ↓
-Frying / Baking
-   ↓
-Finishing / Decorating
-   ↓
-Finished / Available
-```
+The worker should see the products requiring finishing/decorating and the quantities needed.
 
-The exact stages vary by product.
+Time-sensitive preorder requirements should be visible where they affect production priorities.
 
-Donuts, for example, may follow:
+### Ready / available
 
-```text
-Dough
- → cutting
- → frying/baking
- → decorating
- → finished/available
-```
-
-The production system should support the real bakery workflow rather than requiring formal task assignment.
+Finished products can be reflected as available for the counter/preorder workflow.
 
 ---
 
-# 20. Donut / Bakery Production Knowledge
+# 17. Production Quantity Protection
 
-The bakery produces multiple product categories including:
+Production records represent physical work that has actually occurred.
+
+The system therefore prevents production quantities from being reduced below quantities already produced.
+
+In general:
+
+```text
+planned
+  ≥
+made
+```
+
+must remain true.
+
+A correction cannot erase production that has already physically occurred.
+
+---
+
+# 18. Donut Production
+
+Donut production currently follows the general production architecture.
+
+Typical flow:
+
+```text
+Dough
+  ↓
+Cutting / shaping
+  ↓
+Final rise
+  ↓
+Frying
+  ↓
+Decorating
+  ↓
+Finished / available
+```
+
+Donut forms include:
+
+* standard donut
+* filled donut
+* twist
+
+Final-rise timing is relevant to production prioritization.
+
+Decorators may prioritize products according to time-sensitive preorder requirements.
+
+The production UI should support this workflow without introducing unnecessary task-assignment complexity.
+
+---
+
+# 19. Product Catalog
+
+Products are organized into categories including:
 
 * Donuts
 * Cinnamon Rolls
@@ -1408,594 +1215,394 @@ The bakery produces multiple product categories including:
 * Specialty Breads
 * Drinks
 
-The production architecture should support common patterns without assuming every product has identical stages.
+Product pricing is stored in the product catalog.
 
-For donuts:
+Catalog pricing changes are controlled by the appropriate authorization rules.
 
-* dough
-* cutting
-* final rise
-* frying/baking
-* decorating
-* finished/available
+Counter users may sell catalog products at their configured catalog price.
 
-Three important donut shapes include:
-
-* donut
-* filled
-* twist
-
-The decorator may prioritize time-sensitive orders.
-
-Typical final rise is approximately 17 minutes.
-
-The system should support these workflows without turning bakery knowledge into unnecessarily rigid software rules.
+Administrative pricing overrides require ADMIN authorization.
 
 ---
 
-# 21. Authentication / Authorization
+# 20. Customers
 
-Authentication exists.
+Customer information is useful primarily for repeat/preorder relationships.
 
-Current roles include:
+Relevant customer information includes:
 
-* `ADMIN`
-* `COUNTER`
+* contact information
+* allergies
+* packaging preferences
+* bread-cooking preference
+* last-order information
+* contact origin
+* preferred language
 
-Admin:
+Not every sale requires a customer.
 
-* username/password
-
-Counter:
-
-* 4-digit PIN
-
-Not every bakery worker needs an application login.
-
-Authorization is enforced at the backend/model layer.
-
-Important rule:
-
-> Sensitive business rules must never depend only on UI visibility.
-
-Current example:
-
-* only admins may perform explicit catalog price overrides.
-
-Future authorization rules should follow the same principle.
+A walk-in Counter Sale can remain anonymous.
 
 ---
 
-# 22. API Architecture
+# 21. Localization
 
-Primary API routes are located in:
+The application supports localization through:
 
-`server/routes/index.js`
+```text
+locales/en.json
+locales/es.json
+```
 
-Current order-related API capabilities include:
+Spanish is important to the bakery's operational workflow.
 
-* list orders
-* retrieve an order
-* create an order
-* add order items
-* update order items
-* remove order items
-* update production status
-* update order status
-* record payments
-* retrieve payment history
-* record pickups
-* retrieve pickup history
-
-Counter-sale API support is being developed separately from the existing generic order-entry workflow.
-
-The planned counter-sale completion endpoint should encapsulate the real transaction rather than requiring the browser to orchestrate several independent real database writes.
-
-Potential endpoint:
-
-`POST /api/counter-sales`
-
-The exact implementation should be determined after inspecting the current model transaction behavior.
+The system should avoid unnecessary hard-coded user-facing English text as localization is expanded.
 
 ---
 
-# 23. Model Architecture
+# 22. Socket / Real-Time Architecture
 
-Primary order logic:
+Socket.io is part of the intended application architecture for communicating operational changes between connected bakery devices.
 
-`server/models/order.js`
+Potential uses include:
 
-The model is responsible for important business rules including:
+* new orders
+* order updates
+* production updates
+* ready notifications
 
-* order creation
-* counter-sale number generation
-* order item creation
-* pricing
-* admin authorization
-* order total calculations
-* payment validation
-* payment status transitions
-* pickup validation
-* production status
-* order status
-* completed counter-sale immutability
+Real-time behavior should be added where it materially improves workflow.
 
-Business-critical rules should remain enforced here even when UI validation exists.
-
-Avoid duplicating business logic unnecessarily between routes and models.
+It should not be introduced merely because the technology is available.
 
 ---
 
-# 24. Counter-Sale Transaction Integrity
+# 23. Training Mode
 
-The counter-sale completion operation should be atomic.
+Training Mode is an application-wide architectural requirement.
 
-The system must avoid a situation where:
+It is intended to allow employees to practice real workflows without affecting real business data.
 
-* order exists
-* but an item failed
-* or payment failed
-* or completion failed
+Training Mode must not create or modify:
 
-and the partial transaction remains as a real sale.
+* real orders
+* real payments
+* real production totals
+* real pickup records
+* other operational records
 
-The desired property is:
+The employee should be able to practice workflows such as:
 
-> **Either the real counter sale completes successfully, or the database remains unchanged by that attempted completion.**
+```text
+Counter Sale
+Production
+```
 
-Training Mode must not use this real transaction path in a way that creates real business records.
+without creating real business consequences.
 
 ---
 
-# 25. Current Implementation Status
+# 24. Training Mode Architecture
 
-## Completed
+Training Mode should be designed around the same workflow boundaries as Normal Mode.
 
-* SQLite database integration
-* better-sqlite3 deployment compatibility
-* customer model/API foundation
-* product model/API foundation
-* authentication
-* authorization foundation
-* payment validation
-* partial/multiple payments
-* payment protection against reducing totals below paid amounts
-* custom/non-catalog order items
+The intended conceptual model is:
+
+```text
+                    ┌── Normal Mode ──→ real transaction
+Employee workflow ──┤
+                    └── Training Mode → no real operational persistence
+```
+
+The goal is not to build an entirely separate application.
+
+Training Mode should reuse as much of the normal workflow behavior and validation as practical while guaranteeing that no real operational records are created or modified.
+
+The normal Counter Sale transaction boundary should therefore be established before Training Mode is implemented.
+
+This avoids retrofitting Training Mode into an already-fragmented transaction architecture.
+
+---
+
+# 25. Data Integrity Principles
+
+The system should favor business rules that make invalid states difficult or impossible to create.
+
+Important principles:
+
+### Server authority
+
+The server validates business-critical operations.
+
+### Atomic business transactions
+
+Operations that represent one real-world event should be committed atomically.
+
+### Preserve physical reality
+
+Records of completed work, payments, and pickups should not be casually overwritten.
+
+### Avoid duplicate data entry
+
+Workers should enter information at the point where they naturally know it.
+
+### Keep workflow state separate from committed business data
+
+Temporary employee activity should not become a real business record until the appropriate completion action occurs.
+
+---
+
+# 26. UI / UX Principles
+
+The application is for bakery employees working in a real production environment.
+
+Therefore:
+
+> **Simple is King.**
+
+The UI should prioritize:
+
+* large clear actions
+* minimal data entry
+* obvious current state
+* fast workflows
+* low cognitive load
+* minimal navigation
+* useful information at the point of work
+
+Avoid:
+
+* unnecessary forms
+* duplicate data entry
+* formal task assignment
+* complex dashboards that do not help the worker
+* workflows designed around theoretical use cases rather than actual bakery practice
+
+---
+
+# 27. Error Handling Philosophy
+
+Errors should protect the database rather than merely inform the UI.
+
+When an operation would violate a business rule:
+
+```text
+reject operation
+      ↓
+preserve existing valid state
+      ↓
+return clear error
+```
+
+The UI should then explain the problem in a way appropriate to the employee.
+
+The system should never silently create a partially completed business transaction.
+
+---
+
+# 28. Current Implementation Status
+
+## Implemented
+
+### Authentication
+
+* session authentication
+* ADMIN username/password
+* COUNTER PIN authentication
+* server-side authorization
+* admin-only operations
+
+### Orders
+
+* preorder support
+* Counter Sale order type
+* Counter Sale numbering
+* optional Counter Sale customer
+* order item management
+* payment support
 * pickup tracking
-* partial/multiple pickups
-* production status tracking
-* order status tracking
-* admin-only custom catalog pricing
-* `PREORDER` / `COUNTER_SALE` order type distinction
-* optional counter-sale customer
-* counter-sale order number generation
-* completed counter-sale immutability protection
-* counter-sale payment method support
-* cash received/change backend support
-* counter-sale navigation/UI foundation
-* separate Counter Sale view
-* New Order navigation preserved
-* login/navigation fixes
-* production planning / ready-to-sell boundary work
-* production quantity UI improvements
+* completed Counter Sale mutation protection
 
-## Recently completed / checkpointed
+### Payments
 
-The counter-sale foundation and payment-method work has been committed.
-
-The current branch has progressed beyond the old August 19 project-map checkpoint.
-
-The exact Git SHA should be taken from the actual local repository rather than copied from this document.
-
-## In progress
-
-* Counter-sale backend completion workflow
-* Counter-sale browser-side cart
-* Counter-sale customer selection
-* Counter-sale payment UI
-* Counter-sale completion
-* Training Mode architecture and implementation
-
-## Planned
-
-* Training Mode / employee playground
-* Kitchen/Production training playground
-* future Void/Refund mechanism
-* promotion engine
-* inventory system
-* comprehensive reporting
-* dashboard refinement
-* Socket.io client notification workflow
-* broader production planning refinement
-
----
-
-# 26. Important Recent Architectural Decisions
-
-## Counter sales remain orders
-
-Counter sales are not a separate unrelated transaction system.
-
-They share:
-
-* order infrastructure
-* order items
-* pricing
-* customers
-* payments
-* audit information
-* reporting
-
-This avoids duplicating core business systems.
-
-## Customer is optional for counter sales
-
-Many walk-in customers do not need identification.
-
-Customers may still be attached when useful.
-
-## Completed transactions are locked
-
-Completed counter sales should not be casually edited.
-
-Future corrections should use controlled void/refund mechanisms.
-
-## Unfinished counter sales are browser state
-
-Opening a Counter Sale screen must not create a real order.
-
-This prevents abandoned counter-sale records.
-
-## Complete Sale is the transaction boundary
-
-In normal mode, pressing `Complete Sale` is the point at which the sale becomes real.
-
-The operation should be atomic.
-
-## Training Mode is not fake production data
-
-Training Mode should provide a playground without contaminating real operational records.
-
-It should be usable for both counter and kitchen workers.
-
-## Special prices and promotions remain separate
-
-Do not turn one into the other.
-
-## Production is shared work
-
-Do not introduce formal assignment/ownership unless the bakery requires it.
-
----
-
-# 27. Known Technical Debt / Constraints
-
-## Stale schema file
-
-The live database has received migrations that may make portions of `data/schema.sql` differ from the current migrated production schema.
-
-For example, counter-sale support changed the `orders.customer_id` requirement.
-
-Before treating `schema.sql` as authoritative, compare it against:
-
-* migration history
-* current live schema
-* model assumptions
-
-Do not casually rewrite `schema.sql` during unrelated feature work.
-
-A future schema-documentation cleanup may be appropriate.
-
-## Test data
-
-Development/test data may exist in the database.
-
-Test data must not be confused with real production business data.
-
-Training Mode should eventually make this distinction even clearer.
-
-## Socket.io
-
-Server-side integration exists, but the complete client notification workflow remains unfinished.
-
-## Reporting
-
-Reports must eventually distinguish:
-
-* real completed sales
-* cancelled/voided sales
-* training activity
-
-Training activity must not be included in real business reports.
-
----
-
-# 28. Verification Philosophy
-
-The project uses a dedicated verification workflow documented in:
-
-`docs/bakery-verification-SKILL.md`
-
-That document is intentionally complementary to the development process.
-
-The most important verification principle is:
-
-> **Do not assume pasted code, local code, and committed code are the same thing.**
-
-When verification matters:
-
-1. Inspect the actual file.
-2. Verify the actual database schema.
-3. Run the application.
-4. Test through the real HTTP/API layer where appropriate.
-5. Test failure cases, not only happy paths.
-6. Check the resulting database state.
-7. Reset test data afterward.
-8. Verify the actual Git commit when repository state matters.
-
-Verification should explicitly distinguish:
-
-* verified
-* assumed
-* not tested
-
-If browser behavior cannot be tested in the available environment, say so.
-
----
-
-# 29. Verification Priorities
-
-When testing business-critical changes, prioritize:
-
-## Payments
-
-Test:
-
-* correct payment
+* CASH
+* CARD
+* BANK_TRANSFER
+* OTHER
 * cash received
-* exact cash
-* excess cash/change
-* insufficient cash
-* invalid payment method
-* overpayment
-* partial payment
-* completed counter sale
-* failed transaction rollback
+* cash change calculation
+* payment validation
 
-## Counter Sales
+### Products
 
-Test:
+* catalog products
+* custom products
+* admin-only custom catalog pricing overrides
+* custom product order items
 
-* no customer
-* optional customer
-* multiple products
-* quantity changes
-* zero/negative quantities
-* catalog pricing
-* unauthorized special pricing
-* authorized special pricing
-* custom items
-* payment completion
-* generated order number
-* duplicate/sequence behavior
-* failed completion leaves no partial real transaction
-* completed counter sale cannot be edited
+### Production
 
-## Training Mode
+* production overview
+* production planning
+* production made tracking
+* ready/available workflow
+* production quantity protection
 
-When implemented, verify:
+### UI
 
-* training sale does not create an order
-* training payment does not affect payments
-* training sale does not affect revenue totals
-* training production does not affect real production totals
-* training pickup actions do not affect real pickup history
-* switching back to normal mode restores real behavior
-* Training Mode is clearly visible
-* Training Mode cannot accidentally be mistaken for real operating mode
-
-## Production
-
-Test:
-
-* planned quantities
-* produced quantities
-* production cannot violate established boundaries
-* "Made" actions update the correct state
-* production totals are not corrupted
-* multiple workers can contribute
-* training production is isolated from real production
+* Orders workflow
+* Production workflow
+* Counter Sale navigation/UI foundation
+* cash payment/change UI foundation
 
 ---
 
-# 30. Git / Checkpoint Strategy
+# 29. Partially Implemented / In Progress
 
-Git commits represent meaningful project milestones.
+## Counter Sale
 
-Do not commit every command as a separate milestone.
+The Counter Sale foundation exists, but the complete transaction boundary remains to be implemented.
 
-A meaningful milestone should normally include:
+Remaining work:
 
-* implementation
-* verification
-* clean working tree
-* clear commit message
+```text
+browser sale state
+      ↓
+Complete Sale
+      ↓
+POST /api/counter-sales
+      ↓
+atomic transaction
+      ↓
+completed real sale
+```
 
-The project map should be updated when a major:
-
-* architecture
-* schema
-* business rule
-* security rule
-* workflow
-* milestone
-
-changes.
-
-Do not turn the project map into a development diary.
+This is the next major application workflow.
 
 ---
 
-# 31. Guidance for AI Assistants
+# 30. Planned / Future
 
-When working on this project:
+The following are architectural directions or future features rather than assumptions about current implementation:
 
-1. Read this project map before proposing architectural changes.
-2. Inspect the actual implementation before assuming something exists.
-3. Preserve established architecture unless there is a clear reason to change it.
-4. Treat the database as production-sensitive.
-5. Never assume a migration is safe without checking existing schema/data.
-6. Preserve existing preorder behavior when implementing counter-sale features.
-7. Enforce business-critical rules at the backend/model layer.
-8. Do not duplicate business logic unnecessarily.
-9. Prefer incremental migrations.
-10. Do not silently alter completed transactions.
-11. Keep special pricing separate from promotions.
-12. Treat Training Mode as isolated from real business data.
-13. Do not implement Training Mode by polluting the real database with fake business records unless a future architecture explicitly requires it.
-14. Prefer browser/application state for unfinished workflows when no real transaction exists yet.
-15. Use atomic database transactions for operations that create a real financial transaction.
-16. Test failure paths as seriously as happy paths.
-17. Preserve the bakery's actual workflow over theoretical software elegance.
-18. Keep worker-facing UX extremely simple.
-19. Do not introduce worker assignment/ownership without a real bakery requirement.
-20. Distinguish demand, production planning, and actual production.
-21. Do not invent missing business rules.
-22. If a business rule is unclear, ask before implementing it.
-23. When reviewing another AI's code, verify the actual file and runtime behavior rather than merely agreeing with the proposed code.
-24. Clearly distinguish verified facts from assumptions.
-25. Update this document when a major architectural or business decision changes.
-26. Do not turn this document into a command-by-command development diary.
+* complete Counter Sale transaction workflow
+* Training Mode
+* expanded real-time Socket.io behavior
+* reports
+* additional customer workflows
+* broader settings functionality
+* refund workflow
+* post-completion financial corrections
+* additional operational refinements
+
+Future work should be implemented only when it solves a real bakery need.
 
 ---
 
-# 32. Instructions for Claude / Verification Review
+# 31. Current Development Priority
 
-Claude is being used as a verification and independent review partner.
+The immediate sequence is:
 
-Claude should treat this document as the current architectural intent, but should **not blindly accept it as proof that the implementation matches the intent**.
+```text
+1. Correct project documentation
+        ↓
+2. Fix .gitignore backup gap
+        ↓
+3. Commit documentation/hygiene checkpoint
+        ↓
+4. Review revised project map for implementation accuracy
+        ↓
+5. Build Counter Sale transaction boundary
+        ↓
+6. Test completed Counter Sale behavior
+        ↓
+7. Design and implement Training Mode
+```
 
-When asked to review work:
+The current priority is **not** to expand the application's architecture.
 
-### First verify reality
-
-Check:
-
-* actual files on disk
-* actual database schema
-* migrations
-* routes
-* models
-* frontend code
-* tests
-* Git status
-* Git commit when relevant
-
-Do not say "correct" merely because a pasted snippet appears correct.
-
-### Look specifically for contradictions
-
-Claude should actively look for:
-
-* project-map claims that do not match the code
-* schema/migration mismatches
-* route/model field-name mismatches
-* transaction-boundary problems
-* authorization bypasses
-* stale UI assumptions
-* incomplete rollback behavior
-* frontend/backend validation differences
-* real database writes occurring in Training Mode
-* fake training records appearing in real reports
-* counter-sale changes accidentally breaking preorder behavior
-* money precision problems
-* custom-product/custom-item joins dropping data
-* enum/status values accepted by the backend without validation
-
-### Do not redesign unnecessarily
-
-Claude should distinguish between:
-
-**"This is technically possible to improve"**
-
-and
-
-**"This violates an established bakery requirement."**
-
-The bakery workflow is the primary authority.
-
-A more elaborate architecture is not automatically a better architecture.
-
-### For every review
-
-Report:
-
-1. What was actually verified.
-2. What was only inferred.
-3. Exact file/function/route where the issue exists.
-4. Why the issue matters.
-5. Whether it blocks moving forward.
-6. The smallest appropriate correction.
-
-If something cannot be tested, say so explicitly.
+The priority is to make the existing architecture trustworthy and accurately documented.
 
 ---
 
-# 33. Current Development Direction
+# 32. Architectural Checkpoint
 
-The immediate Counter Sale development sequence should be:
+The current project has deliberately established several important boundaries:
 
-1. Finalize the browser-only counter-sale state model.
-2. Implement the atomic real counter-sale completion path.
-3. Verify the backend independently.
-4. Build the simple Counter Sale UI around that backend.
-5. Verify the complete Counter Sale workflow.
-6. Add Training Mode architecture.
-7. Verify that Training Mode cannot contaminate real business data.
-8. Extend Training Mode to Production/Kitchen workflows.
-9. Only later design the genuine Void/Refund system.
+```text
+Authorization
+    ↓
+server enforced
 
-Do not jump ahead to promotions, inventory, or reporting while the fundamental transaction workflow is still being established.
+Completed Counter Sale
+    ↓
+protected from ordinary mutation
+
+Pickup quantities
+    ↓
+cannot exceed reality
+
+Production quantities
+    ↓
+cannot be reduced below work already performed
+
+Preorder
+    ↓
+remains distinct from Counter Sale
+
+Counter Sale
+    ↓
+being moved toward one atomic transaction
+
+Training Mode
+    ↓
+will be built around that transaction boundary
+```
+
+These boundaries are more important than adding complexity.
+
+The system should continue to favor:
+
+> **Trustworthy behavior over feature count.**
+
+---
+
+# 33. Development Rule
+
+When implementing a new workflow:
+
+1. Define the real-world business event.
+2. Define when that event becomes a committed business record.
+3. Keep temporary workflow state separate from committed data.
+4. Enforce critical rules on the server.
+5. Make multi-step business events atomic.
+6. Test invalid boundaries deliberately.
+7. Keep the employee-facing workflow as simple as possible.
+
+The goal is a bakery system that employees can trust during a busy working day.
 
 ---
 
 # 34. Current Checkpoint
 
-Date:
+**Git HEAD:**
 
-`2026-09-01`
+```text
+2f734ad Update project map and training mode architecture
+```
 
-Branch:
+The working tree is expected to be clean at this checkpoint.
 
-`main`
+The next architectural implementation target is:
 
-The project has progressed substantially beyond the original August 19 counter-sale checkpoint.
+```text
+Counter Sale browser state
+        ↓
+POST /api/counter-sales
+        ↓
+atomic transaction
+        ↓
+real completed Counter Sale
+```
 
-Current major state:
-
-* authentication working
-* preorder workflow established
-* counter-sale foundation implemented
-* counter-sale order type implemented
-* optional counter-sale customer implemented
-* counter-sale numbering implemented
-* custom/non-catalog items implemented
-* admin-only catalog price override implemented
-* payment methods expanded
-* cash/change support implemented
-* completed counter-sale immutability protection implemented
-* Counter Sale navigation/view foundation implemented
-* production planning boundaries improved
-* production quantity UX improved
-
-Current strategic focus:
-
-> **Build the Counter Sale as a clean, atomic real transaction with an unfinished browser-only cart, then add Training Mode as a safe playground for Counter and Kitchen employees.**
-
-Future real-transaction correction:
-
-> **Controlled Void/Refund, not silent deletion.**
-
-The system should continue to favor:
-
-> **simple workflows, trustworthy data, strong backend rules, and incremental development.**
+Training Mode follows after this boundary has been implemented and tested.
