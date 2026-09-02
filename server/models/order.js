@@ -110,7 +110,7 @@ function createOrder({
     return getOrderById(orderId);
 }
 
-function addOrderItem({
+function insertOrderItem({
     order_id,
     product_id = null,
     custom_product_id = null,
@@ -120,8 +120,6 @@ function addOrderItem({
     notes = null,
     user_id
 }) {
-    getMutableOrder(order_id);
-
     const order = db.prepare(`
         SELECT id
         FROM orders
@@ -251,30 +249,53 @@ function addOrderItem({
         finalCustomProductId = null;
     }
 
-    const transaction = db.transaction(() => {
-
-        db.prepare(`
-            INSERT INTO order_items (
-                order_id,
-                product_id,
-                custom_product_id,
-                custom_name,
-                quantity,
-                unit_price,
-                notes
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
+    db.prepare(`
+        INSERT INTO order_items (
             order_id,
-            finalProductId,
-            finalCustomProductId,
-            finalCustomName,
+            product_id,
+            custom_product_id,
+            custom_name,
             quantity,
-            finalPrice,
+            unit_price,
             notes
-        );
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        order_id,
+        finalProductId,
+        finalCustomProductId,
+        finalCustomName,
+        quantity,
+        finalPrice,
+        notes
+    );
 
-        updateOrderTotal(order_id);
+    updateOrderTotal(order_id);
+}
+
+function addOrderItem({
+    order_id,
+    product_id = null,
+    custom_product_id = null,
+    custom_name = null,
+    unit_price = null,
+    quantity,
+    notes = null,
+    user_id
+}) {
+    getMutableOrder(order_id);
+
+    const transaction = db.transaction(() => {
+        insertOrderItem({
+            order_id,
+            product_id,
+            custom_product_id,
+            custom_name,
+            unit_price,
+            quantity,
+            notes,
+            user_id
+        });
     });
 
     transaction();
