@@ -110,6 +110,186 @@ function createOrder({
     return getOrderById(orderId);
 }
 
+function createCounterSale({
+    customer_id = null,
+    items,
+    payment_method,
+    cash_received = null,
+    reference = null,
+    notes = null,
+    created_by
+}) {
+    if (!Array.isArray(items) || items.length === 0) {
+        throw new Error(
+            "A counter sale must contain at least one item."
+        );
+    }
+
+    const validMethods = [
+        "CASH",
+        "CARD",
+        "BANK_TRANSFER",
+        "OTHER"
+    ];
+
+    if (!validMethods.includes(payment_method)) {
+        throw new Error(
+            `Invalid payment method: ${payment_method}`
+        );
+    }
+
+    const transaction = db.transaction(() => {
+
+        const now = new Date();
+
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+
+        const datePart = `${yy}${mm}${dd}`;
+        const prefix = `CS-${datePart}-`;
+
+        const lastOrder = db.prepare(`
+            SELECT order_number
+            FROM orders
+            WHERE order_type = 'COUNTER_SALE'
+              AND order_number LIKE ?
+            ORDER BY order_number DESC
+            LIMIT 1
+        `).get(`${prefix}%`);
+
+        let sequence = 1;
+
+        if (lastOrder) {
+            const lastSequence = Number(
+                lastOrder.order_number.slice(prefix.length)
+            );
+
+            if (Number.isInteger(lastSequence)) {
+                sequence = lastSequence + 1;
+            }
+        }
+
+        const orderNumber =
+            `${prefix}${String(sequence).padStart(3, "0")}`;
+
+        const orderResult = db.prepare(`
+            INSERT INTO orders (
+                order_number,
+                customer_id,
+                order_type,
+                status,
+                payment_status,
+                total_amount,
+                amount_paid,
+                notes,
+                created_by
+            )
+            VALUES (?, ?, 'COUNTER_SALE', 'NEW', 'UNPAID', 0, 0, ?, ?)
+        `).run(
+            orderNumber,
+            customer_id,
+            notes,
+            created_by
+        );
+
+        const orderId = orderResult.lastInsertRowid;
+
+        for (const item of items) {
+            insertOrderItem({
+                order_id: orderId,
+                product_id: item.product_id ?? null,
+                custom_product_id: item.custom_product_id ?? null,
+                custom_name: item.custom_name ?? null,
+                unit_price: item.unit_price ?? null,
+                quantity: item.quantity,
+                notes: item.notes ?? null,
+                user_id: created_by
+            });
+        }
+
+        const order = db.prepare(`
+            SELECT
+                id,
+                order_type,
+                total_amount,
+                amount_paid
+            FROM orders
+            WHERE id = ?
+        `).get(orderId);
+
+        if (!order) {
+            throw new Error(`Order ${orderId} not found.`);
+        }
+
+        if (order.total_amount <= 0) {
+            throw new Error(
+                "Counter sale total must be greater than zero."
+            );
+        }
+
+        if (payment_method === "CASH") {
+            if (
+                !Number.isFinite(cash_received) ||
+                cash_received < order.total_amount
+            ) {
+                throw new Error(
+                    "Cash received must be greater than or equal to the sale total."
+                );
+            }
+        }
+
+        const paymentAmount = roundMoney(order.total_amount);
+
+        db.prepare(`
+            INSERT INTO payments (
+                order_id,
+                amount,
+                payment_method,
+                reference,
+                recorded_by,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+            orderId,
+            paymentAmount,
+            payment_method,
+            reference,
+            created_by,
+            notes
+        );
+
+        db.prepare(`
+            UPDATE orders
+            SET
+                amount_paid = ?,
+                payment_status = 'PAID',
+                status = 'COMPLETED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(
+            paymentAmount,
+            orderId
+        );
+
+        return {
+            orderId,
+            change:
+                payment_method === "CASH"
+                    ? roundMoney(cash_received - paymentAmount)
+                    : 0
+        };
+    });
+
+    const result = transaction();
+
+    return {
+        order: getOrderById(result.orderId),
+        change: result.change
+    };
+}
+
 function insertOrderItem({
     order_id,
     product_id = null,
@@ -1038,6 +1218,7 @@ function getPaymentHistory(orderId) {
 
 module.exports = {
     createOrder,
+    createCounterSale,
     addOrderItem,
     removeOrderItem,
     recordItemPickup,
