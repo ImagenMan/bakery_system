@@ -811,13 +811,9 @@ The system should never silently create a partially completed business transacti
 
 ### Payments
 
-* CASH
-* CARD
-* BANK_TRANSFER
-* OTHER
-* cash received
-* cash change calculation
-* payment validation
+* Backend/model supports: CASH, CARD, BANK_TRANSFER, OTHER.
+* Current payment UI exposes: CASH and BANK_TRANSFER.
+* Cash payments calculate change and reject insufficient cash.
 
 ### Products
 
