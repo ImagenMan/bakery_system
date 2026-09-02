@@ -672,6 +672,56 @@ router.post("/orders", (req, res) => {
     }
 });
 
+router.post("/counter-sales", (req, res) => {
+    try {
+        const {
+            customer_id = null,
+            items,
+            payment_method,
+            cash_received = null,
+            reference = null,
+            notes = null
+        } = req.body;
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error: "A counter sale must contain at least one item."
+            });
+        }
+
+        if (!payment_method) {
+            return res.status(400).json({
+                success: false,
+                error: "Payment method is required."
+            });
+        }
+
+        const result = orders.createCounterSale({
+            customer_id,
+            items,
+            payment_method,
+            cash_received,
+            reference,
+            notes,
+            created_by: req.user.id
+        });
+
+        res.status(201).json({
+            success: true,
+            order: result.order,
+            change: result.change
+        });
+    } catch (error) {
+        console.error("POST /api/counter-sales error:", error);
+
+        res.status(400).json({
+            success: false,
+            error: error.message || "Failed to complete counter sale."
+        });
+    }
+});
+
 router.post("/orders/:id/items", (req, res) => {
     try {
         const orderId = Number(req.params.id);
