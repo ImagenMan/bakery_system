@@ -3712,7 +3712,7 @@ completeCounterSale.addEventListener(
             );
 
             const change =
-                Number(data.change_amount ?? 0);
+                Number(data.change ?? 0);
 
             const changeMessage =
                 change > 0
@@ -3721,7 +3721,7 @@ completeCounterSale.addEventListener(
 
             alert(
                 `Sale completed successfully.\n\n` +
-                `Order: ${data.order_number}` +
+                `Order: ${data.order.order_number}` +
                 changeMessage
             );
 
