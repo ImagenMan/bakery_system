@@ -21,6 +21,24 @@ const ordersList = document.getElementById("orders-list");
 const orderDetail = document.getElementById("order-detail");
 const newOrderForm = document.getElementById("new-order-form");
 
+const counterSaleCustomer = document.getElementById("counter-sale-customer");
+const counterSaleCategoryList = document.getElementById("counter-sale-category-list");
+const counterSaleProductList = document.getElementById("counter-sale-product-list");
+const counterSaleCustomProductList = document.getElementById("counter-sale-custom-product-list");
+const counterSaleCartElement = document.getElementById("counter-sale-cart");
+const counterSaleTotal = document.getElementById("counter-sale-total");
+const counterSalePaymentMethod = document.getElementById("counter-sale-payment-method");
+const counterSaleCashSection = document.getElementById("counter-sale-cash-section");
+const counterSaleCashReceived = document.getElementById("counter-sale-cash-received");
+const counterSaleChange = document.getElementById("counter-sale-change");
+const counterSalePaymentError = document.getElementById("counter-sale-payment-error");
+const completeCounterSale = document.getElementById("complete-counter-sale");
+
+let counterSaleCart = [];
+let counterSaleProducts = [];
+let counterSaleCategories = [];
+let counterSaleSelectedCategoryId = null;
+
 const productionOverview =
     document.getElementById("production-overview");
 const productionItemView =
@@ -3078,6 +3096,664 @@ document
         }
     );
 
+async function loadCounterSale() {
+
+    counterSaleCart = [];
+
+    renderCounterSaleCart();
+
+    try {
+
+        const [
+            customersResponse,
+            productsResponse,
+            customProductsResponse
+        ] = await Promise.all([
+            fetch("/api/customers"),
+            fetch("/api/products"),
+            fetch("/api/custom-products")
+        ]);
+
+        if (
+            !customersResponse.ok ||
+            !productsResponse.ok ||
+            !customProductsResponse.ok
+        ) {
+            throw new Error(
+                "Failed to load counter sale data."
+            );
+        }
+
+        const customersData =
+            await customersResponse.json();
+
+        const productsData =
+            await productsResponse.json();
+
+        const customProductsData =
+            await customProductsResponse.json();
+
+        renderCounterSaleCustomers(
+            customersData.data
+        );
+
+        counterSaleProducts =
+            productsData.data;
+
+        renderCounterSaleCategories(
+            counterSaleProducts
+        );
+
+        renderCounterSaleCustomProducts(
+            customProductsData.data
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Counter Sale load error:",
+            error
+        );
+
+        counterSaleCustomer.innerHTML = `
+            <option value="">
+                Unable to load customers
+            </option>
+        `;
+
+        counterSaleProductList.innerHTML = `
+            <p class="error">
+                Unable to load products.
+            </p>
+        `;
+
+        counterSaleCustomProductList.innerHTML = `
+            <p class="error">
+                Unable to load custom products.
+            </p>
+        `;
+    }
+}
+
+
+function renderCounterSaleCustomers(customers) {
+
+    counterSaleCustomer.innerHTML = `
+        <option value="">
+            Walk-in / No customer
+        </option>
+    `;
+
+    customers.forEach(customer => {
+
+        const option =
+            document.createElement("option");
+
+        option.value = customer.id;
+
+        option.textContent =
+            `${customer.name}${customer.phone ? ` — ${customer.phone}` : ""}`;
+
+        counterSaleCustomer.appendChild(option);
+    });
+}
+
+
+function renderCounterSaleCategories(products) {
+
+    const categories = [];
+
+    products.forEach(product => {
+
+        const exists =
+            categories.some(
+                category =>
+                    category.id === product.category_id
+            );
+
+        if (!exists) {
+
+            categories.push({
+                id: product.category_id,
+                name: product.category_name
+            });
+        }
+    });
+
+    counterSaleCategories = categories;
+
+    if (!categories.length) {
+
+        counterSaleCategoryList.innerHTML = "";
+
+        counterSaleProductList.innerHTML = `
+            <p>
+                No products available.
+            </p>
+        `;
+
+        return;
+    }
+
+    counterSaleCategoryList.innerHTML = "";
+
+    categories.forEach(category => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "counter-sale-category";
+
+        button.textContent =
+            category.name;
+
+        button.addEventListener(
+            "click",
+            () => {
+                selectCounterSaleCategory(
+                    category.id
+                );
+            }
+        );
+
+        counterSaleCategoryList.appendChild(
+            button
+        );
+    });
+
+    selectCounterSaleCategory(
+        categories[0].id
+    );
+}
+
+
+function selectCounterSaleCategory(categoryId) {
+
+    counterSaleSelectedCategoryId =
+        categoryId;
+
+    const buttons =
+        counterSaleCategoryList.querySelectorAll(
+            ".counter-sale-category"
+        );
+
+    buttons.forEach(button => {
+
+        button.classList.toggle(
+            "selected",
+            button.textContent ===
+                counterSaleCategories.find(
+                    category =>
+                        category.id === categoryId
+                )?.name
+        );
+    });
+
+    const products =
+        counterSaleProducts.filter(
+            product =>
+                product.category_id === categoryId
+        );
+
+    counterSaleProductList.innerHTML = "";
+
+    products.forEach(product => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "counter-sale-product";
+
+        button.textContent =
+            `${product.name} — $${Number(product.price).toFixed(2)}`;
+
+        button.addEventListener(
+            "click",
+            () => addCounterSaleProduct(product)
+        );
+
+        counterSaleProductList.appendChild(
+            button
+        );
+    });
+}
+
+
+function renderCounterSaleCustomProducts(
+    customProducts
+) {
+
+    if (!customProducts.length) {
+
+        counterSaleCustomProductList.innerHTML = `
+            <p>
+                No custom products available.
+            </p>
+        `;
+
+        return;
+    }
+
+    counterSaleCustomProductList.innerHTML = "";
+
+    customProducts.forEach(product => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "counter-sale-product";
+
+        button.textContent =
+            `${product.name} — $${Number(product.price).toFixed(2)}`;
+
+        button.addEventListener(
+            "click",
+            () => addCounterSaleCustomProduct(product)
+        );
+
+        counterSaleCustomProductList.appendChild(button);
+    });
+}
+
+
+function addCounterSaleProduct(product) {
+
+    const existingItem =
+        counterSaleCart.find(
+            item =>
+                item.product_id === product.id
+        );
+
+    if (existingItem) {
+
+        existingItem.quantity += 1;
+
+    } else {
+
+        counterSaleCart.push({
+            product_id: product.id,
+            name: product.name,
+            unit_price: Number(product.price),
+            quantity: 1
+        });
+    }
+
+    renderCounterSaleCart();
+}
+
+
+function addCounterSaleCustomProduct(product) {
+
+    const existingItem =
+        counterSaleCart.find(
+            item =>
+                item.custom_product_id === product.id
+        );
+
+    if (existingItem) {
+
+        existingItem.quantity += 1;
+
+    } else {
+
+        counterSaleCart.push({
+            custom_product_id: product.id,
+            name: product.name,
+            unit_price: Number(product.price),
+            quantity: 1
+        });
+    }
+
+    renderCounterSaleCart();
+}
+
+
+function renderCounterSaleCart() {
+
+    if (!counterSaleCart.length) {
+
+        counterSaleCartElement.innerHTML = `
+            <p>
+                No items added.
+            </p>
+        `;
+
+        counterSaleTotal.textContent =
+            "$0.00";
+
+        updateCounterSalePayment();
+
+        return;
+    }
+
+    let total = 0;
+
+    counterSaleCartElement.innerHTML = "";
+
+    counterSaleCart.forEach((item, index) => {
+
+        const lineTotal =
+            item.unit_price * item.quantity;
+
+        total += lineTotal;
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "order-item counter-sale-cart-item";
+
+        row.innerHTML = `
+            <div>
+                <strong>${item.name}</strong>
+
+                <span>
+                    $${item.unit_price.toFixed(2)} each
+                </span>
+            </div>
+
+            <div class="counter-sale-quantity">
+
+                <button
+                    type="button"
+                    data-action="decrease"
+                >
+                    −
+                </button>
+
+                <strong>
+                    ${item.quantity}
+                </strong>
+
+                <button
+                    type="button"
+                    data-action="increase"
+                >
+                    +
+                </button>
+
+            </div>
+
+            <div>
+
+                <strong>
+                    $${lineTotal.toFixed(2)}
+                </strong>
+
+                <button
+                    type="button"
+                    data-action="remove"
+                >
+                    Remove
+                </button>
+
+            </div>
+        `;
+
+        row
+            .querySelector('[data-action="decrease"]')
+            .addEventListener(
+                "click",
+                () => changeCounterSaleQuantity(
+                    index,
+                    -1
+                )
+            );
+
+        row
+            .querySelector('[data-action="increase"]')
+            .addEventListener(
+                "click",
+                () => changeCounterSaleQuantity(
+                    index,
+                    1
+                )
+            );
+
+        row
+            .querySelector('[data-action="remove"]')
+            .addEventListener(
+                "click",
+                () => removeCounterSaleItem(index)
+            );
+
+        counterSaleCartElement.appendChild(row);
+    });
+
+    counterSaleTotal.textContent =
+        `$${total.toFixed(2)}`;
+
+    updateCounterSalePayment();
+}
+
+
+function changeCounterSaleQuantity(
+    index,
+    amount
+) {
+
+    const item =
+        counterSaleCart[index];
+
+    if (!item) {
+        return;
+    }
+
+    item.quantity += amount;
+
+    if (item.quantity <= 0) {
+
+        counterSaleCart.splice(index, 1);
+    }
+
+    renderCounterSaleCart();
+}
+
+
+function removeCounterSaleItem(index) {
+
+    counterSaleCart.splice(index, 1);
+
+    renderCounterSaleCart();
+}
+
+function updateCounterSalePayment() {
+
+    const total =
+        counterSaleCart.reduce(
+            (sum, item) =>
+                sum +
+                item.unit_price * item.quantity,
+            0
+        );
+
+    const paymentMethod =
+        counterSalePaymentMethod.value;
+
+    const cashReceived =
+        Number(counterSaleCashReceived.value);
+
+    counterSalePaymentError.classList.add(
+        "hidden"
+    );
+
+    counterSalePaymentError.textContent = "";
+
+    if (paymentMethod === "CASH") {
+
+        counterSaleCashSection.classList.remove(
+            "hidden"
+        );
+
+        if (
+            counterSaleCashReceived.value !== "" &&
+            Number.isFinite(cashReceived)
+        ) {
+
+            const change =
+                cashReceived - total;
+
+            counterSaleChange.textContent =
+                `$${Math.max(change, 0).toFixed(2)}`;
+
+        } else {
+
+            counterSaleChange.textContent =
+                "$0.00";
+        }
+
+    } else {
+
+        counterSaleCashSection.classList.add(
+            "hidden"
+        );
+
+        counterSaleChange.textContent =
+            "$0.00";
+    }
+
+    let canComplete =
+        counterSaleCart.length > 0 &&
+        total > 0 &&
+        paymentMethod !== "";
+
+    if (paymentMethod === "CASH") {
+
+        canComplete =
+            canComplete &&
+            Number.isFinite(cashReceived) &&
+            cashReceived >= total;
+    }
+
+    completeCounterSale.disabled =
+        !canComplete;
+}
+
+counterSalePaymentMethod.addEventListener(
+    "change",
+    updateCounterSalePayment
+);
+
+counterSaleCashReceived.addEventListener(
+    "input",
+    updateCounterSalePayment
+);
+
+completeCounterSale.addEventListener(
+    "click",
+    async () => {
+
+        if (completeCounterSale.disabled) {
+            return;
+        }
+
+        completeCounterSale.disabled = true;
+        counterSalePaymentError.classList.add("hidden");
+
+        try {
+            const response = await fetch(
+                "/api/counter-sales",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        customer_id:
+                            counterSaleCustomer.value || null,
+
+                        items:
+                            counterSaleCart.map(item => ({
+                                product_id:
+                                    item.product_id ?? null,
+
+                                custom_product_id:
+                                    item.custom_product_id ?? null,
+
+                                quantity:
+                                    item.quantity
+                            })),
+
+                        payment_method:
+                            counterSalePaymentMethod.value,
+
+                        cash_received:
+                            counterSalePaymentMethod.value === "CASH"
+                                ? Number(
+                                    counterSaleCashReceived.value
+                                )
+                                : null
+                    })
+                }
+            );
+
+            const data =
+                await response.json();
+
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.error ||
+                    "Failed to complete counter sale."
+                );
+            }
+
+            console.log(
+                "Counter Sale completed:",
+                data
+            );
+
+            const change =
+                Number(data.change_amount ?? 0);
+
+            const changeMessage =
+                change > 0
+                    ? `\nChange: $${change.toFixed(2)}`
+                    : "";
+
+            alert(
+                `Sale completed successfully.\n\n` +
+                `Order: ${data.order_number}` +
+                changeMessage
+            );
+
+            counterSaleCart = [];
+            counterSaleSelectedCategoryId = null;
+            counterSalePaymentError.textContent = "";
+            counterSalePaymentError.classList.add("hidden");
+
+            counterSaleView.classList.add("hidden");
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+
+        } catch (error) {
+
+            console.error(
+                "Counter Sale completion error:",
+                error
+            );
+
+            counterSalePaymentError.textContent =
+                error.message;
+
+            counterSalePaymentError.classList.remove(
+                "hidden"
+            );
+
+            completeCounterSale.disabled = false;
+        }
+    }
+);
+
     // Open Counter Sale view
 
 document
@@ -3091,6 +3767,8 @@ document
             orderDetailView.classList.add("hidden");
 
             counterSaleView.classList.remove("hidden");
+
+            loadCounterSale();
         }
     );
 
