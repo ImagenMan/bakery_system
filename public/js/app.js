@@ -3100,6 +3100,12 @@ async function loadCounterSale() {
 
     counterSaleCart = [];
 
+    counterSalePaymentMethod.value = "";
+    counterSaleCashReceived.value = "";
+    counterSaleChange.textContent = "$0.00";
+    counterSalePaymentError.textContent = "";
+    counterSalePaymentError.classList.add("hidden");
+
     renderCounterSaleCart();
 
     try {
