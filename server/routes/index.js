@@ -819,7 +819,8 @@ router.post("/orders/:id/items", (req, res) => {
             error.message.includes("Quantity") ||
             error.message.includes("Custom") ||
             error.message.includes("Price") ||
-            error.message.includes("valid user ID")
+            error.message.includes("valid user ID") ||
+            error.message.includes("cannot be modified")
         ) {
             return res.status(400).json({
                 success: false,
@@ -904,7 +905,8 @@ router.put("/orders/:id/items/:itemId", (req, res) => {
         }
 
         if (
-            error.message.includes("Quantity")
+            error.message.includes("Quantity") ||
+            error.message.includes("cannot be modified")
         ) {
             return res.status(400).json({
                 success: false,
@@ -1038,6 +1040,13 @@ if (
         error: error.message
     });
 }
+
+        if (error.message.includes("cannot be modified")) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
 
         res.status(500).json({
             success: false,

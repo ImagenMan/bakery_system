@@ -544,6 +544,8 @@ function recordItemPickup(
     pickedUpBy = null,
     notes = null
 ) {
+    getMutableOrder(orderId);
+
     const order = db.prepare(`
         SELECT id
         FROM orders
@@ -757,6 +759,8 @@ function updateOrderItemProductionStatus(
     orderItemId,
     productionStatus
 ) {
+    getMutableOrder(orderId);
+
     const validStatuses = [
         "PENDING",
         "IN_PROGRESS",
