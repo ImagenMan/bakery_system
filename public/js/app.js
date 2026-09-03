@@ -280,6 +280,11 @@ function renderOrders(orders) {
             <div>
                 <strong>
                     ${escapeHTML(order.order_number)}
+                    ${
+                        order.order_type === "COUNTER_SALE"
+                            ? `<span class="status-badge">COUNTER SALE</span>`
+                            : ""
+                    }
                 </strong>
 
                 <span>
@@ -3078,6 +3083,32 @@ document
         }
     );
 
+// Back from Production to Orders
+
+document
+    .getElementById("back-to-orders-from-production")
+    .addEventListener(
+        "click",
+        () => {
+
+            productionView.classList.add("hidden");
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
+
+// Refresh Orders
+
+document
+    .getElementById("refresh-orders")
+    .addEventListener(
+        "click",
+        () => {
+            loadOrders();
+        }
+    );
 
 // Open New Order view
 
@@ -3778,8 +3809,21 @@ document
         }
     );
 
+// Cancel Counter Sale and return to Orders
 
-// Cancel New Order and return to Orders
+document
+    .getElementById("cancel-counter-sale")
+    .addEventListener(
+        "click",
+        () => {
+
+            counterSaleView.classList.add("hidden");
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
 
 document
     .getElementById("cancel-new-order")
