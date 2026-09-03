@@ -1108,7 +1108,8 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
         if (
             error.message.includes("not found") ||
             error.message.includes("does not belong") ||
-            error.message.includes("Pickup quantity")
+            error.message.includes("Pickup quantity") ||
+            error.message.includes("cannot be modified")
         ) {
             return res.status(400).json({
                 success: false,
