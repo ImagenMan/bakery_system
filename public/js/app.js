@@ -1127,6 +1127,10 @@ function renderOrderDetail(order) {
         ? order.items
         : [];
 
+    const isCompletedCounterSale =
+        order.order_type === "COUNTER_SALE" &&
+        order.status === "COMPLETED";
+
     orderDetail.innerHTML = `
         <div class="order-summary">
 
@@ -1178,37 +1182,55 @@ function renderOrderDetail(order) {
             </div>
 
 
-            <div class="status-control">
+                        ${
+                isCompletedCounterSale
+                    ? `
+                        <div class="status-control">
 
-                <strong>Order Status:</strong>
+                            <strong>Order Status:</strong>
 
-                <select id="order-status">
-    <option value="NEW" ${order.status === "NEW" ? "selected" : ""}>
-        NEW
-    </option>
+                            <span>
+                                ${escapeHTML(order.status)}
+                            </span>
 
-    <option value="CONFIRMED" ${order.status === "CONFIRMED" ? "selected" : ""}>
-        CONFIRMED
-    </option>
+                        </div>
+                    `
+                    : `
+                        <div class="status-control">
 
-    <option value="READY" ${order.status === "READY" ? "selected" : ""}>
-        READY
-    </option>
+                            <strong>Order Status:</strong>
 
-    <option value="COMPLETED" ${order.status === "COMPLETED" ? "selected" : ""}>
-        COMPLETED
-    </option>
+                            <select id="order-status">
 
-    <option value="CANCELLED" ${order.status === "CANCELLED" ? "selected" : ""}>
-        CANCELLED
-    </option>
-</select>
+                                <option value="NEW" ${order.status === "NEW" ? "selected" : ""}>
+                                    NEW
+                                </option>
 
-<button id="save-order-status">
-    Save
-</button>
+                                <option value="CONFIRMED" ${order.status === "CONFIRMED" ? "selected" : ""}>
+                                    CONFIRMED
+                                </option>
 
-            </div>
+                                <option value="READY" ${order.status === "READY" ? "selected" : ""}>
+                                    READY
+                                </option>
+
+                                <option value="COMPLETED" ${order.status === "COMPLETED" ? "selected" : ""}>
+                                    COMPLETED
+                                </option>
+
+                                <option value="CANCELLED" ${order.status === "CANCELLED" ? "selected" : ""}>
+                                    CANCELLED
+                                </option>
+
+                            </select>
+
+                            <button id="save-order-status">
+                                Save
+                            </button>
+
+                        </div>
+                    `
+            }
 
 
             <div class="payment-section">
@@ -1329,12 +1351,18 @@ function renderOrderDetail(order) {
 
                 <h3>Items</h3>
 
-                <button
-                    type="button"
-                    id="add-item-button"
-                >
-                    + Add Item
-                </button>
+                ${
+                    isCompletedCounterSale
+                        ? ""
+                        : `
+                            <button
+                                type="button"
+                                id="add-item-button"
+                            >
+                                + Add Item
+                            </button>
+                        `
+                }
 
             </div>
 
@@ -1466,7 +1494,14 @@ function renderOrderDetail(order) {
                                 No items on this order.
                             </p>
                         `
-                        : items.map(renderOrderItem).join("")
+                        : items
+                            .map(item =>
+                                renderOrderItem(
+                                    item,
+                                    isCompletedCounterSale
+                                )
+                            )
+                            .join("")
                 }
 
             </div>
@@ -1612,7 +1647,10 @@ function renderPaymentHistory(payments) {
 // Order Item Rendering
 // =========================================================
 
-function renderOrderItem(item) {
+function renderOrderItem(
+    item,
+    isCompletedCounterSale = false
+) {
     const quantity = Number(item.quantity) || 0;
     const pickedUp = Number(item.quantity_picked_up) || 0;
     const remaining = Math.max(
@@ -1647,52 +1685,62 @@ function renderOrderItem(item) {
                     Production:
                 </label>
 
-                <select
-                    class="production-status"
-                    data-item-id="${Number(item.id)}"
-                >
+                ${
+                    isCompletedCounterSale
+                        ? `
+                            <span>
+                                ${escapeHTML(item.production_status)}
+                            </span>
+                        `
+                        : `
+                            <select
+                                class="production-status"
+                                data-item-id="${Number(item.id)}"
+                            >
 
-                    <option
-                        value="PENDING"
-                        ${item.production_status === "PENDING"
-                            ? "selected"
-                            : ""
-                        }
-                    >
-                        PENDING
-                    </option>
+                                <option
+                                    value="PENDING"
+                                    ${item.production_status === "PENDING"
+                                        ? "selected"
+                                        : ""
+                                    }
+                                >
+                                    PENDING
+                                </option>
 
-                    <option
-                        value="IN_PROGRESS"
-                        ${item.production_status === "IN_PROGRESS"
-                            ? "selected"
-                            : ""
-                        }
-                    >
-                        IN_PROGRESS
-                    </option>
+                                <option
+                                    value="IN_PROGRESS"
+                                    ${item.production_status === "IN_PROGRESS"
+                                        ? "selected"
+                                        : ""
+                                    }
+                                >
+                                    IN_PROGRESS
+                                </option>
 
-                    <option
-                        value="READY"
-                        ${item.production_status === "READY"
-                            ? "selected"
-                            : ""
-                        }
-                    >
-                        READY
-                    </option>
+                                <option
+                                    value="READY"
+                                    ${item.production_status === "READY"
+                                        ? "selected"
+                                        : ""
+                                    }
+                                >
+                                    READY
+                                </option>
 
-                    <option
-                        value="COMPLETED"
-                        ${item.production_status === "COMPLETED"
-                            ? "selected"
-                            : ""
-                        }
-                    >
-                        COMPLETED
-                    </option>
+                                <option
+                                    value="COMPLETED"
+                                    ${item.production_status === "COMPLETED"
+                                        ? "selected"
+                                        : ""
+                                    }
+                                >
+                                    COMPLETED
+                                </option>
 
-                </select>
+                            </select>
+                        `
+                }
 
                 <span class="pickup-progress">
                     Picked up:
@@ -1705,45 +1753,61 @@ function renderOrderItem(item) {
             <div class="item-pickup">
 
                 ${
-                    remaining > 0
-                        ? `
-                            <div class="pickup-control">
+    isCompletedCounterSale
+        ? `
+            ${
+                remaining > 0
+                    ? `
+                        <span>
+                            ${remaining}
+                            remaining
+                        </span>
+                    `
+                    : `
+                        <span class="pickup-complete">
+                            ✓ Fully Picked Up
+                        </span>
+                    `
+            }
+        `
+        : remaining > 0
+            ? `
+                <div class="pickup-control">
 
-                                <input
-                                    type="number"
-                                    class="pickup-quantity"
-                                    data-item-id="${Number(item.id)}"
-                                    data-remaining="${remaining}"
-                                    min="1"
-                                    max="${remaining}"
-                                    step="1"
-                                    value="1"
-                                    inputmode="numeric"
-                                >
+                    <input
+                        type="number"
+                        class="pickup-quantity"
+                        data-item-id="${Number(item.id)}"
+                        data-remaining="${remaining}"
+                        min="1"
+                        max="${remaining}"
+                        step="1"
+                        value="1"
+                        inputmode="numeric"
+                    >
 
-                                <button
-                                    type="button"
-                                    class="pickup-item"
-                                    data-item-id="${Number(item.id)}"
-                                    data-remaining="${remaining}"
-                                >
-                                    Pick Up
-                                </button>
+                    <button
+                        type="button"
+                        class="pickup-item"
+                        data-item-id="${Number(item.id)}"
+                        data-remaining="${remaining}"
+                    >
+                        Pick Up
+                    </button>
 
-                            </div>
+                </div>
 
-                            <small>
-                                ${remaining}
-                                remaining
-                            </small>
-                        `
-                        : `
-                            <span class="pickup-complete">
-                                ✓ Fully Picked Up
-                            </span>
-                        `
-                }
-
+                <small>
+                    ${remaining}
+                    remaining
+                </small>
+            `
+            : `
+                <span class="pickup-complete">
+                    ✓ Fully Picked Up
+                </span>
+            `
+}
             </div>
 
 
