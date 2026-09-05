@@ -1,11 +1,52 @@
 const express = require("express");
 const router = express.Router();
 
-const orders = require("../models/order");
-const customers = require("../models/customer");
-const products = require("../models/product");
-const customProducts = require("../models/customProduct");
+const { models } = require("../models/context");
 const { requireAdmin } = require("../middleware/auth");
+
+// =========================================================
+// Application Mode
+// =========================================================
+
+router.post("/mode", (req, res) => {
+    try {
+        const { mode } = req.body;
+
+        if (mode !== "NORMAL" && mode !== "TRAINING") {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid application mode."
+            });
+        }
+
+        req.session.mode = mode;
+
+        res.json({
+            success: true,
+            mode
+        });
+
+    } catch (error) {
+        console.error("POST /api/mode error:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to change application mode."
+        });
+    }
+});
+
+router.get("/mode", (req, res) => {
+    const mode =
+        req.session.mode === "TRAINING"
+            ? "TRAINING"
+            : "NORMAL";
+
+    res.json({
+        success: true,
+        mode
+    });
+});
 
 // =========================================================
 // Customers
@@ -13,7 +54,7 @@ const { requireAdmin } = require("../middleware/auth");
 
 router.get("/customers", (req, res) => {
     try {
-        const result = customers.getAllCustomers();
+        const result = req.models.customer.getAllCustomers();
 
         res.json({
             success: true,
@@ -25,7 +66,7 @@ router.get("/customers", (req, res) => {
 
         res.status(500).json({
             success: false,
-            error: "Failed to retrieve customers."
+            error: "Failed to retrieve req.models.customer."
         });
     }
 });
@@ -46,7 +87,7 @@ router.get("/customers/:id", (req, res) => {
         }
 
         const customer =
-            customers.getCustomerById(customerId);
+            req.models.customer.getCustomerById(customerId);
 
         if (!customer) {
             return res.status(404).json({
@@ -79,7 +120,7 @@ router.get("/customers/:id", (req, res) => {
 
 router.get("/products", (req, res) => {
     try {
-        const result = products.getAllProducts();
+        const result = req.models.product.getAllProducts();
 
         res.json({
             success: true,
@@ -91,7 +132,7 @@ router.get("/products", (req, res) => {
 
         res.status(500).json({
             success: false,
-            error: "Failed to retrieve products."
+            error: "Failed to retrieve req.models.product."
         });
     }
 });
@@ -112,7 +153,7 @@ router.get("/products/:id", (req, res) => {
         }
 
         const product =
-            products.getProductById(productId);
+            req.models.product.getProductById(productId);
 
         if (!product) {
             return res.status(404).json({
@@ -141,7 +182,7 @@ router.get("/products/:id", (req, res) => {
 
 router.get("/categories", (req, res) => {
     try {
-        const result = products.getAllCategories();
+        const result = req.models.product.getAllCategories();
 
         res.json({
             success: true,
@@ -176,7 +217,7 @@ router.get("/categories/:id/products", (req, res) => {
         }
 
         const result =
-            products.getProductsByCategory(categoryId);
+            req.models.product.getProductsByCategory(categoryId);
 
         res.json({
             success: true,
@@ -191,7 +232,7 @@ router.get("/categories/:id/products", (req, res) => {
 
         res.status(500).json({
             success: false,
-            error: "Failed to retrieve products."
+            error: "Failed to retrieve req.models.product."
         });
     }
 });
@@ -212,7 +253,7 @@ router.post("/products", requireAdmin, (req, res) => {
             display_order = 0
         } = req.body;
 
-        const product = products.createProduct({
+        const product = req.models.product.createProduct({
             sku,
             category_id,
             name,
@@ -273,7 +314,7 @@ router.put("/products/:id", requireAdmin, (req, res) => {
             display_order = 0
         } = req.body;
 
-        const product = products.updateProduct({
+        const product = req.models.product.updateProduct({
             id: productId,
             sku,
             category_id,
@@ -336,7 +377,7 @@ router.patch("/products/:id/active", requireAdmin, (req, res) => {
 
         const { active } = req.body;
 
-        const product = products.setProductActive({
+        const product = req.models.product.setProductActive({
             id: productId,
             active,
             user_id: req.user.id
@@ -386,7 +427,7 @@ router.patch("/products/:id/active", requireAdmin, (req, res) => {
 router.get("/custom-products", (req, res) => {
     try {
         const result =
-            customProducts.getActiveCustomProducts();
+            req.models.customProduct.getActiveCustomProducts();
 
         res.json({
             success: true,
@@ -401,7 +442,7 @@ router.get("/custom-products", (req, res) => {
 
         res.status(500).json({
             success: false,
-            error: "Failed to retrieve custom products."
+            error: "Failed to retrieve custom req.models.product."
         });
     }
 });
@@ -421,7 +462,7 @@ router.get("/custom-products/:id", (req, res) => {
         }
 
         const product =
-            customProducts.getCustomProductById(
+            req.models.customProduct.getCustomProductById(
                 customProductId
             );
 
@@ -459,7 +500,7 @@ router.post("/custom-products", requireAdmin, (req, res) => {
         } = req.body;
 
         const product =
-            customProducts.createCustomProduct({
+            req.models.customProduct.createCustomProduct({
                 name,
                 price,
                 description,
@@ -512,7 +553,7 @@ router.patch("/custom-products/:id/active", requireAdmin, (req, res) => {
         const { active } = req.body;
 
         const product =
-            customProducts.setCustomProductActive({
+            req.models.customProduct.setCustomProductActive({
                 id: customProductId,
                 active,
                 user_id: req.user.id
@@ -561,7 +602,7 @@ router.patch("/custom-products/:id/active", requireAdmin, (req, res) => {
 
 router.get("/orders", (req, res) => {
     try {
-        const result = orders.getAllOrders();
+        const result = req.models.order.getAllOrders();
 
         res.json({
             success: true,
@@ -572,7 +613,7 @@ router.get("/orders", (req, res) => {
 
         res.status(500).json({
             success: false,
-            error: "Failed to retrieve orders."
+            error: "Failed to retrieve req.models.order."
         });
     }
 });
@@ -588,7 +629,7 @@ router.get("/orders/:id", (req, res) => {
             });
         }
 
-        const order = orders.getOrderById(orderId);
+        const order = req.models.order.getOrderById(orderId);
 
         if (!order) {
             return res.status(404).json({
@@ -645,7 +686,7 @@ router.post("/orders", (req, res) => {
             });
         }
 
-        const order = orders.createOrder({
+        const order = req.models.order.createOrder({
             order_number,
             customer_id,
             order_type,
@@ -654,7 +695,10 @@ router.post("/orders", (req, res) => {
             delivery,
             delivery_address,
             notes,
-            created_by: req.user.id
+            created_by:
+                req.mode === "TRAINING"
+                    ? 1
+                    : req.user.id
         });
 
         res.status(201).json({
@@ -697,14 +741,18 @@ router.post("/counter-sales", (req, res) => {
             });
         }
 
-        const result = orders.createCounterSale({
+        const result = req.models.order.createCounterSale({
             customer_id,
             items,
             payment_method,
             cash_received,
             reference,
             notes,
-            created_by: req.user.id
+            created_by:
+                req.mode === "TRAINING"
+                    ? 1
+                    : req.user.id,
+            authorization_user_id: req.user.id
         });
 
         res.status(201).json({
@@ -780,7 +828,7 @@ router.post("/orders/:id/items", (req, res) => {
         }
 
 
-        const order = orders.addOrderItem({
+        const order = req.models.order.addOrderItem({
             order_id: orderId,
             product_id,
             custom_product_id,
@@ -863,7 +911,7 @@ router.put("/orders/:id/items/:itemId", (req, res) => {
             });
         }
 
-        const order = orders.updateOrderItem(
+        const order = req.models.order.updateOrderItem(
             orderId,
             itemId,
             {
@@ -951,7 +999,7 @@ router.put(
 
 
         const order =
-            orders.updateOrderItemProductionStatus(
+            req.models.order.updateOrderItemProductionStatus(
                 orderId,
                 itemId,
                 production_status
@@ -997,7 +1045,7 @@ router.delete("/orders/:id/items/:itemId", (req, res) => {
             });
         }
 
-        const order = orders.removeOrderItem(
+        const order = req.models.order.removeOrderItem(
             orderId,
             itemId
         );
@@ -1086,7 +1134,7 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
             });
         }
 
-        const order = orders.recordItemPickup(
+        const order = req.models.order.recordItemPickup(
             orderId,
             itemId,
             quantity,
@@ -1135,7 +1183,7 @@ router.get("/orders/:id/pickups", (req, res) => {
             });
         }
 
-        const pickups = orders.getPickupHistory(orderId);
+        const pickups = req.models.order.getPickupHistory(orderId);
 
         res.json({
             success: true,
@@ -1181,7 +1229,7 @@ router.put("/orders/:id/status", (req, res) => {
             });
         }
 
-        const order = orders.updateOrderStatus(
+        const order = req.models.order.updateOrderStatus(
             orderId,
             status
         );
@@ -1247,13 +1295,16 @@ router.post("/orders/:id/payments", (req, res) => {
             });
         }
 
-        const result = orders.recordPayment({
+        const result = req.models.order.recordPayment({
             orderId,
             amount,
             paymentMethod: payment_method,
             cashReceived: cash_received,
             reference,
-            recordedBy: req.user.id,
+            recordedBy:
+                req.mode === "TRAINING"
+                    ? 1
+                    : req.user.id,
             notes
         });
 
@@ -1301,7 +1352,7 @@ router.get("/orders/:id/payments", (req, res) => {
             });
         }
 
-        const payments = orders.getPaymentHistory(orderId);
+        const payments = req.models.order.getPaymentHistory(orderId);
 
         res.json({
             success: true,

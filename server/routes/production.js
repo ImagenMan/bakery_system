@@ -3,9 +3,6 @@ const router = express.Router();
 
 const { requireAdmin } = require("../middleware/auth");
 
-const productionItem = require("../models/productionItem");
-const productionAvailable =
-    require("../models/productionAvailable");
 
 // =========================================================
 // Production Items
@@ -14,7 +11,7 @@ const productionAvailable =
 router.get("/items", (req, res) => {
     try {
         const result =
-            productionItem.getActiveProductionItems();
+            req.models.productionItem.getActiveProductionItems();
 
         res.json({
             success: true,
@@ -47,7 +44,7 @@ router.get("/items/:id", (req, res) => {
         }
 
         const item =
-            productionItem.getProductionItemById(id);
+            req.models.productionItem.getProductionItemById(id);
 
         if (!item) {
             return res.status(404).json({
@@ -87,7 +84,7 @@ router.get("/items/product/:productId", (req, res) => {
         }
 
         const item =
-            productionItem.getProductionItemByProductId(
+            req.models.productionItem.getProductionItemByProductId(
                 productId
             );
 
@@ -132,7 +129,7 @@ router.put("/items/:id", requireAdmin, (req, res) => {
         } = req.body;
 
         const item =
-            productionItem.updateProductionItem({
+            req.models.productionItem.updateProductionItem({
                 id,
                 base_batch_quantity
             });
@@ -181,7 +178,7 @@ router.patch("/items/:id/active", requireAdmin, (req, res) => {
         const { active } = req.body;
 
         const item =
-            productionItem.setProductionItemActive({
+            req.models.productionItem.setProductionItemActive({
                 id,
                 active
             });
@@ -218,7 +215,6 @@ router.patch("/items/:id/active", requireAdmin, (req, res) => {
 // Production Plans
 // =========================================================
 
-const productionPlan = require("../models/productionPlan");
 
 
 router.get("/plans", (req, res) => {
@@ -233,7 +229,7 @@ router.get("/plans", (req, res) => {
         }
 
         const result =
-            productionPlan.getProductionPlansByDate(date);
+            req.models.productionPlan.getProductionPlansByDate(date);
 
         res.json({
             success: true,
@@ -273,7 +269,7 @@ router.get("/plans/:id", (req, res) => {
         }
 
         const plan =
-            productionPlan.getProductionPlanById(id);
+            req.models.productionPlan.getProductionPlanById(id);
 
         if (!plan) {
             return res.status(404).json({
@@ -319,7 +315,7 @@ router.get(
             }
 
             const result =
-                productionPlan.getProductionPlansByItem(
+                req.models.productionPlan.getProductionPlansByItem(
                     productionItemId
                 );
 
@@ -365,7 +361,7 @@ router.get(
             }
 
             const plan =
-                productionPlan.getProductionPlanByItemAndDate(
+                req.models.productionPlan.getProductionPlanByItemAndDate(
                     productionItemId,
                     date
                 );
@@ -413,7 +409,7 @@ router.post("/plans", requireAdmin, (req, res) => {
         } = req.body;
 
         const plan =
-            productionPlan.createProductionPlan({
+            req.models.productionPlan.createProductionPlan({
                 production_item_id,
                 production_date,
                 planned_quantity
@@ -463,7 +459,7 @@ router.get("/demand", (req, res) => {
         }
 
         const result =
-            productionPlan.getProductionDemandByDate(date);
+            req.models.productionPlan.getProductionDemandByDate(date);
 
         res.json({
             success: true,
@@ -505,7 +501,7 @@ router.get("/overview", (req, res) => {
         }
 
         const result =
-            productionPlan.getProductionOverviewByDate(date);
+            req.models.productionPlan.getProductionOverviewByDate(date);
 
         res.json({
             success: true,
@@ -556,7 +552,7 @@ router.put("/plans/:id", requireAdmin, (req, res) => {
         }
 
         const plan =
-            productionPlan.updateProductionPlan(updateData);
+            req.models.productionPlan.updateProductionPlan(updateData);
 
         res.json({
             success: true,
@@ -601,7 +597,6 @@ router.put("/plans/:id", requireAdmin, (req, res) => {
 // Production Outputs
 // =========================================================
 
-const productionOutput = require("../models/productionOutput");
 
 
 router.get("/outputs/:id", (req, res) => {
@@ -616,7 +611,7 @@ router.get("/outputs/:id", (req, res) => {
         }
 
         const output =
-            productionOutput.getProductionOutputById(id);
+            req.models.productionOutput.getProductionOutputById(id);
 
         if (!output) {
             return res.status(404).json({
@@ -659,7 +654,7 @@ router.get(
             }
 
             const result =
-                productionOutput.getProductionOutputsByPlanId(
+                req.models.productionOutput.getProductionOutputsByPlanId(
                     planId
                 );
 
@@ -715,7 +710,7 @@ router.get(
             }
 
             const totals =
-                productionOutput.getProductionTotals(
+                req.models.productionOutput.getProductionTotals(
                     planId
                 );
 
@@ -775,7 +770,7 @@ router.post(
             }
 
             const output =
-                productionOutput.createProductionOutput({
+                req.models.productionOutput.createProductionOutput({
                     production_plan_id: planId,
                     produced_quantity
                 });
@@ -947,7 +942,6 @@ router.post(
 // Production Supply
 // =========================================================
 
-const productionSupply = require("../models/productionSupply");
 
 
 router.put("/supply/:id", requireAdmin, (req, res) => {
@@ -967,7 +961,7 @@ router.put("/supply/:id", requireAdmin, (req, res) => {
         } = req.body;
 
         const supply =
-            productionSupply.updateProductionSupply({
+            req.models.productionSupply.updateProductionSupply({
                 id,
                 quantity,
                 supply_date
@@ -1025,7 +1019,7 @@ router.get("/supply", (req, res) => {
         }
 
         const result =
-            productionSupply.getProductionSupplyByDate(date);
+            req.models.productionSupply.getProductionSupplyByDate(date);
 
         res.json({
             success: true,
@@ -1075,7 +1069,7 @@ router.get(
             }
 
             const supply =
-                productionSupply.getProductionSupplyByItemAndDate(
+                req.models.productionSupply.getProductionSupplyByItemAndDate(
                     productionItemId,
                     date
                 );
@@ -1123,7 +1117,7 @@ router.post("/supply", requireAdmin, (req, res) => {
         } = req.body;
 
         const supply =
-            productionSupply.createProductionSupply({
+            req.models.productionSupply.createProductionSupply({
                 production_item_id,
                 quantity,
                 supply_date

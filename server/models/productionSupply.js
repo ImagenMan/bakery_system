@@ -1,4 +1,4 @@
-const db = require("../config/database");
+function createProductionSupplyModel(db) {
 
 function isValidSupplyDate(value) {
     if (typeof value !== "string") {
@@ -274,12 +274,17 @@ function updateProductionSupply({
     return findProductionSupplyById(id);
 }
 
+    return {
+        isValidSupplyDate,
+        getProductionSupplyById,
+        findProductionSupplyById,
+        getProductionSupplyByItemAndDate,
+        getProductionSupplyByDate,
+        createProductionSupply,
+        updateProductionSupply
+    };
+}
+
 module.exports = {
-    isValidSupplyDate,
-    getProductionSupplyById,
-    findProductionSupplyById,
-    getProductionSupplyByItemAndDate,
-    getProductionSupplyByDate,
-    createProductionSupply,
-    updateProductionSupply
+    createProductionSupplyModel
 };

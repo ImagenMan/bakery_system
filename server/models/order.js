@@ -1,31 +1,37 @@
-const db = require("../config/database");
-const user = require("./user");
+const userModel = require("./user");
 const { isValidMoney, roundMoney } = require("../utils/money");
 
-function getMutableOrder(orderId) {
-    const order = db.prepare(`
-        SELECT
-            id,
-            order_type,
-            status
-        FROM orders
-        WHERE id = ?
-    `).get(orderId);
+function createOrderModel(
+    db,
+    authorizationUser = userModel.createUserModel(db)
+) {
 
-    if (!order) {
-        throw new Error(`Order ${orderId} not found.`);
-    }
+    const user = authorizationUser;
 
-    if (
-        order.order_type === "COUNTER_SALE" &&
-        order.status === "COMPLETED"
-    ) {
-        throw new Error(
-            `Completed counter sale ${orderId} cannot be modified.`
-        );
-    }
+    function getMutableOrder(orderId) {
+        const order = db.prepare(`
+            SELECT
+                id,
+                order_type,
+                status
+            FROM orders
+            WHERE id = ?
+        `).get(orderId);
 
-    return order;
+        if (!order) {
+            throw new Error(`Order ${orderId} not found.`);
+        }
+
+        if (
+            order.order_type === "COUNTER_SALE" &&
+            order.status === "COMPLETED"
+        ) {
+            throw new Error(
+                `Completed counter sale ${orderId} cannot be modified.`
+            );
+        }
+
+        return order;
 }
 
 function createOrder({
@@ -37,7 +43,8 @@ function createOrder({
     delivery = 0,
     delivery_address = null,
     notes = null,
-    created_by = null
+    created_by = null,
+    authorization_user_id = created_by
 }) {
     const transaction = db.transaction(() => {
         let finalOrderNumber = order_number;
@@ -117,7 +124,8 @@ function createCounterSale({
     cash_received = null,
     reference = null,
     notes = null,
-    created_by
+    created_by,
+    authorization_user_id = created_by
 }) {
     if (!Array.isArray(items) || items.length === 0) {
         throw new Error(
@@ -204,7 +212,8 @@ function createCounterSale({
                 unit_price: item.unit_price ?? null,
                 quantity: item.quantity,
                 notes: item.notes ?? null,
-                user_id: created_by
+                user_id: created_by,
+                authorization_user_id
             });
         }
 
@@ -298,7 +307,8 @@ function insertOrderItem({
     unit_price = null,
     quantity,
     notes = null,
-    user_id
+    user_id,
+    authorization_user_id = user_id
 }) {
     const order = db.prepare(`
         SELECT id
@@ -401,7 +411,7 @@ function insertOrderItem({
                 );
             }
 
-            user.requireAdmin(user_id);
+            user.requireAdmin(authorization_user_id);
             finalPrice = unit_price;
         }
 
@@ -1220,20 +1230,25 @@ function getPaymentHistory(orderId) {
     `).all(orderId);
 }
 
+        return {
+        createOrder,
+        createCounterSale,
+        addOrderItem,
+        removeOrderItem,
+        recordItemPickup,
+        getPickupHistory,
+        updateOrderItem,
+        updateOrderItemProductionStatus,
+        updateOrderTotal,
+        getOrderById,
+        getOrderByNumber,
+        getAllOrders,
+        updateOrderStatus,
+        recordPayment,
+        getPaymentHistory
+    };
+}
+
 module.exports = {
-    createOrder,
-    createCounterSale,
-    addOrderItem,
-    removeOrderItem,
-    recordItemPickup,
-    getPickupHistory,
-    updateOrderItem,
-    updateOrderItemProductionStatus,
-    updateOrderTotal,
-    getOrderById,
-    getOrderByNumber,
-    getAllOrders,
-    updateOrderStatus,
-    recordPayment,
-    getPaymentHistory
+    createOrderModel
 };

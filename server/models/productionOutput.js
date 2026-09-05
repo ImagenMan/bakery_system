@@ -1,4 +1,4 @@
-const db = require("../config/database");
+function createProductionOutputModel(db) {
 
 function validatePositiveInteger(value, fieldName) {
     if (!Number.isInteger(value) || value <= 0) {
@@ -175,10 +175,15 @@ function createProductionOutput({
     );
 }
 
+    return {
+        getProductionOutputById,
+        findProductionOutputById,
+        getProductionOutputsByPlanId,
+        getProductionTotals,
+        createProductionOutput
+    };
+}
+
 module.exports = {
-    getProductionOutputById,
-    findProductionOutputById,
-    getProductionOutputsByPlanId,
-    getProductionTotals,
-    createProductionOutput
+    createProductionOutputModel
 };

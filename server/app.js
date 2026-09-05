@@ -1,3 +1,4 @@
+const { attachModels } = require("./middleware/mode");
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -23,8 +24,8 @@ app.use(session({
 app.use(express.static("public"));
 
 app.use("/api/auth", authRoutes);
-app.use("/api/production", requireAuth, productionRoutes);
-app.use("/api", requireAuth, apiRoutes);
+app.use("/api/production", requireAuth, attachModels, productionRoutes);
+app.use("/api", requireAuth, attachModels, apiRoutes);
 
 io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);

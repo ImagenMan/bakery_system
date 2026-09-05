@@ -1,6 +1,12 @@
 const fs = require("fs");
 const path = require("path");
-const db = require("../server/config/database");
+const { openDatabase } = require("../server/config/database");
+
+const dbPath =
+    process.argv[2] ||
+    path.join(__dirname, "../data/bakery.db");
+
+const db = openDatabase(dbPath);
 
 const migrationsPath = path.join(
     __dirname,
