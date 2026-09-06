@@ -11,11 +11,279 @@
 <body>
 
     <header class="app-header">
-        <h1>🍩 Bakery System</h1>
-        <div id="connection-status">Connecting...</div>
+        <div>
+            <h1>🍩 Bakery System</h1>
+            <div id="mode-indicator" class="mode-indicator normal">
+                NORMAL MODE
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button
+                type="button"
+                id="training-mode"
+            >
+                Training / Playground
+            </button>
+
+            <div id="connection-status">
+                Connecting...
+            </div>
+        </div>
     </header>
 
     <main>
+
+    <!-- Training / Playground -->
+
+    <section id="training-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-orders-from-training">
+                ← Orders
+            </button>
+
+            <h2>Training / Playground</h2>
+
+        </div>
+
+        <div class="training-mode-notice">
+
+            <h3>TRAINING MODE</h3>
+
+            <p>
+                This is a practice environment.
+                Nothing you do here should affect real bakery operations.
+            </p>
+
+        </div>
+
+        <div class="training-workflows">
+
+            <h3>Choose a workflow to practice</h3>
+
+            <button
+                type="button"
+                id="training-counter-sale"
+            >
+                Counter Sale
+            </button>
+
+            <button
+                type="button"
+                id="training-production"
+            >
+                Production / Kitchen
+            </button>
+
+        </div>
+
+    </section>
+
+    <!-- Training Counter Sale -->
+
+    <section id="training-counter-sale-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-training">
+                ← Training
+            </button>
+
+            <h2>Training Counter Sale</h2>
+
+        </div>
+
+
+        <div class="training-mode-notice">
+
+            <h3>TRAINING MODE</h3>
+
+            <p>
+                Practice a counter sale here.
+                Nothing will be saved to the bakery system.
+            </p>
+
+        </div>
+
+
+        <div class="training-counter-sale-form">
+
+            <div class="counter-sale-customer">
+
+                <label for="training-counter-sale-customer">
+                    Customer (optional)
+                </label>
+
+                <select id="training-counter-sale-customer">
+
+                    <option value="">
+                        Walk-in / No customer
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="counter-sale-products">
+
+                <h3>Products</h3>
+
+                <div id="training-counter-sale-category-list">
+
+                    <p>
+                        Training products will appear here.
+                    </p>
+
+                </div>
+
+                <div id="training-counter-sale-product-list">
+
+                    <p>
+                        Training products will appear here.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="counter-sale-custom-products">
+
+                <h3>Custom Products</h3>
+
+                <div id="training-counter-sale-custom-product-list">
+
+                    <p>
+                        Training custom products will appear here.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="counter-sale-cart">
+
+                <div class="order-items-header">
+
+                    <h3>Sale</h3>
+
+                </div>
+
+                <div id="training-counter-sale-cart">
+
+                    <p>
+                        No items added.
+                    </p>
+
+                </div>
+
+                <div class="counter-sale-total">
+
+                    <strong>Total</strong>
+
+                    <strong id="training-counter-sale-total">
+                        $0.00
+                    </strong>
+
+                </div>
+
+                <button
+                    type="button"
+                    id="clear-training-counter-sale"
+                >
+                    Clear Sale
+                </button>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- Training Production -->
+
+    <section id="training-production-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-training-from-production">
+                ← Training
+            </button>
+
+            <h2>Training Production / Kitchen</h2>
+
+        </div>
+
+        <div class="training-mode-notice">
+
+            <h3>TRAINING MODE</h3>
+
+            <p>
+                Practice the production workflow here.
+                Nothing will be saved to the bakery system.
+            </p>
+
+        </div>
+
+        <div class="training-production-actions">
+
+            <button
+                type="button"
+                id="reset-training-production"
+            >
+                Reset Training Production
+            </button>
+
+        </div>
+
+        <div class="training-production-content">
+
+            <p>
+                Training production workflow will appear here.
+            </p>
+
+        </div>
+
+    </section>
+
+    <section id="training-production-item-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-training-production">
+                ← Production
+            </button>
+
+            <h2 id="training-production-item-title">
+                Training Production Item
+            </h2>
+
+        </div>
+
+        <div class="training-mode-notice">
+
+            <h3>TRAINING MODE</h3>
+
+            <p>
+                Practice production here.
+                Nothing will be saved to the bakery system.
+            </p>
+
+        </div>
+
+        <div id="training-production-item-detail">
+
+            <p>
+                Select a production item.
+            </p>
+
+        </div>
+
+    </section>
 
     <!-- Login -->
 

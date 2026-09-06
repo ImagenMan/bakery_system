@@ -39,6 +39,21 @@ body {
     color: #777;
 }
 
+.mode-indicator {
+    margin-top: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    letter-spacing: 0.05em;
+}
+
+.mode-indicator.normal {
+    color: #333;
+}
+
+.mode-indicator.training {
+    color: #b00020;
+}
+
 /* =========================================================
    Layout
    ========================================================= */

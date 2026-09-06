@@ -11,6 +11,26 @@ const orderDetailView = document.getElementById("order-detail-view");
 const newOrderView = document.getElementById("new-order-view");
 const counterSaleView = document.getElementById("counter-sale-view");
 const productionView = document.getElementById("production-view");
+const trainingView = document.getElementById("training-view");
+const trainingCounterSaleView = document.getElementById(
+    "training-counter-sale-view"
+);
+const trainingProductionView = document.getElementById(
+    "training-production-view"
+);
+const trainingProductionItemView = document.getElementById(
+    "training-production-item-view"
+);
+
+const trainingProductionItemTitle = document.getElementById(
+    "training-production-item-title"
+);
+
+const trainingProductionItemDetail = document.getElementById(
+    "training-production-item-detail"
+);
+
+const modeIndicator = document.getElementById("mode-indicator");
 
 const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
@@ -27,6 +47,10 @@ const counterSaleProductList = document.getElementById("counter-sale-product-lis
 const counterSaleCustomProductList = document.getElementById("counter-sale-custom-product-list");
 const counterSaleCartElement = document.getElementById("counter-sale-cart");
 const counterSaleTotal = document.getElementById("counter-sale-total");
+
+const trainingCounterSaleCartElement = document.getElementById("training-counter-sale-cart");
+const trainingCounterSaleTotal = document.getElementById("training-counter-sale-total");
+
 const counterSalePaymentMethod = document.getElementById("counter-sale-payment-method");
 const counterSaleCashSection = document.getElementById("counter-sale-cash-section");
 const counterSaleCashReceived = document.getElementById("counter-sale-cash-received");
@@ -38,6 +62,145 @@ let counterSaleCart = [];
 let counterSaleProducts = [];
 let counterSaleCategories = [];
 let counterSaleSelectedCategoryId = null;
+
+let trainingCounterSaleCart = [];
+let trainingCounterSaleProducts = [];
+let trainingCounterSaleCategories = [];
+let trainingCounterSaleSelectedCategoryId = null;
+
+let trainingProductionDate = null;
+let trainingProductionItems = [];
+let trainingProductionDemand = [];
+let trainingProductionPlans = {};
+let trainingProductionMade = {};
+
+function renderTrainingCounterSaleCart() {
+
+    if (!trainingCounterSaleCart.length) {
+
+        trainingCounterSaleCartElement.innerHTML = `
+            <p>
+                No items added.
+            </p>
+        `;
+
+        trainingCounterSaleTotal.textContent =
+            "$0.00";
+
+        return;
+    }
+
+    let total = 0;
+
+    trainingCounterSaleCartElement.innerHTML = "";
+
+    trainingCounterSaleCart.forEach(item => {
+
+        const lineTotal =
+            item.unit_price * item.quantity;
+
+        total += lineTotal;
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "order-item counter-sale-cart-item";
+
+        row.innerHTML = `
+            <div>
+                <strong>${item.name}</strong>
+
+                <span>
+                    $${item.unit_price.toFixed(2)} each
+                </span>
+            </div>
+
+            <div class="counter-sale-quantity">
+
+                <button
+                    type="button"
+                    class="training-counter-sale-decrease"
+                    data-product-id="${item.product_id || ""}"
+                    data-custom-product-id="${item.custom_product_id || ""}"
+                >
+                    −
+                </button>
+
+                <strong>
+                    ${item.quantity}
+                </strong>
+
+                <button
+                    type="button"
+                    class="training-counter-sale-increase"
+                    data-product-id="${item.product_id || ""}"
+                    data-custom-product-id="${item.custom_product_id || ""}"
+                >
+                    +
+                </button>
+
+            </div>
+
+            <div>
+
+                <strong>
+                    $${lineTotal.toFixed(2)}
+                </strong>
+
+            </div>
+        `;
+
+            trainingCounterSaleCartElement.appendChild(
+            row
+        );
+
+        row
+            .querySelector(".training-counter-sale-decrease")
+            .addEventListener(
+                "click",
+                () => {
+                    changeTrainingCounterSaleQuantity(
+                        item,
+                        -1
+                    );
+                }
+            );
+
+        row
+            .querySelector(".training-counter-sale-increase")
+            .addEventListener(
+                "click",
+                () => {
+                    changeTrainingCounterSaleQuantity(
+                        item,
+                        1
+                    );
+                }
+            );
+
+    });
+
+    trainingCounterSaleTotal.textContent =
+        `$${total.toFixed(2)}`;
+}
+
+function changeTrainingCounterSaleQuantity(
+    item,
+    amount
+) {
+    item.quantity += amount;
+
+    if (item.quantity <= 0) {
+        trainingCounterSaleCart =
+            trainingCounterSaleCart.filter(
+                cartItem =>
+                    cartItem !== item
+            );
+    }
+
+    renderTrainingCounterSaleCart();
+}
 
 const productionOverview =
     document.getElementById("production-overview");
@@ -53,6 +216,150 @@ const productionItemDetail =
 // =========================================================
 // Authentication
 // =========================================================
+
+function setNormalMode() {
+    modeIndicator.textContent = "NORMAL MODE";
+    modeIndicator.className = "mode-indicator normal";
+}
+
+
+function setTrainingMode() {
+    modeIndicator.textContent = "TRAINING MODE";
+    modeIndicator.className = "mode-indicator training";
+}
+
+document
+    .getElementById("training-mode")
+    .addEventListener(
+        "click",
+        () => {
+            ordersView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+            newOrderView.classList.add("hidden");
+            counterSaleView.classList.add("hidden");
+            productionView.classList.add("hidden");
+
+            trainingView.classList.remove("hidden");
+
+            setTrainingMode();
+        }
+    );
+
+document
+    .getElementById("training-counter-sale")
+    .addEventListener(
+        "click",
+        () => {
+            trainingView.classList.add("hidden");
+            trainingProductionItemView.classList.add("hidden");
+
+            trainingCounterSaleView.classList.remove("hidden");
+
+            setTrainingMode();
+
+            renderTrainingCounterSaleCart();
+
+            loadTrainingCounterSale();
+        }
+    );
+
+document
+    .getElementById("training-production")
+    .addEventListener(
+        "click",
+        () => {
+            trainingView.classList.add("hidden");
+
+            trainingProductionView.classList.remove("hidden");
+
+            setTrainingMode();
+
+            const productionDate =
+                new Date()
+                    .toISOString()
+                    .split("T")[0];
+
+            loadTrainingProduction(
+                productionDate
+            );
+        }
+    );
+
+document
+    .getElementById("back-to-training-production")
+    .addEventListener(
+        "click",
+        () => {
+
+            trainingProductionItemView.classList.add(
+                "hidden"
+            );
+
+            trainingProductionView.classList.remove(
+                "hidden"
+            );
+
+            setTrainingMode();
+
+            renderTrainingProductionOverview();
+        }
+    );
+
+document
+    .getElementById("reset-training-production")
+    .addEventListener(
+        "click",
+        () => {
+
+            trainingProductionPlans = {};
+            trainingProductionMade = {};
+
+            renderTrainingProductionOverview();
+        }
+    );
+
+document
+    .getElementById("back-to-training-from-production")
+    .addEventListener(
+        "click",
+        () => {
+            trainingProductionView.classList.add("hidden");
+
+            trainingView.classList.remove("hidden");
+
+            setTrainingMode();
+        }
+    );
+
+document
+    .getElementById("back-to-training")
+    .addEventListener(
+        "click",
+        () => {
+            trainingCounterSaleCart = [];
+
+            trainingCounterSaleView.classList.add("hidden");
+
+            trainingView.classList.remove("hidden");
+
+            setTrainingMode();
+        }
+    );
+
+document
+    .getElementById("clear-training-counter-sale")
+    .addEventListener(
+        "click",
+        () => {
+            trainingCounterSaleCart = [];
+
+            document.getElementById(
+                "training-counter-sale-customer"
+            ).value = "";
+
+            renderTrainingCounterSaleCart();
+        }
+    );
 
 function showLogin() {
     loginView.classList.remove("hidden");
@@ -3276,6 +3583,764 @@ async function loadCounterSale() {
     }
 }
 
+async function loadTrainingProduction(date) {
+
+    const content =
+        trainingProductionView.querySelector(
+            ".training-production-content"
+        );
+
+    content.innerHTML = `
+        <p class="loading">
+            Loading training production...
+        </p>
+    `;
+
+    trainingProductionDate = date;
+
+    try {
+
+        const itemsResponse =
+            await fetch("/api/production/items");
+
+        if (!itemsResponse.ok) {
+            throw new Error(
+                "Failed to load training production data."
+            );
+        }
+
+        const itemsResult =
+            await itemsResponse.json();
+
+        trainingProductionItems =
+            Array.isArray(itemsResult.data)
+                ? itemsResult.data
+                : [];
+
+        trainingProductionDemand =
+            trainingProductionItems.map(
+                item => ({
+                    production_item_id: item.id,
+                    demand_quantity:
+                        Number(item.id) === 1
+                            ? 30
+                            : Number(item.id) === 2
+                                ? 20
+                                : 0
+                })
+            ).filter(
+                item =>
+                    item.demand_quantity > 0
+            );
+
+        renderTrainingProductionOverview();
+
+    } catch (error) {
+
+        console.error(
+            "loadTrainingProduction error:",
+            error
+        );
+
+        content.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+function renderTrainingProductionOverview() {
+
+    const content =
+        trainingProductionView.querySelector(
+            ".training-production-content"
+        );
+
+    if (!trainingProductionDemand.length) {
+
+        content.innerHTML = `
+            <p>
+                No production demand for this date.
+            </p>
+        `;
+
+        return;
+    }
+
+    content.innerHTML =
+        trainingProductionDemand.map(
+            demandItem => {
+
+                const productionItem =
+                    trainingProductionItems.find(
+                        item =>
+                            Number(item.id) ===
+                            Number(
+                                demandItem.production_item_id
+                            )
+                    );
+
+                if (!productionItem) {
+                    return "";
+                }
+
+                const committed =
+                    Number(
+                        demandItem.demand_quantity
+                    ) || 0;
+
+                const batchQuantity =
+                    Number(
+                        productionItem.base_batch_quantity
+                    ) || 0;
+
+                const planned =
+                    Number(
+                        trainingProductionPlans[
+                            productionItem.id
+                        ]
+                    ) || 0;
+
+                const made =
+                    Number(
+                        trainingProductionMade[
+                            productionItem.id
+                        ]
+                    ) || 0;
+
+                const toMake =
+                    Math.max(
+                        committed - made,
+                        0
+                    );
+
+                return `
+                    <button
+                        type="button"
+                        class="production-item training-production-item"
+                        data-production-item-id="${productionItem.id}"
+                    >
+
+                        <strong>
+                            ${escapeHTML(
+                                productionItem.product_name
+                            )}
+                        </strong>
+
+                        <span>
+                            ${committed} committed
+                        </span>
+
+                        <span>
+                            ${batchQuantity} batch
+                        </span>
+
+                        <span>
+                            ${planned} planned
+                        </span>
+
+                        <span>
+                            ${made} made
+                        </span>
+
+                        <span>
+                            ${toMake} to make
+                        </span>
+
+                    </button>
+                `;
+            }
+        ).join("");
+
+    content
+        .querySelectorAll(
+            ".training-production-item"
+        )
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const productionItemId =
+                        Number(
+                            button.dataset
+                                .productionItemId
+                        );
+
+                    if (
+                        !Number.isInteger(
+                            productionItemId
+                        ) ||
+                        productionItemId <= 0
+                    ) {
+                        return;
+                    }
+
+                    loadTrainingProductionItem(
+                        productionItemId
+                    );
+                }
+            );
+        });
+}
+
+function loadTrainingProductionItem(
+    productionItemId
+) {
+
+    const productionItem =
+        trainingProductionItems.find(
+            item =>
+                Number(item.id) ===
+                Number(productionItemId)
+        );
+
+    const demandItem =
+        trainingProductionDemand.find(
+            item =>
+                Number(item.production_item_id) ===
+                Number(productionItemId)
+        );
+
+    if (!productionItem || !demandItem) {
+        return;
+    }
+
+    trainingProductionView.classList.add("hidden");
+
+    trainingProductionItemView.classList.remove("hidden");
+
+    setTrainingMode();
+
+    trainingProductionItemTitle.textContent =
+        productionItem.product_name;
+
+    const committed =
+        Number(demandItem.demand_quantity) || 0;
+
+    const planned =
+        Number(
+            trainingProductionPlans[
+                productionItem.id
+            ]
+        ) || 0;
+
+    const batchQuantity =
+    Number(
+        productionItem.base_batch_quantity
+    ) || 0;
+
+    const made =
+        Number(
+            trainingProductionMade[
+                productionItem.id
+            ]
+        ) || 0;
+
+    const toMake =
+        Math.max(
+            committed - made,
+            0
+        );
+
+    trainingProductionItemDetail.innerHTML = `
+    <div class="production-summary">
+
+        <div>
+            <strong>Committed</strong>
+            <span>${committed}</span>
+        </div>
+
+        <div>
+            <strong>Batch Size</strong>
+            <span>${batchQuantity}</span>
+        </div>
+
+        <div>
+            <strong>Planned</strong>
+            <span>${planned}</span>
+        </div>
+
+        <div>
+            <strong>Made</strong>
+            <span>${made}</span>
+        </div>
+
+        <div>
+            <strong>To Make</strong>
+            <span>${toMake}</span>
+        </div>
+
+    </div>
+
+    <div class="training-production-plan">
+
+        <label for="training-production-planned-quantity">
+            Planned quantity
+        </label>
+
+        <input
+            type="number"
+            id="training-production-planned-quantity"
+            min="0"
+            step="1"
+            value="${planned}"
+        >
+
+        <button
+            type="button"
+            id="save-training-production-plan"
+        >
+            Save Plan
+        </button>
+
+    </div>
+
+    <div class="training-production-made">
+
+        <label for="training-production-made-quantity">
+            Made quantity
+        </label>
+
+        <input
+            type="number"
+            id="training-production-made-quantity"
+            min="0"
+            step="1"
+            value="${made}"
+        >
+
+        <button
+            type="button"
+            id="save-training-production-made"
+        >
+            Save Made
+        </button>
+
+    </div>
+`;
+
+    const plannedQuantityInput =
+        document.getElementById(
+            "training-production-planned-quantity"
+        );
+
+    const savePlanButton =
+        document.getElementById(
+            "save-training-production-plan"
+        );
+
+    const madeQuantityInput =
+        document.getElementById(
+            "training-production-made-quantity"
+        );
+
+    const saveMadeButton =
+        document.getElementById(
+            "save-training-production-made"
+        );
+
+    savePlanButton.addEventListener(
+        "click",
+        () => {
+
+            const plannedQuantity =
+                Number(
+                    plannedQuantityInput.value
+                );
+
+            if (
+                !Number.isInteger(
+                    plannedQuantity
+                ) ||
+                plannedQuantity < 0
+            ) {
+                return;
+            }
+
+            trainingProductionPlans[
+                productionItem.id
+            ] = plannedQuantity;
+
+            loadTrainingProductionItem(
+                productionItem.id
+            );
+        }
+    );
+
+    saveMadeButton.addEventListener(
+        "click",
+        () => {
+
+            const madeQuantity =
+                Number(
+                    madeQuantityInput.value
+                );
+
+            if (
+                !Number.isInteger(
+                    madeQuantity
+                ) ||
+                madeQuantity < 0
+            ) {
+                return;
+            }
+
+            trainingProductionMade[
+                productionItem.id
+            ] = madeQuantity;
+
+            loadTrainingProductionItem(
+                productionItem.id
+            );
+        }
+    );
+}
+
+async function loadTrainingCounterSale() {
+
+    try {
+
+        const [
+            customersResponse,
+            productsResponse,
+            customProductsResponse
+        ] = await Promise.all([
+            fetch("/api/customers"),
+            fetch("/api/products"),
+            fetch("/api/custom-products")
+        ]);
+
+        if (
+            !customersResponse.ok ||
+            !productsResponse.ok ||
+            !customProductsResponse.ok
+        ) {
+            throw new Error(
+                "Failed to load training counter sale data."
+            );
+        }
+
+        const customersData =
+            await customersResponse.json();
+
+        const productsData =
+            await productsResponse.json();
+
+        const customProductsData =
+            await customProductsResponse.json();
+
+        renderTrainingCounterSaleCustomers(
+            customersData.data
+        );
+
+        trainingCounterSaleProducts =
+            productsData.data;
+
+        renderTrainingCounterSaleCategories(
+            trainingCounterSaleProducts
+        );
+
+        renderTrainingCounterSaleCustomProducts(
+            customProductsData.data
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Training Counter Sale load error:",
+            error
+        );
+
+        document.getElementById(
+            "training-counter-sale-category-list"
+        ).innerHTML = "";
+
+        document.getElementById(
+            "training-counter-sale-product-list"
+        ).innerHTML = `
+            <p class="error">
+                Unable to load products.
+            </p>
+        `;
+
+        document.getElementById(
+            "training-counter-sale-custom-product-list"
+        ).innerHTML = `
+            <p class="error">
+                Unable to load custom products.
+            </p>
+        `;
+    }
+}
+
+function renderTrainingCounterSaleCustomers(
+    customers
+) {
+    const customerSelect =
+        document.getElementById(
+            "training-counter-sale-customer"
+        );
+
+    customerSelect.innerHTML = `
+        <option value="">
+            Walk-in / No customer
+        </option>
+    `;
+
+    customers.forEach(customer => {
+
+        const option =
+            document.createElement("option");
+
+        option.value =
+            customer.id;
+
+        option.textContent =
+            customer.name;
+
+        customerSelect.appendChild(
+            option
+        );
+    });
+}
+
+function renderTrainingCounterSaleCategories(products) {
+
+    const categories = [];
+
+    products.forEach(product => {
+
+        const exists =
+            categories.some(
+                category =>
+                    category.id === product.category_id
+            );
+
+        if (!exists) {
+
+            categories.push({
+                id: product.category_id,
+                name: product.category_name
+            });
+        }
+    });
+
+    trainingCounterSaleCategories =
+        categories;
+
+    const categoryList =
+        document.getElementById(
+            "training-counter-sale-category-list"
+        );
+
+    if (!categories.length) {
+
+        categoryList.innerHTML = "";
+
+        document.getElementById(
+            "training-counter-sale-product-list"
+        ).innerHTML = `
+            <p>
+                No products available.
+            </p>
+        `;
+
+        return;
+    }
+
+    categoryList.innerHTML = "";
+
+    categories.forEach(category => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "counter-sale-category";
+
+        button.textContent =
+            category.name;
+
+        button.addEventListener(
+            "click",
+            () => {
+                selectTrainingCounterSaleCategory(
+                    category.id
+                );
+            }
+        );
+
+        categoryList.appendChild(button);
+    });
+
+    selectTrainingCounterSaleCategory(
+        categories[0].id
+    );
+}
+
+
+function selectTrainingCounterSaleCategory(categoryId) {
+
+    trainingCounterSaleSelectedCategoryId =
+        categoryId;
+
+    const categoryList =
+        document.getElementById(
+            "training-counter-sale-category-list"
+        );
+
+    const productList =
+        document.getElementById(
+            "training-counter-sale-product-list"
+        );
+
+    const buttons =
+        categoryList.querySelectorAll(
+            ".counter-sale-category"
+        );
+
+    buttons.forEach(button => {
+
+        button.classList.toggle(
+            "selected",
+            button.textContent ===
+                trainingCounterSaleCategories.find(
+                    category =>
+                        category.id === categoryId
+                )?.name
+        );
+    });
+
+    const products =
+        trainingCounterSaleProducts.filter(
+            product =>
+                product.category_id === categoryId
+        );
+
+    productList.innerHTML = "";
+
+    products.forEach(product => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "counter-sale-product";
+
+        button.textContent =
+            `${product.name} — $${Number(product.price).toFixed(2)}`;
+
+        button.addEventListener(
+            "click",
+            () => addTrainingCounterSaleProduct(product)
+        );
+
+        productList.appendChild(button);
+    });
+}
+
+
+function renderTrainingCounterSaleCustomProducts(
+    customProducts
+) {
+
+    const productList =
+        document.getElementById(
+            "training-counter-sale-custom-product-list"
+        );
+
+    if (!customProducts.length) {
+
+        productList.innerHTML = `
+            <p>
+                No custom products available.
+            </p>
+        `;
+
+        return;
+    }
+
+    productList.innerHTML = "";
+
+    customProducts.forEach(product => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "counter-sale-product";
+
+        button.textContent =
+            `${product.name} — $${Number(product.price).toFixed(2)}`;
+
+        button.addEventListener(
+            "click",
+            () => addTrainingCounterSaleCustomProduct(product)
+        );
+
+        productList.appendChild(button);
+    });
+}
+
+function addTrainingCounterSaleProduct(product) {
+
+    const existingItem =
+        trainingCounterSaleCart.find(
+            item =>
+                item.product_id === product.id
+        );
+
+    if (existingItem) {
+
+        existingItem.quantity += 1;
+
+    } else {
+
+        trainingCounterSaleCart.push({
+            product_id: product.id,
+            name: product.name,
+            unit_price: Number(product.price),
+            quantity: 1
+        });
+    }
+
+    renderTrainingCounterSaleCart();
+}
+
+
+function addTrainingCounterSaleCustomProduct(product) {
+
+    const existingItem =
+        trainingCounterSaleCart.find(
+            item =>
+                item.custom_product_id === product.id
+        );
+
+    if (existingItem) {
+
+        existingItem.quantity += 1;
+
+    } else {
+
+        trainingCounterSaleCart.push({
+            custom_product_id: product.id,
+            name: product.name,
+            unit_price: Number(product.price),
+            quantity: 1
+        });
+    }
+
+    renderTrainingCounterSaleCart();
+}
 
 function renderCounterSaleCustomers(customers) {
 
@@ -3854,8 +4919,22 @@ completeCounterSale.addEventListener(
         }
     }
 );
+// Back to Orders from Training
 
-    // Open Counter Sale view
+document
+    .getElementById("back-to-orders-from-training")
+    .addEventListener(
+        "click",
+        () => {
+            trainingView.classList.add("hidden");
+            ordersView.classList.remove("hidden");
+
+            setNormalMode();
+            loadOrders();
+        }
+    );
+
+// Open Counter Sale view
 
 document
     .getElementById("new-counter-sale")
