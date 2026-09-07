@@ -830,15 +830,24 @@ router.get(
                 });
             }
 
-            const result =
+            const entries =
                 req.models.productionAvailable
                     .getProductionAvailableByPlanId(
                         planId
                     );
 
+            const totalAvailable =
+                req.models.productionAvailable
+                    .getAvailableTotal(
+                        planId
+                    );
+
             res.json({
                 success: true,
-                data: result
+                data: {
+                    total_available: totalAvailable,
+                    entries
+                }
             });
 
         } catch (error) {

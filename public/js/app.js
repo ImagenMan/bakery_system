@@ -1111,6 +1111,44 @@ async function loadProductionItem(
         }
 
         // -------------------------------------------------
+        // Load production availability
+        // -------------------------------------------------
+
+        let availableQuantity = 0;
+
+        if (
+            plan &&
+            Number.isInteger(Number(plan.id)) &&
+            Number(plan.id) > 0
+        ) {
+
+            const availableResponse =
+                await fetch(
+                    `/api/production/plans/${Number(plan.id)}/available`
+                );
+
+            if (!availableResponse.ok) {
+                throw new Error(
+                    `Server returned ${availableResponse.status}.`
+                );
+            }
+
+            const availableResult =
+                await availableResponse.json();
+
+            if (!availableResult.success) {
+                throw new Error(
+                    availableResult.error ||
+                    "Failed to load production availability."
+                );
+            }
+
+            availableQuantity =
+                Number(availableResult.data.total_available) || 0;
+        }
+
+
+        // -------------------------------------------------
         // Render
         // -------------------------------------------------
 
@@ -1124,7 +1162,10 @@ async function loadProductionItem(
                         : 0,
 
                 made_quantity:
-                    Number(totals.total_produced) || 0
+                    Number(totals.total_produced) || 0,
+
+                available_quantity:
+                    availableQuantity
             },
             plan,
             productionDate,
@@ -1171,6 +1212,9 @@ function renderProductionItem(
     const made =
     Number(item.made_quantity) || 0;
 
+    const available =
+    Number(item.available_quantity) || 0;
+
     const toMake =
         Math.max(planned - made, 0);
 
@@ -1191,6 +1235,11 @@ function renderProductionItem(
             <div>
                 <strong>Made</strong>
                 <span>${made}</span>
+            </div>
+
+            <div>
+                <strong>Available</strong>
+                <span>${available}</span>
             </div>
 
             <div>
@@ -1246,6 +1295,29 @@ function renderProductionItem(
             </button>
 
         </div>
+
+                <div class="production-actions">
+
+            <label for="available-quantity">
+                Quantity available
+            </label>
+
+            <input
+                type="number"
+                id="available-quantity"
+                min="1"
+                step="1"
+                placeholder="e.g. 20"
+            >
+
+            <button
+                type="button"
+                id="add-available"
+            >
+                + Available
+            </button>
+
+        </div>
     `;
 
     document
@@ -1267,6 +1339,19 @@ function renderProductionItem(
             "click",
             () => {
                 recordProductionMade(
+                    plan,
+                    productionDate,
+                    productionItemId
+                );
+            }
+        );
+
+        document
+        .getElementById("add-available")
+        .addEventListener(
+            "click",
+            () => {
+                recordProductionAvailable(
                     plan,
                     productionDate,
                     productionItemId
@@ -1368,6 +1453,102 @@ async function recordProductionMade(
 
         button.disabled = false;
         button.textContent = "+ Made";
+    }
+}
+
+async function recordProductionAvailable(
+    plan,
+    productionDate,
+    productionItemId
+) {
+
+    if (!plan || !Number(plan.id)) {
+        alert("Save a production plan first.");
+        return;
+    }
+
+    const button =
+        document.getElementById("add-available");
+
+    if (!button) {
+        return;
+    }
+
+    const input =
+        document.getElementById("available-quantity");
+
+    if (!input) {
+        return;
+    }
+
+    const availableQuantity =
+        Number(input.value);
+
+    if (
+        !Number.isInteger(availableQuantity) ||
+        availableQuantity <= 0
+    ) {
+        alert(
+            "Quantity available must be a positive whole number."
+        );
+
+        input.focus();
+
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Recording...";
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/production/plans/${Number(plan.id)}/available`,
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        available_quantity:
+                            availableQuantity
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to record availability."
+            );
+        }
+
+        await loadProductionItem(
+            productionItemId,
+            productionDate
+        );
+
+    } catch (error) {
+
+        console.error(
+            "recordProductionAvailable error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Failed to record availability."
+        );
+
+        button.disabled = false;
+        button.textContent = "+ Available";
     }
 }
 

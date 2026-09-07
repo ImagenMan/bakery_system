@@ -471,7 +471,10 @@ function getProductionOverviewByDate(production_date) {
 
         WHERE pi.active = 1
             AND p.active = 1
-            AND COALESCE(d.demand_quantity, 0) > 0
+            AND (
+                COALESCE(d.demand_quantity, 0) > 0
+                OR pp.id IS NOT NULL
+            )
 
         ORDER BY
             p.name ASC,
