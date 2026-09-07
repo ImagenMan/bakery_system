@@ -831,7 +831,7 @@ router.get(
             }
 
             const result =
-                productionAvailable
+                req.models.productionAvailable
                     .getProductionAvailableByPlanId(
                         planId
                     );
@@ -893,7 +893,7 @@ router.post(
             }
 
             const available =
-                productionAvailable
+                req.models.productionAvailable
                     .createProductionAvailable({
                         production_plan_id: planId,
                         available_quantity

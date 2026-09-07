@@ -50,6 +50,35 @@ const counterSaleTotal = document.getElementById("counter-sale-total");
 
 const trainingCounterSaleCartElement = document.getElementById("training-counter-sale-cart");
 const trainingCounterSaleTotal = document.getElementById("training-counter-sale-total");
+const trainingCounterSalePaymentMethod =
+    document.getElementById(
+        "training-counter-sale-payment-method"
+    );
+
+const trainingCounterSaleCashSection =
+    document.getElementById(
+        "training-counter-sale-cash-section"
+    );
+
+const trainingCounterSaleCashReceived =
+    document.getElementById(
+        "training-counter-sale-cash-received"
+    );
+
+const trainingCounterSaleChange =
+    document.getElementById(
+        "training-counter-sale-change"
+    );
+
+const trainingCounterSalePaymentError =
+    document.getElementById(
+        "training-counter-sale-payment-error"
+    );
+
+const completeTrainingCounterSale =
+    document.getElementById(
+        "complete-training-counter-sale"
+    );
 
 const counterSalePaymentMethod = document.getElementById("counter-sale-payment-method");
 const counterSaleCashSection = document.getElementById("counter-sale-cash-section");
@@ -86,6 +115,8 @@ function renderTrainingCounterSaleCart() {
 
         trainingCounterSaleTotal.textContent =
             "$0.00";
+
+        updateTrainingCounterSalePayment();
 
         return;
     }
@@ -183,6 +214,116 @@ function renderTrainingCounterSaleCart() {
 
     trainingCounterSaleTotal.textContent =
         `$${total.toFixed(2)}`;
+
+    updateTrainingCounterSalePayment();
+}
+
+function getTrainingCounterSaleTotal() {
+
+    return trainingCounterSaleCart.reduce(
+        (total, item) =>
+            total +
+            (
+                Number(item.unit_price) *
+                Number(item.quantity)
+            ),
+        0
+    );
+}
+
+
+function updateTrainingCounterSalePayment() {
+
+    const total =
+        getTrainingCounterSaleTotal();
+
+    const paymentMethod =
+        trainingCounterSalePaymentMethod.value;
+
+    const cashReceived =
+        Number(
+            trainingCounterSaleCashReceived.value
+        );
+
+    trainingCounterSalePaymentError.textContent = "";
+
+    trainingCounterSalePaymentError.classList.add(
+        "hidden"
+    );
+
+    if (paymentMethod === "CASH") {
+
+        trainingCounterSaleCashSection.classList.remove(
+            "hidden"
+        );
+
+        if (
+            trainingCounterSaleCashReceived.value !== "" &&
+            Number.isFinite(cashReceived)
+        ) {
+
+            const change =
+                cashReceived - total;
+
+            trainingCounterSaleChange.textContent =
+                `$${Math.max(change, 0).toFixed(2)}`;
+
+        } else {
+
+            trainingCounterSaleChange.textContent =
+                "$0.00";
+        }
+
+    } else {
+
+        trainingCounterSaleCashSection.classList.add(
+            "hidden"
+        );
+
+        trainingCounterSaleChange.textContent =
+            "$0.00";
+    }
+
+    let canComplete =
+        trainingCounterSaleCart.length > 0 &&
+        total > 0 &&
+        paymentMethod !== "";
+
+    if (paymentMethod === "CASH") {
+
+        canComplete =
+            canComplete &&
+            Number.isFinite(cashReceived) &&
+            cashReceived >= total;
+    }
+
+    completeTrainingCounterSale.disabled =
+        !canComplete;
+}
+
+
+function resetTrainingCounterSalePayment() {
+
+    trainingCounterSalePaymentMethod.value = "";
+
+    trainingCounterSaleCashReceived.value = "";
+
+    trainingCounterSaleCashSection.classList.add(
+        "hidden"
+    );
+
+    trainingCounterSaleChange.textContent =
+        "$0.00";
+
+    trainingCounterSalePaymentError.textContent =
+        "";
+
+    trainingCounterSalePaymentError.classList.add(
+        "hidden"
+    );
+
+    completeTrainingCounterSale.disabled =
+        true;
 }
 
 function changeTrainingCounterSaleQuantity(
@@ -263,6 +404,116 @@ document
         }
     );
 
+trainingCounterSalePaymentMethod.addEventListener(
+    "change",
+    updateTrainingCounterSalePayment
+);
+
+trainingCounterSaleCashReceived.addEventListener(
+    "input",
+    updateTrainingCounterSalePayment
+);
+
+completeTrainingCounterSale.addEventListener(
+    "click",
+    () => {
+
+        if (completeTrainingCounterSale.disabled) {
+            return;
+        }
+
+        const total =
+            getTrainingCounterSaleTotal();
+
+        const paymentMethod =
+            trainingCounterSalePaymentMethod.value;
+
+        const cashReceived =
+            Number(
+                trainingCounterSaleCashReceived.value
+            );
+
+        if (
+            trainingCounterSaleCart.length === 0 ||
+            total <= 0 ||
+            paymentMethod === ""
+        ) {
+            return;
+        }
+
+        if (
+            paymentMethod === "CASH" &&
+            (
+                !Number.isFinite(cashReceived) ||
+                cashReceived < total
+            )
+        ) {
+
+            trainingCounterSalePaymentError.textContent =
+                "Cash received must be at least the sale total.";
+
+            trainingCounterSalePaymentError.classList.remove(
+                "hidden"
+            );
+
+            updateTrainingCounterSalePayment();
+
+            return;
+        }
+
+        completeTrainingCounterSale.disabled =
+            true;
+
+        let message =
+            "Training sale completed.\n\n" +
+            `Total: $${total.toFixed(2)}\n`;
+
+        if (paymentMethod === "CASH") {
+
+            const change =
+                cashReceived - total;
+
+            message +=
+                `Payment: Cash\n` +
+                `Cash received: $${cashReceived.toFixed(2)}\n` +
+                `Change: $${change.toFixed(2)}\n`;
+
+        } else if (paymentMethod === "CARD") {
+
+            message +=
+                "Payment: Card\n";
+
+        } else if (paymentMethod === "BANK_TRANSFER") {
+
+            message +=
+                "Payment: Bank Transfer\n";
+
+        } else {
+
+            message +=
+                "Payment: Other\n";
+        }
+
+        message +=
+            "\nNo real sale was recorded.";
+
+        alert(message);
+
+        trainingCounterSaleCart = [];
+
+        trainingCounterSaleSelectedCategoryId =
+            null;
+
+        document.getElementById(
+            "training-counter-sale-customer"
+        ).value = "";
+
+        resetTrainingCounterSalePayment();
+
+        renderTrainingCounterSaleCart();
+    }
+);
+
 document
     .getElementById("training-production")
     .addEventListener(
@@ -338,6 +589,8 @@ document
         () => {
             trainingCounterSaleCart = [];
 
+            resetTrainingCounterSalePayment();
+
             trainingCounterSaleView.classList.add("hidden");
 
             trainingView.classList.remove("hidden");
@@ -356,6 +609,8 @@ document
             document.getElementById(
                 "training-counter-sale-customer"
             ).value = "";
+
+            resetTrainingCounterSalePayment();
 
             renderTrainingCounterSaleCart();
         }

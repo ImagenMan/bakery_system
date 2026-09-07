@@ -191,6 +191,84 @@
 
                 </div>
 
+                <div class="counter-sale-payment">
+
+                    <h3>Payment</h3>
+
+                    <div class="counter-sale-payment-method">
+
+                        <label for="training-counter-sale-payment-method">
+                            Payment method
+                        </label>
+
+                        <select id="training-counter-sale-payment-method">
+
+                            <option value="">
+                                Select payment method
+                            </option>
+
+                            <option value="CASH">
+                                Cash
+                            </option>
+
+                            <option value="CARD">
+                                Card
+                            </option>
+
+                            <option value="BANK_TRANSFER">
+                                Bank Transfer
+                            </option>
+
+                            <option value="OTHER">
+                                Other
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                    <div
+                        id="training-counter-sale-cash-section"
+                        class="hidden"
+                    >
+
+                        <label for="training-counter-sale-cash-received">
+                            Cash received
+                        </label>
+
+                        <input
+                            type="number"
+                            id="training-counter-sale-cash-received"
+                            min="0"
+                            step="0.01"
+                            inputmode="decimal"
+                            placeholder="0.00"
+                        >
+
+                        <p>
+                            Change:
+                            <strong id="training-counter-sale-change">
+                                $0.00
+                            </strong>
+                        </p>
+
+                    </div>
+
+                    <p
+                        id="training-counter-sale-payment-error"
+                        class="error hidden"
+                    ></p>
+
+                    <button
+                        type="button"
+                        id="complete-training-counter-sale"
+                        disabled
+                    >
+                        Complete Training Sale
+                    </button>
+
+                </div>
+
                 <button
                     type="button"
                     id="clear-training-counter-sale"
