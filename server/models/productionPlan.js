@@ -403,6 +403,7 @@ function getProductionOverviewByDate(production_date) {
     const rows = db.prepare(`
         SELECT
             pi.id AS production_item_id,
+            pp.id AS production_plan_id,
             pi.product_id,
             p.sku,
             p.name AS product_name,

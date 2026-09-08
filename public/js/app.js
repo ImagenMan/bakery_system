@@ -100,8 +100,7 @@ let trainingCounterSaleSelectedCategoryId = null;
 let trainingProductionDate = null;
 let trainingProductionItems = [];
 let trainingProductionDemand = [];
-let trainingProductionPlans = {};
-let trainingProductionMade = {};
+let trainingProductionOverview = [];
 
 function renderTrainingCounterSaleCart() {
 
@@ -358,13 +357,49 @@ const productionItemDetail =
 // Authentication
 // =========================================================
 
-function setNormalMode() {
+async function setNormalMode() {
+    const response = await fetch("/api/mode", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            mode: "NORMAL"
+        })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success || result.mode !== "NORMAL") {
+        throw new Error(
+            result.error || "Failed to enter Normal Mode."
+        );
+    }
+
     modeIndicator.textContent = "NORMAL MODE";
     modeIndicator.className = "mode-indicator normal";
 }
 
 
-function setTrainingMode() {
+async function setTrainingMode() {
+    const response = await fetch("/api/mode", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            mode: "TRAINING"
+        })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success || result.mode !== "TRAINING") {
+        throw new Error(
+            result.error || "Failed to enter Training Mode."
+        );
+    }
+
     modeIndicator.textContent = "TRAINING MODE";
     modeIndicator.className = "mode-indicator training";
 }
@@ -373,7 +408,9 @@ document
     .getElementById("training-mode")
     .addEventListener(
         "click",
-        () => {
+        async () => {
+            try {
+                await setTrainingMode();
             ordersView.classList.add("hidden");
             orderDetailView.classList.add("hidden");
             newOrderView.classList.add("hidden");
@@ -382,7 +419,14 @@ document
 
             trainingView.classList.remove("hidden");
 
-            setTrainingMode();
+            } catch (error) {
+                console.error(
+                    "Failed to enter Training Mode:",
+                    error
+                );
+
+                alert(error.message);
+            }
         }
     );
 
@@ -395,8 +439,6 @@ document
             trainingProductionItemView.classList.add("hidden");
 
             trainingCounterSaleView.classList.remove("hidden");
-
-            setTrainingMode();
 
             renderTrainingCounterSaleCart();
 
@@ -523,12 +565,11 @@ document
 
             trainingProductionView.classList.remove("hidden");
 
-            setTrainingMode();
+
+            const now = new Date();
 
             const productionDate =
-                new Date()
-                    .toISOString()
-                    .split("T")[0];
+                `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
             loadTrainingProduction(
                 productionDate
@@ -550,8 +591,6 @@ document
                 "hidden"
             );
 
-            setTrainingMode();
-
             renderTrainingProductionOverview();
         }
     );
@@ -561,9 +600,6 @@ document
     .addEventListener(
         "click",
         () => {
-
-            trainingProductionPlans = {};
-            trainingProductionMade = {};
 
             renderTrainingProductionOverview();
         }
@@ -578,7 +614,6 @@ document
 
             trainingView.classList.remove("hidden");
 
-            setTrainingMode();
         }
     );
 
@@ -595,7 +630,6 @@ document
 
             trainingView.classList.remove("hidden");
 
-            setTrainingMode();
         }
     );
 
@@ -4036,23 +4070,47 @@ async function loadTrainingProduction(date) {
 
     try {
 
-        const itemsResponse =
-            await fetch("/api/production/items");
+        const [
+            itemsResponse,
+            overviewResponse
+        ] = await Promise.all([
+            fetch("/api/production/items"),
+            fetch(
+                `/api/production/overview?date=${encodeURIComponent(date)}`,
+                {
+                    cache: "no-store"
+                }
+            )
+        ]);
 
         if (!itemsResponse.ok) {
             throw new Error(
-                "Failed to load training production data."
+                "Failed to load training production items."
+            );
+        }
+
+        if (!overviewResponse.ok) {
+            throw new Error(
+                "Failed to load training production overview."
             );
         }
 
         const itemsResult =
             await itemsResponse.json();
 
+        const overviewResult =
+            await overviewResponse.json();
+
         trainingProductionItems =
             Array.isArray(itemsResult.data)
                 ? itemsResult.data
                 : [];
 
+        /*
+         * Training demand is intentionally simulated.
+         * It does not create real orders and does not
+         * write anything to bakery.db.
+         */
         trainingProductionDemand =
             trainingProductionItems.map(
                 item => ({
@@ -4068,6 +4126,16 @@ async function loadTrainingProduction(date) {
                 item =>
                     item.demand_quantity > 0
             );
+
+        /*
+         * The production API is mode-aware.
+         * Because this request is made in TRAINING MODE,
+         * the data comes from training.db.
+         */
+        trainingProductionOverview =
+            Array.isArray(overviewResult.data)
+                ? overviewResult.data
+                : [];
 
         renderTrainingProductionOverview();
 
@@ -4085,6 +4153,7 @@ async function loadTrainingProduction(date) {
         `;
     }
 }
+
 
 function renderTrainingProductionOverview() {
 
@@ -4121,6 +4190,17 @@ function renderTrainingProductionOverview() {
                     return "";
                 }
 
+                const overviewItem =
+                    trainingProductionOverview.find(
+                        item =>
+                            Number(
+                                item.production_item_id
+                            ) ===
+                            Number(
+                                productionItem.id
+                            )
+                    );
+
                 const committed =
                     Number(
                         demandItem.demand_quantity
@@ -4132,18 +4212,18 @@ function renderTrainingProductionOverview() {
                     ) || 0;
 
                 const planned =
-                    Number(
-                        trainingProductionPlans[
-                            productionItem.id
-                        ]
-                    ) || 0;
+                    overviewItem
+                        ? Number(
+                            overviewItem.planned_quantity
+                        ) || 0
+                        : 0;
 
                 const made =
-                    Number(
-                        trainingProductionMade[
-                            productionItem.id
-                        ]
-                    ) || 0;
+                    overviewItem
+                        ? Number(
+                            overviewItem.made_quantity
+                        ) || 0
+                        : 0;
 
                 const toMake =
                     Math.max(
@@ -4222,7 +4302,8 @@ function renderTrainingProductionOverview() {
         });
 }
 
-function loadTrainingProductionItem(
+
+async function loadTrainingProductionItem(
     productionItemId
 ) {
 
@@ -4248,32 +4329,43 @@ function loadTrainingProductionItem(
 
     trainingProductionItemView.classList.remove("hidden");
 
-    setTrainingMode();
-
     trainingProductionItemTitle.textContent =
         productionItem.product_name;
 
     const committed =
         Number(demandItem.demand_quantity) || 0;
 
+    const overviewItem =
+        trainingProductionOverview.find(
+            item =>
+                Number(item.production_item_id) ===
+                Number(productionItemId)
+        );
+
+    const planId =
+        overviewItem &&
+        overviewItem.production_plan_id
+            ? Number(overviewItem.production_plan_id)
+            : null;
+
     const planned =
-        Number(
-            trainingProductionPlans[
-                productionItem.id
-            ]
-        ) || 0;
+        overviewItem
+            ? Number(
+                overviewItem.planned_quantity
+            ) || 0
+            : 0;
 
     const batchQuantity =
-    Number(
-        productionItem.base_batch_quantity
-    ) || 0;
+        Number(
+            productionItem.base_batch_quantity
+        ) || 0;
 
     const made =
-        Number(
-            trainingProductionMade[
-                productionItem.id
-            ]
-        ) || 0;
+        overviewItem
+            ? Number(
+                overviewItem.made_quantity
+            ) || 0
+            : 0;
 
     const toMake =
         Math.max(
@@ -4282,81 +4374,81 @@ function loadTrainingProductionItem(
         );
 
     trainingProductionItemDetail.innerHTML = `
-    <div class="production-summary">
+        <div class="production-summary">
 
-        <div>
-            <strong>Committed</strong>
-            <span>${committed}</span>
+            <div>
+                <strong>Committed</strong>
+                <span>${committed}</span>
+            </div>
+
+            <div>
+                <strong>Batch Size</strong>
+                <span>${batchQuantity}</span>
+            </div>
+
+            <div>
+                <strong>Planned</strong>
+                <span>${planned}</span>
+            </div>
+
+            <div>
+                <strong>Made</strong>
+                <span>${made}</span>
+            </div>
+
+            <div>
+                <strong>To Make</strong>
+                <span>${toMake}</span>
+            </div>
+
         </div>
 
-        <div>
-            <strong>Batch Size</strong>
-            <span>${batchQuantity}</span>
+        <div class="training-production-plan">
+
+            <label for="training-production-planned-quantity">
+                Planned quantity
+            </label>
+
+            <input
+                type="number"
+                id="training-production-planned-quantity"
+                min="0"
+                step="1"
+                value="${planned}"
+            >
+
+            <button
+                type="button"
+                id="save-training-production-plan"
+            >
+                Save Plan
+            </button>
+
         </div>
 
-        <div>
-            <strong>Planned</strong>
-            <span>${planned}</span>
+        <div class="training-production-made">
+
+            <label for="training-production-made-quantity">
+                Made quantity
+            </label>
+
+            <input
+                type="number"
+                id="training-production-made-quantity"
+                min="0"
+                step="1"
+                value="${made}"
+            >
+
+            <button
+                type="button"
+                id="save-training-production-made"
+            >
+                Save Made
+            </button>
+
         </div>
-
-        <div>
-            <strong>Made</strong>
-            <span>${made}</span>
-        </div>
-
-        <div>
-            <strong>To Make</strong>
-            <span>${toMake}</span>
-        </div>
-
-    </div>
-
-    <div class="training-production-plan">
-
-        <label for="training-production-planned-quantity">
-            Planned quantity
-        </label>
-
-        <input
-            type="number"
-            id="training-production-planned-quantity"
-            min="0"
-            step="1"
-            value="${planned}"
-        >
-
-        <button
-            type="button"
-            id="save-training-production-plan"
-        >
-            Save Plan
-        </button>
-
-    </div>
-
-    <div class="training-production-made">
-
-        <label for="training-production-made-quantity">
-            Made quantity
-        </label>
-
-        <input
-            type="number"
-            id="training-production-made-quantity"
-            min="0"
-            step="1"
-            value="${made}"
-        >
-
-        <button
-            type="button"
-            id="save-training-production-made"
-        >
-            Save Made
-        </button>
-
-    </div>
-`;
+    `;
 
     const plannedQuantityInput =
         document.getElementById(
@@ -4378,9 +4470,10 @@ function loadTrainingProductionItem(
             "save-training-production-made"
         );
 
+
     savePlanButton.addEventListener(
         "click",
-        () => {
+        async () => {
 
             const plannedQuantity =
                 Number(
@@ -4396,41 +4489,182 @@ function loadTrainingProductionItem(
                 return;
             }
 
-            trainingProductionPlans[
-                productionItem.id
-            ] = plannedQuantity;
+            try {
 
-            loadTrainingProductionItem(
-                productionItem.id
-            );
+                savePlanButton.disabled = true;
+
+                let response;
+
+                if (planId) {
+
+                    response =
+                        await fetch(
+                            `/api/production/plans/${planId}`,
+                            {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+                                body: JSON.stringify({
+                                    planned_quantity:
+                                        plannedQuantity
+                                })
+                            }
+                        );
+
+                } else {
+
+                    response =
+                        await fetch(
+                            "/api/production/plans",
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+                                body: JSON.stringify({
+                                    production_item_id:
+                                        productionItem.id,
+                                    production_date:
+                                        trainingProductionDate,
+                                    planned_quantity:
+                                        plannedQuantity
+                                })
+                            }
+                        );
+                }
+
+                const result =
+                    await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to save training production plan."
+                    );
+                }
+
+                await loadTrainingProduction(
+                    trainingProductionDate
+                );
+
+                loadTrainingProductionItem(
+                    productionItem.id
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Training production plan save error:",
+                    error
+                );
+
+                alert(error.message);
+
+            } finally {
+
+                savePlanButton.disabled = false;
+            }
         }
     );
 
+
     saveMadeButton.addEventListener(
         "click",
-        () => {
+        async () => {
 
-            const madeQuantity =
+            const newMadeQuantity =
                 Number(
                     madeQuantityInput.value
                 );
 
             if (
                 !Number.isInteger(
-                    madeQuantity
+                    newMadeQuantity
                 ) ||
-                madeQuantity < 0
+                newMadeQuantity < 0
             ) {
                 return;
             }
 
-            trainingProductionMade[
-                productionItem.id
-            ] = madeQuantity;
+            if (!planId) {
 
-            loadTrainingProductionItem(
-                productionItem.id
-            );
+                alert(
+                    "Save a production plan before recording production."
+                );
+
+                return;
+            }
+
+            const difference =
+                newMadeQuantity - made;
+
+            if (difference < 0) {
+
+                alert(
+                    "Made quantity cannot be reduced because production history is recorded as completed output."
+                );
+
+                return;
+            }
+
+            if (difference === 0) {
+                return;
+            }
+
+            try {
+
+                saveMadeButton.disabled = true;
+
+                const response =
+                    await fetch(
+                        `/api/production/plans/${planId}/outputs`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                produced_quantity:
+                                    difference
+                            })
+                        }
+                    );
+
+                const result =
+                    await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to save training production."
+                    );
+                }
+
+                await loadTrainingProduction(
+                    trainingProductionDate
+                );
+
+                loadTrainingProductionItem(
+                    productionItem.id
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Training production made save error:",
+                    error
+                );
+
+                alert(error.message);
+
+            } finally {
+
+                saveMadeButton.disabled = false;
+            }
         }
     );
 }
@@ -5361,12 +5595,23 @@ document
     .getElementById("back-to-orders-from-training")
     .addEventListener(
         "click",
-        () => {
-            trainingView.classList.add("hidden");
-            ordersView.classList.remove("hidden");
+        async () => {
+            try {
+                await setNormalMode();
 
-            setNormalMode();
-            loadOrders();
+                trainingView.classList.add("hidden");
+                ordersView.classList.remove("hidden");
+
+                loadOrders();
+
+            } catch (error) {
+                console.error(
+                    "Failed to enter Normal Mode:",
+                    error
+                );
+
+                alert(error.message);
+            }
         }
     );
 
