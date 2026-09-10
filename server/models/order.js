@@ -49,24 +49,34 @@ function createOrder({
     const transaction = db.transaction(() => {
         let finalOrderNumber = order_number;
 
-        if (order_type === "COUNTER_SALE") {
+        if (
+            order_type === "COUNTER_SALE" ||
+            (order_type === "PREORDER" && !order_number)
+        ) {
             const now = new Date();
-
             const yy = String(now.getFullYear()).slice(-2);
             const mm = String(now.getMonth() + 1).padStart(2, "0");
             const dd = String(now.getDate()).padStart(2, "0");
 
             const datePart = `${yy}${mm}${dd}`;
-            const prefix = `CS-${datePart}-`;
+            const prefix =
+                order_type === "COUNTER_SALE"
+                    ? `CS-${datePart}-`
+                    : `PO-${datePart}-`;
+
+            const orderType = order_type;
 
             const lastOrder = db.prepare(`
                 SELECT order_number
                 FROM orders
-                WHERE order_type = 'COUNTER_SALE'
-                  AND order_number LIKE ?
+                WHERE order_type = ?
+                AND order_number LIKE ?
                 ORDER BY order_number DESC
                 LIMIT 1
-            `).get(`${prefix}%`);
+            `).get(
+                orderType,
+                `${prefix}%`
+            );
 
             let sequence = 1;
 
@@ -110,6 +120,124 @@ function createOrder({
         );
 
         return result.lastInsertRowid;
+    });
+
+    const orderId = transaction();
+
+    return getOrderById(orderId);
+}
+
+function createPreorder({
+    customer_id,
+    pickup_date = null,
+    pickup_time = null,
+    delivery = 0,
+    delivery_address = null,
+    notes = null,
+    items,
+    created_by = null
+}) {
+    if (!customer_id) {
+        throw new Error(
+            "Customer ID is required."
+        );
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+        throw new Error(
+            "A preorder must contain at least one item."
+        );
+    }
+
+    const transaction = db.transaction(() => {
+        let finalOrderNumber;
+
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, "0");
+        const dd = String(now.getDate()).padStart(2, "0");
+
+        const datePart = `${yy}${mm}${dd}`;
+        const prefix = `PO-${datePart}-`;
+
+        const lastOrder = db.prepare(`
+            SELECT order_number
+            FROM orders
+            WHERE order_type = 'PREORDER'
+              AND order_number LIKE ?
+            ORDER BY order_number DESC
+            LIMIT 1
+        `).get(`${prefix}%`);
+
+        let sequence = 1;
+
+        if (lastOrder) {
+            const lastSequence = Number(
+                lastOrder.order_number.slice(prefix.length)
+            );
+
+            if (Number.isInteger(lastSequence)) {
+                sequence = lastSequence + 1;
+            }
+        }
+
+        finalOrderNumber =
+            `${prefix}${String(sequence).padStart(3, "0")}`;
+
+        const orderResult = db.prepare(`
+            INSERT INTO orders (
+                order_number,
+                customer_id,
+                order_type,
+                pickup_date,
+                pickup_time,
+                delivery,
+                delivery_address,
+                notes,
+                created_by
+            )
+            VALUES (?, ?, 'PREORDER', ?, ?, ?, ?, ?, ?)
+        `).run(
+            finalOrderNumber,
+            customer_id,
+            pickup_date,
+            pickup_time,
+            delivery,
+            delivery_address,
+            notes,
+            created_by
+        );
+
+        const orderId =
+            orderResult.lastInsertRowid;
+
+        for (const item of items) {
+            if (
+                !Number.isInteger(item.quantity) ||
+                item.quantity <= 0
+            ) {
+                throw new Error(
+                    "Quantity must be greater than zero."
+                );
+            }
+
+            insertOrderItem({
+                order_id: orderId,
+                product_id: item.product_id ?? null,
+                custom_product_id:
+                    item.custom_product_id ?? null,
+                custom_name:
+                    item.custom_name ?? null,
+                unit_price:
+                    item.unit_price ?? null,
+                quantity: item.quantity,
+                notes: item.notes ?? null,
+                user_id: created_by,
+                authorization_user_id: created_by
+            });
+        }
+
+        return orderId;
     });
 
     const orderId = transaction();
@@ -699,6 +827,86 @@ function getPickupHistory(orderId) {
     `).all(orderId);
 }
 
+function updateOrderDetails(
+    orderId,
+    {
+        customer_id,
+        pickup_date = null,
+        pickup_time = null,
+        delivery = 0,
+        delivery_address = null,
+        notes = null
+    }
+) {
+    getMutableOrder(orderId);
+
+    if (
+        customer_id !== null &&
+        customer_id !== undefined &&
+        (!Number.isInteger(customer_id) || customer_id <= 0)
+    ) {
+        throw new Error("Invalid customer ID.");
+    }
+
+    if (delivery !== 0 && delivery !== 1) {
+        throw new Error("Delivery must be 0 or 1.");
+    }
+
+    const order = db.prepare(`
+        SELECT id
+        FROM orders
+        WHERE id = ?
+    `).get(orderId);
+
+    if (!order) {
+        throw new Error(`Order ${orderId} not found.`);
+    }
+
+    if (
+        customer_id !== null &&
+        customer_id !== undefined
+    ) {
+        const customer = db.prepare(`
+            SELECT id
+            FROM customers
+            WHERE id = ?
+        `).get(customer_id);
+
+        if (!customer) {
+            throw new Error(
+                `Customer ${customer_id} not found.`
+            );
+        }
+    }
+
+    const transaction = db.transaction(() => {
+        db.prepare(`
+            UPDATE orders
+            SET
+                customer_id = ?,
+                pickup_date = ?,
+                pickup_time = ?,
+                delivery = ?,
+                delivery_address = ?,
+                notes = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `).run(
+            customer_id ?? null,
+            pickup_date,
+            pickup_time,
+            delivery,
+            delivery_address,
+            notes,
+            orderId
+        );
+    });
+
+    transaction();
+
+    return getOrderById(orderId);
+}
+
 function updateOrderItem(orderId, orderItemId, { quantity, notes = null }) {
 
     getMutableOrder(orderId);
@@ -1232,11 +1440,13 @@ function getPaymentHistory(orderId) {
 
         return {
         createOrder,
+        createPreorder,
         createCounterSale,
         addOrderItem,
         removeOrderItem,
         recordItemPickup,
         getPickupHistory,
+        updateOrderDetails,
         updateOrderItem,
         updateOrderItemProductionStatus,
         updateOrderTotal,

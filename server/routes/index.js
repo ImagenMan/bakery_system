@@ -655,7 +655,7 @@ router.get("/orders/:id", (req, res) => {
 router.post("/orders", (req, res) => {
     try {
         const {
-            order_number,
+            order_number = null,
             customer_id,
             order_type = "PREORDER",
             pickup_date,
@@ -664,13 +664,6 @@ router.post("/orders", (req, res) => {
             delivery_address,
             notes
         } = req.body;
-
-        if (order_type === "PREORDER" && !order_number) {
-            return res.status(400).json({
-                success: false,
-                error: "Order number is required."
-            });
-        }
 
         if (order_type === "PREORDER" && !customer_id) {
             return res.status(400).json({
@@ -712,6 +705,67 @@ router.post("/orders", (req, res) => {
         res.status(500).json({
             success: false,
             error: "Failed to create order."
+        });
+    }
+});
+
+router.post("/preorders", (req, res) => {
+    try {
+        const {
+            customer_id,
+            pickup_date = null,
+            pickup_time = null,
+            delivery = 0,
+            delivery_address = null,
+            notes = null,
+            items
+        } = req.body;
+
+        if (!customer_id) {
+            return res.status(400).json({
+                success: false,
+                error: "Customer ID is required."
+            });
+        }
+
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({
+                success: false,
+                error:
+                    "A preorder must contain at least one item."
+            });
+        }
+
+        const order = req.models.order.createPreorder({
+            customer_id,
+            pickup_date,
+            pickup_time,
+            delivery,
+            delivery_address,
+            notes,
+            items,
+            created_by:
+                req.mode === "TRAINING"
+                    ? 1
+                    : req.user.id
+        });
+
+        res.status(201).json({
+            success: true,
+            data: order
+        });
+
+    } catch (error) {
+        console.error(
+            "POST /api/preorders error:",
+            error
+        );
+
+        res.status(400).json({
+            success: false,
+            error:
+                error.message ||
+                "Failed to create preorder."
         });
     }
 });
@@ -880,6 +934,69 @@ router.post("/orders/:id/items", (req, res) => {
         res.status(500).json({
             success: false,
             error: "Failed to add order item."
+        });
+    }
+});
+
+router.put("/orders/:id/details", (req, res) => {
+    const orderId = Number(req.params.id);
+
+    if (!Number.isInteger(orderId) || orderId <= 0) {
+        return res.status(400).json({
+            success: false,
+            error: "Invalid order ID."
+        });
+    }
+
+    const {
+        customer_id,
+        pickup_date,
+        pickup_time,
+        delivery,
+        delivery_address,
+        notes
+    } = req.body;
+
+    try {
+        const order = req.models.order.updateOrderDetails(orderId, {
+            customer_id,
+            pickup_date,
+            pickup_time,
+            delivery,
+            delivery_address,
+            notes
+        });
+
+        res.json({
+            success: true,
+            data: order
+        });
+    } catch (error) {
+        console.error("Update order details error:", error);
+
+        if (
+            error.message.includes("not found") ||
+            error.message.includes("Invalid customer")
+        ) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        if (
+            error.message.includes("cannot be modified") ||
+            error.message.includes("Delivery must be")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to update order details."
         });
     }
 });

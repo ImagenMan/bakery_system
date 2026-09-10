@@ -15,11 +15,26 @@ const trainingView = document.getElementById("training-view");
 const trainingCounterSaleView = document.getElementById(
     "training-counter-sale-view"
 );
+const trainingPreorderView = document.getElementById(
+    "training-preorder-view"
+);
 const trainingProductionView = document.getElementById(
     "training-production-view"
 );
 const trainingProductionItemView = document.getElementById(
     "training-production-item-view"
+);
+
+const trainingPreorderReviewView = document.getElementById(
+    "training-preorder-review-view"
+);
+
+const trainingPreorderReviewList = document.getElementById(
+    "training-preorder-review-list"
+);
+
+const trainingPreorderReviewDetail = document.getElementById(
+    "training-preorder-review-detail"
 );
 
 const trainingProductionItemTitle = document.getElementById(
@@ -50,6 +65,60 @@ const counterSaleTotal = document.getElementById("counter-sale-total");
 
 const trainingCounterSaleCartElement = document.getElementById("training-counter-sale-cart");
 const trainingCounterSaleTotal = document.getElementById("training-counter-sale-total");
+
+const trainingPreorderCustomer = document.getElementById(
+    "training-preorder-customer"
+);
+
+const trainingPreorderDelivery = document.getElementById(
+    "training-preorder-delivery"
+);
+
+const trainingPreorderDeliveryAddressSection =
+    document.getElementById(
+        "training-preorder-delivery-address-section"
+    );
+
+const trainingPreorderDeliveryAddress = document.getElementById(
+    "training-preorder-delivery-address"
+);
+
+const trainingPreorderCategoryList = document.getElementById(
+    "training-preorder-category-list"
+);
+
+const trainingPreorderProductList = document.getElementById(
+    "training-preorder-product-list"
+);
+
+const trainingPreorderCartElement = document.getElementById(
+    "training-preorder-cart"
+);
+
+const trainingPreorderTotal = document.getElementById(
+    "training-preorder-total"
+);
+
+const trainingPreorderNotes = document.getElementById(
+    "training-preorder-notes"
+);
+
+const trainingPreorderError = document.getElementById(
+    "training-preorder-error"
+);
+
+const trainingPreorderSuccess = document.getElementById(
+    "training-preorder-success"
+);
+
+const createTrainingPreorder = document.getElementById(
+    "create-training-preorder"
+);
+
+const clearTrainingPreorder = document.getElementById(
+    "clear-training-preorder"
+);
+
 const trainingCounterSalePaymentMethod =
     document.getElementById(
         "training-counter-sale-payment-method"
@@ -96,6 +165,11 @@ let trainingCounterSaleCart = [];
 let trainingCounterSaleProducts = [];
 let trainingCounterSaleCategories = [];
 let trainingCounterSaleSelectedCategoryId = null;
+
+let trainingPreorderCart = [];
+let trainingPreorderProducts = [];
+let trainingPreorderCategories = [];
+let trainingPreorderSelectedCategoryId = null;
 
 let trainingProductionDate = null;
 let trainingProductionItems = [];
@@ -557,6 +631,804 @@ completeTrainingCounterSale.addEventListener(
 );
 
 document
+    .getElementById("training-preorder")
+    .addEventListener("click", () => {
+        trainingView.classList.add("hidden");
+        trainingCounterSaleView.classList.add("hidden");
+        trainingProductionView.classList.add("hidden");
+        trainingProductionItemView.classList.add("hidden");
+
+        trainingPreorderView.classList.remove("hidden");
+
+        loadTrainingPreorder();
+    });
+
+trainingPreorderCustomer.addEventListener(
+    "change",
+    validateTrainingPreorderForm
+);
+
+
+document
+    .getElementById("training-preorder-pickup-date")
+    .addEventListener(
+        "change",
+        validateTrainingPreorderForm
+    );
+
+
+document
+    .getElementById("training-preorder-pickup-time")
+    .addEventListener(
+        "change",
+        validateTrainingPreorderForm
+    );
+
+document.getElementById("training-preorder-review").addEventListener("click", () => {
+    trainingView.classList.add("hidden");
+    trainingCounterSaleView.classList.add("hidden");
+    trainingProductionView.classList.add("hidden");
+    trainingProductionItemView.classList.add("hidden");
+    trainingPreorderView.classList.add("hidden");
+    trainingPreorderReviewView.classList.remove("hidden");
+
+    loadTrainingPreorderReview();
+});
+
+async function loadTrainingPreorderReview() {
+    trainingPreorderReviewList.innerHTML = "<p>Cargando pedidos...</p>";
+
+    try {
+        const response = await fetch("/api/orders");
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || "No se pudieron cargar los pedidos.");
+        }
+
+        const preorders = result.data.filter(
+            order => order.order_type === "PREORDER"
+        );
+
+        if (preorders.length === 0) {
+            trainingPreorderReviewList.innerHTML =
+                "<p>No hay pedidos de capacitación para revisar.</p>";
+            return;
+        }
+
+        trainingPreorderReviewList.innerHTML = preorders
+            .map(order => `
+                <div
+                    class="order-card"
+                    data-training-preorder-id="${order.id}"
+                    role="button"
+                    tabindex="0"
+                >
+                    <h3>${escapeHTML(order.order_number)}</h3>
+
+                    <p>
+                        Cliente:
+                        ${escapeHTML(order.customer_name || "Sin cliente")}
+                    </p>
+
+                    <p>
+                        Recogida:
+                        ${escapeHTML(order.pickup_date || "Sin fecha")}
+                        ${escapeHTML(order.pickup_time || "")}
+                    </p>
+
+                    <p>
+                        Estado:
+                        ${escapeHTML(order.status || "")}
+                    </p>
+
+                    <p>
+                        Total:
+                        $${Number(order.total_amount || 0).toFixed(2)}
+                    </p>
+                </div>
+            `)
+            .join("");
+            trainingPreorderReviewList
+                .querySelectorAll("[data-training-preorder-id]")
+                .forEach(card => {
+                    card.addEventListener("click", () => {
+                        const orderId = Number(
+                            card.dataset.trainingPreorderId
+                        );
+
+                        loadTrainingPreorderReviewDetail(orderId);
+                    });
+                });
+    } catch (error) {
+        console.error("Training preorder review error:", error);
+
+        trainingPreorderReviewList.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+async function loadTrainingPreorderReviewDetail(orderId) {
+    trainingPreorderReviewDetail.innerHTML =
+        "<p>Cargando pedido...</p>";
+
+    try {
+        const response = await fetch(
+            `/api/orders/${orderId}`
+        );
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error || "No se pudo cargar el pedido."
+            );
+        }
+
+        const order = result.data;
+
+        trainingPreorderReviewDetail.innerHTML = `
+            <div class="order-card">
+                <h3>
+                    ${escapeHTML(order.order_number)}
+                </h3>
+
+                <h4>Datos del pedido</h4>
+
+                <div class="training-preorder-edit-details">
+
+                    <label>
+                        Cliente
+                        <select data-order-customer>
+                            <option value="">Seleccionar cliente</option>
+                        </select>
+                    </label>
+
+                    <label>
+                        Fecha de recogida
+                        <input
+                            type="date"
+                            value="${escapeHTML(
+                                order.pickup_date || ""
+                            )}"
+                            data-order-pickup-date
+                        >
+                    </label>
+
+                    <label>
+                        Hora de recogida
+                        <input
+                            type="time"
+                            value="${escapeHTML(
+                                order.pickup_time || ""
+                            )}"
+                            data-order-pickup-time
+                        >
+                    </label>
+
+                    <label>
+                        <input
+                            type="checkbox"
+                            ${order.delivery ? "checked" : ""}
+                            data-order-delivery
+                        >
+                        Entrega a domicilio
+                    </label>
+
+                    <label>
+                        Dirección de entrega
+                        <textarea
+                            data-order-delivery-address
+                        >${escapeHTML(
+                            order.delivery_address || ""
+                        )}</textarea>
+                    </label>
+
+                    <label>
+                        Notas
+                        <textarea
+                            data-order-notes
+                        >${escapeHTML(
+                            order.notes || ""
+                        )}</textarea>
+                    </label>
+
+                    <button
+                        type="button"
+                        data-save-order-details
+                    >
+                        Guardar datos del pedido
+                    </button>
+
+                </div>
+
+                <h4>Productos</h4>
+
+                <div class="training-preorder-edit-items">
+                    ${order.items
+                        .map(item => `
+                            <div
+                                class="training-preorder-edit-item"
+                                data-item-id="${item.id}"
+                            >
+                                <div>
+                                    <strong>
+                                        ${escapeHTML(item.product_name)}
+                                    </strong>
+
+                                    <p>
+                                        $${Number(
+                                            item.unit_price || 0
+                                        ).toFixed(2)}
+                                        c/u
+                                    </p>
+                                </div>
+
+                                <label>
+                                    Cantidad
+                                    <input
+                                        type="number"
+                                        min="${item.quantity_picked_up || 1}"
+                                        value="${item.quantity}"
+                                        data-quantity-input
+                                    >
+                                </label>
+
+                                <div>
+                                    <button
+                                        type="button"
+                                        data-save-item
+                                    >
+                                        Guardar
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        data-delete-item
+                                    >
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        `)
+                        .join("")}
+                </div>
+
+                <p>
+                    Total:
+                    $${Number(order.total_amount || 0).toFixed(2)}
+                </p>
+            </div>
+        `;
+
+                const customerSelect =
+                    trainingPreorderReviewDetail.querySelector(
+                        "[data-order-customer]"
+                    );
+
+                try {
+                    const customersResponse = await fetch(
+                        "/api/customers"
+                    );
+
+                    const customersResult =
+                        await customersResponse.json();
+
+                    if (
+                        !customersResponse.ok ||
+                        !customersResult.success
+                    ) {
+                        throw new Error(
+                            customersResult.error ||
+                                "No se pudieron cargar los clientes."
+                        );
+                    }
+
+                    customerSelect.innerHTML = `
+                        <option value="">
+                            Seleccionar cliente
+                        </option>
+
+                        ${customersResult.data
+                            .map(customer => `
+                                <option
+                                    value="${customer.id}"
+                                    ${
+                                        Number(customer.id) ===
+                                        Number(order.customer_id)
+                                            ? "selected"
+                                            : ""
+                                    }
+                                >
+                                    ${escapeHTML(customer.name)}
+                                </option>
+                            `)
+                            .join("")}
+                    `;
+                } catch (error) {
+                    console.error(
+                        "Training preorder customer loading error:",
+                        error
+                    );
+
+                    customerSelect.innerHTML = `
+                        <option value="">
+                            No se pudieron cargar los clientes
+                        </option>
+                    `;
+                }
+
+        const saveOrderDetailsButton =
+            trainingPreorderReviewDetail.querySelector(
+                "[data-save-order-details]"
+            );
+
+        saveOrderDetailsButton.addEventListener(
+            "click",
+            async () => {
+                const pickupDate =
+                    trainingPreorderReviewDetail.querySelector(
+                        "[data-order-pickup-date]"
+                    ).value;
+
+                const pickupTime =
+                    trainingPreorderReviewDetail.querySelector(
+                        "[data-order-pickup-time]"
+                    ).value;
+
+                const delivery =
+                    trainingPreorderReviewDetail.querySelector(
+                        "[data-order-delivery]"
+                    ).checked
+                        ? 1
+                        : 0;
+
+                const deliveryAddress =
+                    trainingPreorderReviewDetail.querySelector(
+                        "[data-order-delivery-address]"
+                    ).value.trim();
+
+                const notes =
+                    trainingPreorderReviewDetail.querySelector(
+                        "[data-order-notes]"
+                    ).value.trim();
+
+                saveOrderDetailsButton.disabled = true;
+                saveOrderDetailsButton.textContent =
+                    "Guardando...";
+
+                try {
+                    const updateResponse = await fetch(
+                        `/api/orders/${orderId}/details`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                customer_id:
+                                    Number(customerSelect.value) || null,
+                                pickup_date:
+                                    pickupDate || null,
+                                pickup_time:
+                                    pickupTime || null,
+                                delivery,
+                                delivery_address:
+                                    deliveryAddress || null,
+                                notes: notes || null
+                            })
+                        }
+                    );
+
+                    const updateResult =
+                        await updateResponse.json();
+
+                    if (
+                        !updateResponse.ok ||
+                        !updateResult.success
+                    ) {
+                        throw new Error(
+                            updateResult.error ||
+                                "No se pudieron guardar los datos del pedido."
+                        );
+                    }
+
+                    await loadTrainingPreorderReviewDetail(
+                        orderId
+                    );
+
+                    await loadTrainingPreorderReview();
+                } catch (error) {
+                    console.error(
+                        "Training preorder details update error:",
+                        error
+                    );
+
+                    alert(error.message);
+
+                    saveOrderDetailsButton.disabled = false;
+                    saveOrderDetailsButton.textContent =
+                        "Guardar datos del pedido";
+                }
+            }
+        );
+
+        trainingPreorderReviewDetail
+            .querySelectorAll("[data-save-item]")
+            .forEach(button => {
+                button.addEventListener("click", async () => {
+                    const itemContainer =
+                        button.closest(
+                            "[data-item-id]"
+                        );
+
+                    const itemId = Number(
+                        itemContainer.dataset.itemId
+                    );
+
+                    const quantityInput =
+                        itemContainer.querySelector(
+                            "[data-quantity-input]"
+                        );
+
+                    const quantity = Number(
+                        quantityInput.value
+                    );
+
+                    if (
+                        !Number.isInteger(quantity) ||
+                        quantity <= 0
+                    ) {
+                        alert(
+                            "La cantidad debe ser un número entero mayor que cero."
+                        );
+                        return;
+                    }
+
+                    button.disabled = true;
+                    button.textContent = "Guardando...";
+
+                    try {
+                        const updateResponse = await fetch(
+                            `/api/orders/${orderId}/items/${itemId}`,
+                            {
+                                method: "PUT",
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+                                body: JSON.stringify({
+                                    quantity
+                                })
+                            }
+                        );
+
+                        const updateResult =
+                            await updateResponse.json();
+
+                        if (
+                            !updateResponse.ok ||
+                            !updateResult.success
+                        ) {
+                            throw new Error(
+                                updateResult.error ||
+                                    "No se pudo guardar el cambio."
+                            );
+                        }
+
+                        await loadTrainingPreorderReviewDetail(
+                            orderId
+                        );
+
+                        await loadTrainingPreorderReview();
+                    } catch (error) {
+                        console.error(
+                            "Training preorder item update error:",
+                            error
+                        );
+
+                        alert(error.message);
+
+                        button.disabled = false;
+                        button.textContent = "Guardar";
+                    }
+                });
+            });
+
+        trainingPreorderReviewDetail
+            .querySelectorAll("[data-delete-item]")
+            .forEach(button => {
+                button.addEventListener("click", async () => {
+                    const itemContainer =
+                        button.closest("[data-item-id]");
+
+                    const itemId = Number(
+                        itemContainer.dataset.itemId
+                    );
+
+                    const productName =
+                        itemContainer.querySelector("strong")
+                            ?.textContent
+                            .trim() || "este producto";
+
+                    const confirmed = confirm(
+                        `¿Eliminar ${productName} del pedido?`
+                    );
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    button.disabled = true;
+                    button.textContent = "Eliminando...";
+
+                    try {
+                        const deleteResponse = await fetch(
+                            `/api/orders/${orderId}/items/${itemId}`,
+                            {
+                                method: "DELETE"
+                            }
+                        );
+
+                        const deleteResult =
+                            await deleteResponse.json();
+
+                        if (
+                            !deleteResponse.ok ||
+                            !deleteResult.success
+                        ) {
+                            throw new Error(
+                                deleteResult.error ||
+                                    "No se pudo eliminar el producto."
+                            );
+                        }
+
+                        await loadTrainingPreorderReviewDetail(
+                            orderId
+                        );
+
+                        await loadTrainingPreorderReview();
+                    } catch (error) {
+                        console.error(
+                            "Training preorder item delete error:",
+                            error
+                        );
+
+                        alert(error.message);
+
+                        button.disabled = false;
+                        button.textContent = "Eliminar";
+                    }
+                });
+            });
+    } catch (error) {
+        console.error(
+            "Training preorder review detail error:",
+            error
+        );
+
+        trainingPreorderReviewDetail.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+document
+    .getElementById("back-to-training-from-preorder-review")
+    .addEventListener("click", () => {
+        trainingPreorderReviewView.classList.add("hidden");
+        trainingView.classList.remove("hidden");
+    });
+
+
+trainingPreorderDelivery.addEventListener(
+    "change",
+    () => {
+        const isDelivery =
+            trainingPreorderDelivery.value === "1";
+
+        trainingPreorderDeliveryAddressSection.classList.toggle(
+            "hidden",
+            !isDelivery
+        );
+
+        if (!isDelivery) {
+            trainingPreorderDeliveryAddress.value = "";
+        }
+
+        validateTrainingPreorderForm();
+    }
+);
+
+
+trainingPreorderDeliveryAddress.addEventListener(
+    "input",
+    validateTrainingPreorderForm
+);
+
+createTrainingPreorder.addEventListener(
+    "click",
+    async () => {
+        if (!validateTrainingPreorderForm()) {
+            return;
+        }
+
+        createTrainingPreorder.disabled = true;
+
+        trainingPreorderError.classList.add(
+            "hidden"
+        );
+
+        trainingPreorderSuccess.classList.add(
+            "hidden"
+        );
+
+        const payload = {
+            customer_id:
+                Number(trainingPreorderCustomer.value),
+
+            pickup_date:
+                document.getElementById(
+                    "training-preorder-pickup-date"
+                ).value,
+
+            pickup_time:
+                document.getElementById(
+                    "training-preorder-pickup-time"
+                ).value,
+
+            delivery:
+                Number(trainingPreorderDelivery.value),
+
+            delivery_address:
+                trainingPreorderDelivery.value === "1"
+                    ? trainingPreorderDeliveryAddress.value.trim()
+                    : null,
+
+            notes:
+                trainingPreorderNotes.value.trim() ||
+                null,
+
+            items:
+                trainingPreorderCart.map(item => ({
+                    product_id: item.product_id,
+                    quantity: item.quantity
+                }))
+        };
+
+        try {
+            const response =
+                await fetch("/api/preorders", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+            const result =
+                await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.error ||
+                    "No se pudo crear el pedido."
+                );
+            }
+
+            const order =
+                result.data;
+
+            trainingPreorderSuccess.textContent =
+                `Pedido ${order.order_number} creado correctamente.`;
+
+            trainingPreorderSuccess.classList.remove(
+                "hidden"
+            );
+
+            trainingPreorderCart = [];
+
+            trainingPreorderSelectedCategoryId =
+                null;
+
+            trainingPreorderCustomer.value =
+                "";
+
+            document.getElementById(
+                "training-preorder-pickup-date"
+            ).value = "";
+
+            document.getElementById(
+                "training-preorder-pickup-time"
+            ).value = "";
+
+            trainingPreorderDelivery.value =
+                "0";
+
+            trainingPreorderDeliveryAddress.value =
+                "";
+
+            trainingPreorderDeliveryAddressSection.classList.add(
+                "hidden"
+            );
+
+            trainingPreorderNotes.value =
+                "";
+
+            renderTrainingPreorderCart();
+
+            validateTrainingPreorderForm();
+
+        } catch (error) {
+            console.error(
+                "Training Preorder create error:",
+                error
+            );
+
+            showTrainingPreorderError(
+                error.message ||
+                "No se pudo crear el pedido."
+            );
+
+            createTrainingPreorder.disabled =
+                false;
+        }
+    }
+);
+
+clearTrainingPreorder.addEventListener(
+    "click",
+    () => {
+        trainingPreorderCart = [];
+
+        trainingPreorderSelectedCategoryId =
+            null;
+
+        trainingPreorderCustomer.value =
+            "";
+
+        document.getElementById(
+            "training-preorder-pickup-date"
+        ).value = "";
+
+        document.getElementById(
+            "training-preorder-pickup-time"
+        ).value = "";
+
+        trainingPreorderDelivery.value =
+            "0";
+
+        trainingPreorderDeliveryAddress.value =
+            "";
+
+        trainingPreorderDeliveryAddressSection.classList.add(
+            "hidden"
+        );
+
+        trainingPreorderNotes.value =
+            "";
+
+        trainingPreorderError.classList.add(
+            "hidden"
+        );
+
+        trainingPreorderSuccess.classList.add(
+            "hidden"
+        );
+
+        renderTrainingPreorderCart();
+        validateTrainingPreorderForm();
+    }
+);
+
+document
     .getElementById("training-production")
     .addEventListener(
         "click",
@@ -566,14 +1438,26 @@ document
             trainingProductionView.classList.remove("hidden");
 
 
+            const productionDateInput =
+                document.getElementById("training-production-date");
+
             const now = new Date();
 
-            const productionDate =
+            const today =
                 `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
-            loadTrainingProduction(
-                productionDate
-            );
+            productionDateInput.value = today;
+
+            loadTrainingProduction(today);
+        }
+    );
+
+document
+    .getElementById("training-production-date")
+    .addEventListener(
+        "change",
+        (event) => {
+            loadTrainingProduction(event.target.value);
         }
     );
 
@@ -616,6 +1500,13 @@ document
 
         }
     );
+
+document
+    .getElementById("back-to-training-from-preorder")
+    .addEventListener("click", () => {
+        trainingPreorderView.classList.add("hidden");
+        trainingView.classList.remove("hidden");
+    });
 
 document
     .getElementById("back-to-training")
@@ -661,15 +1552,29 @@ function showLogin() {
     loginUsername.focus();
 }
 
-
-function showApplication() {
+async function showApplication() {
     loginView.classList.add("hidden");
+
+    try {
+        await setNormalMode();
+    } catch (error) {
+        console.error(
+            "Failed to establish Normal Mode:",
+            error
+        );
+
+        loginError.textContent =
+            "Unable to establish Normal Mode.";
+
+        loginError.classList.remove("hidden");
+
+        return;
+    }
 
     ordersView.classList.remove("hidden");
 
     loadOrders();
 }
-
 
 async function checkAuthentication() {
     try {
@@ -693,7 +1598,7 @@ async function checkAuthentication() {
             return;
         }
 
-        showApplication();
+        await showApplication();
 
     } catch (error) {
         console.error(
@@ -2052,7 +2957,7 @@ function renderOrderDetail(order) {
 
 </div>
 
-    
+
 
     ${
     balance > 0
@@ -3357,7 +4262,7 @@ function attachOrderDetailListeners(order) {
                 }
             );
         });
-    
+
     // -----------------------------------------------------
     // Payment
     // -----------------------------------------------------
@@ -3705,10 +4610,10 @@ function attachNewOrderFormListeners() {
                     "delivery-address"
                 ).value = "";
             }
-            
+
         }
     );
-    
+
         const createOrderForm =
         document.getElementById("create-order-form");
 
@@ -4107,25 +5012,18 @@ async function loadTrainingProduction(date) {
                 : [];
 
         /*
-         * Training demand is intentionally simulated.
-         * It does not create real orders and does not
-         * write anything to bakery.db.
-         */
+        * Training demand comes from the Training DB preorder data
+        * returned by the production overview.
+        */
         trainingProductionDemand =
-            trainingProductionItems.map(
-                item => ({
-                    production_item_id: item.id,
-                    demand_quantity:
-                        Number(item.id) === 1
-                            ? 30
-                            : Number(item.id) === 2
-                                ? 20
-                                : 0
-                })
-            ).filter(
-                item =>
-                    item.demand_quantity > 0
-            );
+            Array.isArray(overviewResult.data)
+                ? overviewResult.data
+                    .filter(item => Number(item.demand_quantity) > 0)
+                    .map(item => ({
+                        production_item_id: item.production_item_id,
+                        demand_quantity: Number(item.demand_quantity) || 0
+                    }))
+                : [];
 
         /*
          * The production API is mode-aware.
@@ -4227,7 +5125,7 @@ function renderTrainingProductionOverview() {
 
                 const toMake =
                     Math.max(
-                        committed - made,
+                        planned - made,
                         0
                     );
 
@@ -4246,10 +5144,6 @@ function renderTrainingProductionOverview() {
 
                         <span>
                             ${committed} committed
-                        </span>
-
-                        <span>
-                            ${batchQuantity} batch
                         </span>
 
                         <span>
@@ -4369,7 +5263,7 @@ async function loadTrainingProductionItem(
 
     const toMake =
         Math.max(
-            committed - made,
+            planned - made,
             0
         );
 
@@ -4379,11 +5273,6 @@ async function loadTrainingProductionItem(
             <div>
                 <strong>Committed</strong>
                 <span>${committed}</span>
-            </div>
-
-            <div>
-                <strong>Batch Size</strong>
-                <span>${batchQuantity}</span>
             </div>
 
             <div>
@@ -4744,6 +5633,478 @@ async function loadTrainingCounterSale() {
             </p>
         `;
     }
+}
+
+async function loadTrainingPreorder() {
+
+    try {
+
+        const [
+            customersResponse,
+            productsResponse
+        ] = await Promise.all([
+            fetch("/api/customers"),
+            fetch("/api/products")
+        ]);
+
+        if (
+            !customersResponse.ok ||
+            !productsResponse.ok
+        ) {
+            throw new Error(
+                "Failed to load training preorder data."
+            );
+        }
+
+        const customersData =
+            await customersResponse.json();
+
+        const productsData =
+            await productsResponse.json();
+
+        renderTrainingPreorderCustomers(
+            customersData.data
+        );
+
+        trainingPreorderProducts =
+            productsData.data;
+
+        renderTrainingPreorderCategories(
+            trainingPreorderProducts
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Training Preorder load error:",
+            error
+        );
+
+        trainingPreorderCategoryList.innerHTML = "";
+
+        trainingPreorderProductList.innerHTML = `
+            <p class="error">
+                No se pudieron cargar los productos.
+            </p>
+        `;
+    }
+}
+
+
+function renderTrainingPreorderCustomers(
+    customers
+) {
+
+    trainingPreorderCustomer.innerHTML = `
+        <option value="">
+            Selecciona un cliente
+        </option>
+    `;
+
+    customers.forEach(customer => {
+
+        const option =
+            document.createElement("option");
+
+        option.value =
+            customer.id;
+
+        option.textContent =
+            `${customer.name}${customer.phone ? ` — ${customer.phone}` : ""}`;
+
+        trainingPreorderCustomer.appendChild(
+            option
+        );
+    });
+}
+
+
+function renderTrainingPreorderCategories(
+    products
+) {
+
+    const categories = [];
+
+    products.forEach(product => {
+
+        const exists =
+            categories.some(
+                category =>
+                    category.id === product.category_id
+            );
+
+        if (!exists) {
+
+            categories.push({
+                id: product.category_id,
+                name: product.category_name
+            });
+        }
+    });
+
+    trainingPreorderCategories =
+        categories;
+
+    if (!categories.length) {
+
+        trainingPreorderCategoryList.innerHTML = "";
+
+        trainingPreorderProductList.innerHTML = `
+            <p>
+                No hay productos disponibles.
+            </p>
+        `;
+
+        return;
+    }
+
+    trainingPreorderCategoryList.innerHTML = "";
+
+    categories.forEach(category => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "preorder-category";
+
+        button.textContent =
+            category.name;
+
+        button.addEventListener(
+            "click",
+            () => {
+                selectTrainingPreorderCategory(
+                    category.id
+                );
+            }
+        );
+
+        trainingPreorderCategoryList.appendChild(
+            button
+        );
+    });
+
+    selectTrainingPreorderCategory(
+        categories[0].id
+    );
+}
+
+
+function selectTrainingPreorderCategory(
+    categoryId
+) {
+
+    trainingPreorderSelectedCategoryId =
+        categoryId;
+
+    const buttons =
+        trainingPreorderCategoryList.querySelectorAll(
+            ".preorder-category"
+        );
+
+    buttons.forEach(button => {
+
+        const category =
+            trainingPreorderCategories.find(
+                item =>
+                    item.id === categoryId
+            );
+
+        button.classList.toggle(
+            "selected",
+            button.textContent === category?.name
+        );
+    });
+
+    const products =
+        trainingPreorderProducts.filter(
+            product =>
+                product.category_id === categoryId
+        );
+
+    trainingPreorderProductList.innerHTML = "";
+
+    products.forEach(product => {
+
+        const button =
+            document.createElement("button");
+
+        button.type = "button";
+
+        button.className =
+            "preorder-product";
+
+        button.textContent =
+            `${product.name} — $${Number(product.price).toFixed(2)}`;
+
+        button.addEventListener(
+            "click",
+            () => addTrainingPreorderProduct(product)
+        );
+
+        trainingPreorderProductList.appendChild(
+            button
+        );
+    });
+}
+
+function addTrainingPreorderProduct(product) {
+
+    const existingItem =
+        trainingPreorderCart.find(
+            item =>
+                item.product_id === product.id
+        );
+
+    if (existingItem) {
+
+        existingItem.quantity += 1;
+
+    } else {
+
+        trainingPreorderCart.push({
+            product_id: product.id,
+            name: product.name,
+            unit_price: Number(product.price),
+            quantity: 1
+        });
+    }
+
+    renderTrainingPreorderCart();
+    validateTrainingPreorderForm();
+}
+
+
+function renderTrainingPreorderCart() {
+
+    if (!trainingPreorderCart.length) {
+
+        trainingPreorderCartElement.innerHTML = `
+            <p>
+                No hay productos agregados.
+            </p>
+        `;
+
+        trainingPreorderTotal.textContent =
+            "$0.00";
+
+        return;
+    }
+
+    trainingPreorderCartElement.innerHTML = "";
+
+    let total = 0;
+
+    trainingPreorderCart.forEach(item => {
+
+        const lineTotal =
+            item.unit_price * item.quantity;
+
+        total += lineTotal;
+
+        const row =
+            document.createElement("div");
+
+        row.className =
+            "preorder-cart-item";
+
+
+        const itemInfo =
+            document.createElement("div");
+
+        itemInfo.className =
+            "preorder-cart-item-info";
+
+
+        const name =
+            document.createElement("strong");
+
+        name.textContent =
+            item.name;
+
+
+        const unitPrice =
+            document.createElement("span");
+
+        unitPrice.textContent =
+            `$${item.unit_price.toFixed(2)} c/u`;
+
+
+        itemInfo.appendChild(name);
+        itemInfo.appendChild(unitPrice);
+
+
+        const controls =
+            document.createElement("div");
+
+        controls.className =
+            "preorder-cart-item-controls";
+
+
+        const decreaseButton =
+            document.createElement("button");
+
+        decreaseButton.type =
+            "button";
+
+        decreaseButton.className =
+            "preorder-quantity-button";
+
+        decreaseButton.textContent =
+            "−";
+
+        decreaseButton.addEventListener(
+            "click",
+            () => changeTrainingPreorderQuantity(
+                item.product_id,
+                -1
+            )
+        );
+
+
+        const quantity =
+            document.createElement("span");
+
+        quantity.textContent =
+            item.quantity;
+
+
+        const increaseButton =
+            document.createElement("button");
+
+        increaseButton.type =
+            "button";
+
+        increaseButton.className =
+            "preorder-quantity-button";
+
+        increaseButton.textContent =
+            "+";
+
+        increaseButton.addEventListener(
+            "click",
+            () => changeTrainingPreorderQuantity(
+                item.product_id,
+                1
+            )
+        );
+
+
+        const lineTotalElement =
+            document.createElement("strong");
+
+        lineTotalElement.textContent =
+            `$${lineTotal.toFixed(2)}`;
+
+
+        controls.appendChild(decreaseButton);
+        controls.appendChild(quantity);
+        controls.appendChild(increaseButton);
+        controls.appendChild(lineTotalElement);
+
+
+        row.appendChild(itemInfo);
+        row.appendChild(controls);
+
+        trainingPreorderCartElement.appendChild(
+            row
+        );
+    });
+
+    trainingPreorderTotal.textContent =
+        `$${total.toFixed(2)}`;
+}
+
+
+function changeTrainingPreorderQuantity(
+    productId,
+    change
+) {
+
+    const item =
+        trainingPreorderCart.find(
+            cartItem =>
+                cartItem.product_id === productId
+        );
+
+    if (!item) {
+        return;
+    }
+
+    item.quantity += change;
+
+    if (item.quantity <= 0) {
+
+        trainingPreorderCart =
+            trainingPreorderCart.filter(
+                cartItem =>
+                    cartItem.product_id !== productId
+            );
+    }
+
+    renderTrainingPreorderCart();
+    validateTrainingPreorderForm();
+}
+
+function validateTrainingPreorderForm() {
+
+    const hasCustomer =
+        Boolean(trainingPreorderCustomer.value);
+
+    const pickupDate =
+        document.getElementById(
+            "training-preorder-pickup-date"
+        ).value;
+
+    const pickupTime =
+        document.getElementById(
+            "training-preorder-pickup-time"
+        ).value;
+
+    const hasProducts =
+        trainingPreorderCart.length > 0;
+
+    const isDelivery =
+        trainingPreorderDelivery.value === "1";
+
+    const deliveryAddress =
+        trainingPreorderDeliveryAddress.value.trim();
+
+    const hasDeliveryAddress =
+        !isDelivery ||
+        Boolean(deliveryAddress);
+
+    const isValid =
+        hasCustomer &&
+        Boolean(pickupDate) &&
+        Boolean(pickupTime) &&
+        hasProducts &&
+        hasDeliveryAddress;
+
+    createTrainingPreorder.disabled =
+        !isValid;
+
+    return isValid;
+}
+
+
+function showTrainingPreorderError(
+    message
+) {
+
+    trainingPreorderError.textContent =
+        message;
+
+    trainingPreorderError.classList.remove(
+        "hidden"
+    );
+
+    trainingPreorderSuccess.classList.add(
+        "hidden"
+    );
 }
 
 function renderTrainingCounterSaleCustomers(

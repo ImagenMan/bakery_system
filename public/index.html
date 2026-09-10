@@ -72,12 +72,63 @@
 
             <button
                 type="button"
+                id="training-preorder"
+            >
+                Preorder / Pedido anticipado
+            </button>
+
+            <button
+                type="button"
+                id="training-preorder-review"
+            >
+                Review Preorders / Revisar pedidos
+            </button>
+
+            <button
+                type="button"
                 id="training-production"
             >
                 Production / Kitchen
             </button>
 
         </div>
+
+    </section>
+
+    <!-- Training Preorder Review -->
+
+    <section id="training-preorder-review-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-training-from-preorder-review">
+                ← Capacitación
+            </button>
+
+            <h2>Revisar pedidos</h2>
+
+        </div>
+
+        <div class="training-mode-notice">
+
+            <h3>MODO DE CAPACITACIÓN</h3>
+
+            <p>
+                Revisa y practica cambios en pedidos de capacitación.
+                Los pedidos reales no aparecen aquí.
+            </p>
+
+        </div>
+
+        <div id="training-preorder-review-list">
+
+            <p>
+                Cargando pedidos...
+            </p>
+
+        </div>
+
+        <div id="training-preorder-review-detail"></div>
 
     </section>
 
@@ -282,6 +333,207 @@
 
     </section>
 
+    <!-- Training Preorder -->
+
+    <section id="training-preorder-view" class="view hidden">
+
+        <div class="section-header">
+
+            <button id="back-to-training-from-preorder">
+                ← Capacitación
+            </button>
+
+            <h2>Pedido anticipado</h2>
+
+        </div>
+
+        <div class="training-mode-notice">
+
+            <h3>MODO DE CAPACITACIÓN</h3>
+
+            <p>
+                Practica aquí cómo tomar un pedido.
+                Este pedido se guarda solamente en el ambiente de capacitación.
+            </p>
+
+        </div>
+
+        <div class="training-preorder-form">
+
+        <div class="preorder-customer">
+
+            <label for="training-preorder-customer">
+                Cliente
+            </label>
+
+            <select id="training-preorder-customer">
+
+                <option value="">
+                    Selecciona un cliente
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <div class="preorder-pickup">
+
+            <h3>Recogida</h3>
+
+            <label for="training-preorder-pickup-date">
+                Fecha
+            </label>
+
+            <input
+                type="date"
+                id="training-preorder-pickup-date"
+            >
+
+            <label for="training-preorder-pickup-time">
+                Hora
+            </label>
+
+            <input
+                type="time"
+                id="training-preorder-pickup-time"
+            >
+
+        </div>
+
+
+        <div class="preorder-delivery">
+
+            <h3>Entrega</h3>
+
+            <label for="training-preorder-delivery">
+                Tipo de entrega
+            </label>
+
+            <select id="training-preorder-delivery">
+
+                <option value="0">
+                    Recoger en la panadería
+                </option>
+
+                <option value="1">
+                    Entrega
+                </option>
+
+            </select>
+
+            <div
+                id="training-preorder-delivery-address-section"
+                class="hidden"
+            >
+
+                <label for="training-preorder-delivery-address">
+                    Dirección
+                </label>
+
+                <textarea
+                    id="training-preorder-delivery-address"
+                    rows="3"
+                ></textarea>
+
+            </div>
+
+        </div>
+
+
+        <div class="preorder-products">
+
+            <h3>Productos</h3>
+
+            <div id="training-preorder-category-list">
+
+                <p>
+                    Cargando productos...
+                </p>
+
+            </div>
+
+            <div id="training-preorder-product-list">
+
+                <p>
+                    Selecciona una categoría.
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="preorder-cart">
+
+            <h3>Pedido</h3>
+
+            <div id="training-preorder-cart">
+
+                <p>
+                    No hay productos agregados.
+                </p>
+
+            </div>
+
+            <div class="preorder-total">
+
+                <strong>Total</strong>
+
+                <strong id="training-preorder-total">
+                    $0.00
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <div class="preorder-notes">
+
+            <label for="training-preorder-notes">
+                Notas
+            </label>
+
+            <textarea
+                id="training-preorder-notes"
+                rows="3"
+                placeholder="Notas especiales del pedido"
+            ></textarea>
+
+        </div>
+
+
+        <p
+            id="training-preorder-error"
+            class="error hidden"
+        ></p>
+
+        <p
+            id="training-preorder-success"
+            class="hidden"
+        ></p>
+
+
+        <button
+            type="button"
+            id="create-training-preorder"
+            disabled
+        >
+            Crear pedido
+        </button>
+
+        <button
+            type="button"
+            id="clear-training-preorder"
+        >
+            Limpiar pedido
+        </button>
+
+    </div>
+
+    </section>
+
     <!-- Training Production -->
 
     <section id="training-production-view" class="view hidden">
@@ -307,16 +559,25 @@
 
         </div>
 
-        <div class="training-production-actions">
+                        <div class="training-production-actions">
 
-            <button
-                type="button"
-                id="reset-training-production"
-            >
-                Reset Training Production
-            </button>
+                            <label for="training-production-date">
+                                Production Date
+                            </label>
 
-        </div>
+                            <input
+                                type="date"
+                                id="training-production-date"
+                            >
+
+                            <button
+                                type="button"
+                                id="reset-training-production"
+                            >
+                                Reset Training Production
+                            </button>
+
+                        </div>
 
         <div class="training-production-content">
 
