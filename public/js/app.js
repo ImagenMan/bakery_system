@@ -2155,7 +2155,7 @@ function renderProductionItem(
     Number(item.available_quantity) || 0;
 
     const toMake =
-        Math.max(planned - made, 0);
+        Math.max(demand - planned, 0);
 
     productionItemDetail.innerHTML = `
 
@@ -2521,7 +2521,7 @@ function renderProductionOverview(
             Number(item.made_quantity) || 0;
 
         const toMake =
-            Math.max(planned - made, 0);
+            Math.max(demand - planned, 0);
 
         const productionItemId =
             Number(item.production_item_id);
@@ -5018,7 +5018,10 @@ async function loadTrainingProduction(date) {
         trainingProductionDemand =
             Array.isArray(overviewResult.data)
                 ? overviewResult.data
-                    .filter(item => Number(item.demand_quantity) > 0)
+                    .filter(item =>
+                        Number(item.demand_quantity) > 0 ||
+                        Number(item.planned_quantity) > 0
+                    )
                     .map(item => ({
                         production_item_id: item.production_item_id,
                         demand_quantity: Number(item.demand_quantity) || 0
@@ -5125,7 +5128,7 @@ function renderTrainingProductionOverview() {
 
                 const toMake =
                     Math.max(
-                        planned - made,
+                        committed - planned,
                         0
                     );
 
@@ -5263,7 +5266,7 @@ async function loadTrainingProductionItem(
 
     const toMake =
         Math.max(
-            planned - made,
+            committed - planned,
             0
         );
 

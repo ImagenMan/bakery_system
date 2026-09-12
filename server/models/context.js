@@ -8,6 +8,8 @@ const productModel = require("./product");
 const customProductModel = require("./customProduct");
 const orderModel = require("./order");
 const productionItemModel = require("./productionItem");
+const productionItemProductMappingModel =
+    require("./productionItemProductMapping");
 const productionAvailableModel = require("./productionAvailable");
 const productionPlanModel = require("./productionPlan");
 const productionSupplyModel = require("./productionSupply");
@@ -37,6 +39,9 @@ function createModels(db, authorizationUser) {
         customProduct: customProductModel.createCustomProductModel(db, authorizationUser),
         order: orderModel.createOrderModel(db, authorizationUser),
         productionItem: productionItemModel.createProductionItemModel(db),
+        productionItemProductMapping:
+            productionItemProductMappingModel
+                .createProductionItemProductMappingModel(db),
         productionAvailable:
             productionAvailableModel.createProductionAvailableModel(db),
         productionPlan:

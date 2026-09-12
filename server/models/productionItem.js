@@ -38,6 +38,34 @@ function createProductionItemModel(db) {
             throw new Error("A valid product ID is required.");
         }
 
+        // A product resolves to a production item either directly
+        // (it *is* the canonical product for that item) or via a
+        // mapping (it's an alternate sellable form of that item's
+        // canonical product). A product can never be both, so
+        // these two cases can't both match.
+        const canonical = db.prepare(`
+            SELECT
+                pi.id,
+                pi.product_id,
+                p.sku,
+                p.name AS product_name,
+                p.unit,
+                pi.base_batch_quantity,
+                pi.active,
+                pi.created_at,
+                pi.updated_at,
+                1 AS units_per_sale,
+                'canonical' AS resolved_via
+            FROM production_items pi
+            JOIN products p
+                ON pi.product_id = p.id
+            WHERE pi.product_id = ?
+        `).get(productId);
+
+        if (canonical) {
+            return canonical;
+        }
+
         return db.prepare(`
             SELECT
                 pi.id,
@@ -48,11 +76,15 @@ function createProductionItemModel(db) {
                 pi.base_batch_quantity,
                 pi.active,
                 pi.created_at,
-                pi.updated_at
-            FROM production_items pi
+                pi.updated_at,
+                m.units_per_sale AS units_per_sale,
+                'mapping' AS resolved_via
+            FROM production_item_product_mappings m
+            JOIN production_items pi
+                ON pi.id = m.production_item_id
             JOIN products p
                 ON pi.product_id = p.id
-            WHERE pi.product_id = ?
+            WHERE m.product_id = ?
         `).get(productId);
     }
 
@@ -127,6 +159,18 @@ function createProductionItemModel(db) {
             );
         }
 
+        const existingMapping = db.prepare(`
+            SELECT id
+            FROM production_item_product_mappings
+            WHERE product_id = ?
+        `).get(product_id);
+
+        if (existingMapping) {
+            throw new Error(
+                "This product is already mapped to another production item and cannot also be canonical."
+            );
+        }
+
         try {
             const result = db.prepare(`
                 INSERT INTO production_items (
@@ -145,6 +189,12 @@ function createProductionItemModel(db) {
             if (error.code === "SQLITE_CONSTRAINT_UNIQUE") {
                 throw new Error(
                     "A production item already exists for this product."
+                );
+            }
+
+            if (error.code === "SQLITE_CONSTRAINT_TRIGGER") {
+                throw new Error(
+                    "This product is already mapped to another production item and cannot also be canonical."
                 );
             }
 

@@ -354,10 +354,110 @@ function getProductionDemandByDate(production_date) {
 
     validateProductionDate(production_date);
 
+    // Demand is aggregated against the production item, not the
+    // individual sellable SKU. A product can feed a production
+    // item either directly (order_item.product_id ==
+    // production_items.product_id, "canonical") or through a
+    // mapping (order_item.product_id ==
+    // production_item_product_mappings.product_id, "mapped",
+    // scaled by units_per_sale). A product can never be both
+    // canonical and mapped, so this UNION ALL can never count the
+    // same order_item twice.
     return db.prepare(`
         SELECT
             pi.id AS production_item_id,
             pi.product_id,
+            p.sku,
+            p.name AS product_name,
+            p.unit,
+
+            SUM(demand.quantity) AS demand_quantity
+
+        FROM (
+            SELECT
+                pi_canonical.id AS production_item_id,
+                oi.quantity AS quantity
+
+            FROM orders o
+
+            JOIN order_items oi
+                ON oi.order_id = o.id
+
+            JOIN production_items pi_canonical
+                ON pi_canonical.product_id = oi.product_id
+
+            JOIN products p_canonical
+                ON p_canonical.id = oi.product_id
+
+            WHERE o.order_type = 'PREORDER'
+              AND o.pickup_date = ?
+              AND o.status != 'CANCELLED'
+              AND pi_canonical.active = 1
+              AND p_canonical.active = 1
+
+            UNION ALL
+
+            SELECT
+                m.production_item_id AS production_item_id,
+                oi.quantity * m.units_per_sale AS quantity
+
+            FROM orders o
+
+            JOIN order_items oi
+                ON oi.order_id = o.id
+
+            JOIN production_item_product_mappings m
+                ON m.product_id = oi.product_id
+
+            JOIN production_items pi_mapped
+                ON pi_mapped.id = m.production_item_id
+
+            JOIN products p_mapped
+                ON p_mapped.id = m.product_id
+
+            WHERE o.order_type = 'PREORDER'
+              AND o.pickup_date = ?
+              AND o.status != 'CANCELLED'
+              AND pi_mapped.active = 1
+              AND p_mapped.active = 1
+        ) demand
+
+        JOIN production_items pi
+            ON pi.id = demand.production_item_id
+
+        JOIN products p
+            ON p.id = pi.product_id
+
+        GROUP BY
+            pi.id,
+            pi.product_id,
+            p.sku,
+            p.name,
+            p.unit
+
+        ORDER BY
+            p.name ASC
+    `).all(production_date, production_date);
+}
+
+function getUnmappedProductionDemand(production_date) {
+    // production_date is optional here: this is a diagnostic
+    // safety net, not a date-scoped demand read. Callers may pass
+    // a specific pickup date to check a single production day, or
+    // omit it to see every product with unresolved preorder demand
+    // across all pickup dates.
+    const params = [];
+    let dateFilter = "";
+
+    if (production_date !== undefined && production_date !== null) {
+        validateProductionDate(production_date);
+        dateFilter = "AND o.pickup_date = ?";
+        params.push(production_date);
+    }
+
+    return db.prepare(`
+        SELECT
+            p.id AS product_id,
             p.sku,
             p.name AS product_name,
             p.unit,
@@ -369,28 +469,33 @@ function getProductionDemandByDate(production_date) {
         JOIN order_items oi
             ON oi.order_id = o.id
 
-        JOIN production_items pi
-            ON pi.product_id = oi.product_id
-
         JOIN products p
-            ON p.id = pi.product_id
+            ON p.id = oi.product_id
 
         WHERE o.order_type = 'PREORDER'
-          AND o.pickup_date = ?
           AND o.status != 'CANCELLED'
-          AND pi.active = 1
           AND p.active = 1
+          ${dateFilter}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM production_items pi
+              WHERE pi.product_id = p.id
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM production_item_product_mappings m
+              WHERE m.product_id = p.id
+          )
 
         GROUP BY
-            pi.id,
-            pi.product_id,
+            p.id,
             p.sku,
             p.name,
             p.unit
 
         ORDER BY
             p.name ASC
-    `).all(production_date);
+    `).all(...params);
 }
 
 function getProductionOverviewByDate(production_date) {
@@ -424,23 +529,49 @@ function getProductionOverviewByDate(production_date) {
 
         LEFT JOIN (
             SELECT
-                pi.id AS production_item_id,
-                SUM(oi.quantity) AS demand_quantity
+                demand_rows.production_item_id AS production_item_id,
+                SUM(demand_rows.quantity) AS demand_quantity
+            FROM (
+                SELECT
+                    pi_canonical.id AS production_item_id,
+                    oi.quantity AS quantity
 
-            FROM orders o
+                FROM orders o
 
-            JOIN order_items oi
-                ON oi.order_id = o.id
+                JOIN order_items oi
+                    ON oi.order_id = o.id
 
-            JOIN production_items pi
-                ON pi.product_id = oi.product_id
+                JOIN production_items pi_canonical
+                    ON pi_canonical.product_id = oi.product_id
 
-            WHERE o.order_type = 'PREORDER'
-              AND o.pickup_date = ?
-              AND o.status != 'CANCELLED'
-              AND pi.active = 1
+                WHERE o.order_type = 'PREORDER'
+                  AND o.pickup_date = ?
+                  AND o.status != 'CANCELLED'
+                  AND pi_canonical.active = 1
 
-            GROUP BY pi.id
+                UNION ALL
+
+                SELECT
+                    m.production_item_id AS production_item_id,
+                    oi.quantity * m.units_per_sale AS quantity
+
+                FROM orders o
+
+                JOIN order_items oi
+                    ON oi.order_id = o.id
+
+                JOIN production_item_product_mappings m
+                    ON m.product_id = oi.product_id
+
+                JOIN production_items pi_mapped
+                    ON pi_mapped.id = m.production_item_id
+
+                WHERE o.order_type = 'PREORDER'
+                  AND o.pickup_date = ?
+                  AND o.status != 'CANCELLED'
+                  AND pi_mapped.active = 1
+            ) demand_rows
+            GROUP BY demand_rows.production_item_id
         ) d
             ON d.production_item_id = pi.id
 
@@ -482,6 +613,7 @@ function getProductionOverviewByDate(production_date) {
             pi.id ASC
     `).all(
         production_date,
+        production_date,
         production_date
     );
 
@@ -498,6 +630,7 @@ function getProductionOverviewByDate(production_date) {
         createProductionPlan,
         updateProductionPlan,
         getProductionDemandByDate,
+        getUnmappedProductionDemand,
         getProductionOverviewByDate
     };
 }

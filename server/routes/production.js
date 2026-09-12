@@ -212,6 +212,104 @@ router.patch("/items/:id/active", requireAdmin, (req, res) => {
 });
 
 // =========================================================
+// Production Item <-> Product Mappings
+// =========================================================
+
+
+router.get(
+    "/mappings/item/:productionItemId",
+    (req, res) => {
+        try {
+            const productionItemId =
+                Number(req.params.productionItemId);
+
+            if (
+                !Number.isInteger(productionItemId) ||
+                productionItemId <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production item ID."
+                });
+            }
+
+            const result =
+                req.models.productionItemProductMapping
+                    .getMappingsByProductionItem(productionItemId);
+
+            res.json({
+                success: true,
+                data: result
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/production/mappings/item/:productionItemId error:",
+                error
+            );
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to retrieve mappings."
+            });
+        }
+    }
+);
+
+
+router.get(
+    "/mappings/product/:productId",
+    (req, res) => {
+        try {
+            const productId = Number(req.params.productId);
+
+            if (!Number.isInteger(productId) || productId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid product ID."
+                });
+            }
+
+            const mapping =
+                req.models.productionItemProductMapping
+                    .getMappingByProductId(productId);
+
+            if (!mapping) {
+                return res.status(404).json({
+                    success: false,
+                    error: "Mapping not found."
+                });
+            }
+
+            res.json({
+                success: true,
+                data: mapping
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/production/mappings/product/:productId error:",
+                error
+            );
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to retrieve mapping."
+            });
+        }
+    }
+);
+
+
+// Note: mapping creation/update/deletion is intentionally not
+// exposed over HTTP yet. Real mappings will be introduced via a
+// dedicated data migration once the business relationships are
+// confirmed (see mission notes); until then these are managed at
+// the model/DB layer only. Read-only lookups remain available so
+// once mappings exist, callers can inspect them.
+
+
+// =========================================================
 // Production Plans
 // =========================================================
 
@@ -485,6 +583,40 @@ router.get("/demand", (req, res) => {
         res.status(500).json({
             success: false,
             error: "Failed to retrieve production demand."
+        });
+    }
+});
+
+router.get("/demand/unmapped", (req, res) => {
+    try {
+        const { date } = req.query;
+
+        const result =
+            req.models.productionPlan.getUnmappedProductionDemand(
+                date
+            );
+
+        res.json({
+            success: true,
+            data: result
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/production/demand/unmapped error:",
+            error
+        );
+
+        if (error.message.includes("valid date")) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve unmapped production demand."
         });
     }
 });
