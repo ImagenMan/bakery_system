@@ -14,6 +14,7 @@ const productionAvailableModel = require("./productionAvailable");
 const productionPlanModel = require("./productionPlan");
 const productionSupplyModel = require("./productionSupply");
 const productionOutputModel = require("./productionOutput");
+const inventoryModel = require("./inventory");
 
 const productionDb = require("../config/database");
 
@@ -37,19 +38,29 @@ function createModels(db, authorizationUser) {
         customer: customerModel.createCustomerModel(db),
         product: productModel.createProductModel(db, authorizationUser),
         customProduct: customProductModel.createCustomProductModel(db, authorizationUser),
-        order: orderModel.createOrderModel(db, authorizationUser),
+        order: orderModel.createOrderModel(
+            db,
+            authorizationUser,
+            productionItemModel.createProductionItemModel(db),
+            inventoryModel.createInventoryModel(db)
+        ),
         productionItem: productionItemModel.createProductionItemModel(db),
         productionItemProductMapping:
             productionItemProductMappingModel
                 .createProductionItemProductMappingModel(db),
         productionAvailable:
-            productionAvailableModel.createProductionAvailableModel(db),
+            productionAvailableModel.createProductionAvailableModel(
+                db,
+                inventoryModel.createInventoryModel(db)
+            ),
         productionPlan:
             productionPlanModel.createProductionPlanModel(db),
         productionSupply:
             productionSupplyModel.createProductionSupplyModel(db),
         productionOutput:
-            productionOutputModel.createProductionOutputModel(db)
+            productionOutputModel.createProductionOutputModel(db),
+        inventory:
+            inventoryModel.createInventoryModel(db)
     };
 }
 

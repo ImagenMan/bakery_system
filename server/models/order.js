@@ -3,7 +3,9 @@ const { isValidMoney, roundMoney } = require("../utils/money");
 
 function createOrderModel(
     db,
-    authorizationUser = userModel.createUserModel(db)
+    authorizationUser = userModel.createUserModel(db),
+    productionItem,
+    inventory
 ) {
 
     const user = authorizationUser;
@@ -374,6 +376,30 @@ function createCounterSale({
                     "Cash received must be greater than or equal to the sale total."
                 );
             }
+        }
+
+        for (const item of items) {
+            if (!item.product_id) {
+                continue;
+            }
+
+            const production = productionItem.getProductionItemByProductId(
+                item.product_id
+            );
+
+            if (!production) {
+                continue;
+            }
+
+            const inventoryQuantity =
+                item.quantity * production.units_per_sale;
+
+            inventory.createConsumption({
+                production_item_id: production.id,
+                quantity: inventoryQuantity,
+                reference_type: "COUNTER_SALE",
+                reference_id: orderId
+            });
         }
 
         const paymentAmount = roundMoney(order.total_amount);

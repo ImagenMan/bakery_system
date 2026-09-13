@@ -1,4 +1,4 @@
-function createProductionAvailableModel(db) {
+function createProductionAvailableModel(db, inventoryModel) {
 
     function validatePositiveInteger(value, fieldName) {
         if (!Number.isInteger(value) || value <= 0) {
@@ -122,74 +122,86 @@ function createProductionAvailableModel(db) {
         production_plan_id,
         available_quantity
     }) {
-        if (
-            !Number.isInteger(production_plan_id) ||
-            production_plan_id <= 0
-        ) {
-            throw new Error(
-                "A valid production plan ID is required."
+        const transaction = db.transaction(() => {
+            if (
+                !Number.isInteger(production_plan_id) ||
+                production_plan_id <= 0
+            ) {
+                throw new Error(
+                    "A valid production plan ID is required."
+                );
+            }
+
+            validatePositiveInteger(
+                available_quantity,
+                "Available quantity"
             );
-        }
 
-        validatePositiveInteger(
-            available_quantity,
-            "Available quantity"
-        );
+            const plan = db.prepare(`
+                SELECT
+                    id,
+                    production_item_id
+                FROM production_plans
+                WHERE id = ?
+            `).get(production_plan_id);
 
-        const plan = db.prepare(`
-            SELECT
-                id
-            FROM production_plans
-            WHERE id = ?
-        `).get(production_plan_id);
+            if (!plan) {
+                throw new Error("Production plan not found.");
+            }
 
-        if (!plan) {
-            throw new Error("Production plan not found.");
-        }
+            const totalProduced = db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(produced_quantity),
+                        0
+                    ) AS total_produced
+                FROM production_outputs
+                WHERE production_plan_id = ?
+            `).get(production_plan_id).total_produced;
 
-        const totalProduced = db.prepare(`
-            SELECT
-                COALESCE(
-                    SUM(produced_quantity),
-                    0
-                ) AS total_produced
-            FROM production_outputs
-            WHERE production_plan_id = ?
-        `).get(production_plan_id).total_produced;
+            const totalAvailable = db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(available_quantity),
+                        0
+                    ) AS total_available
+                FROM production_available
+                WHERE production_plan_id = ?
+            `).get(production_plan_id).total_available;
 
-        const totalAvailable = db.prepare(`
-            SELECT
-                COALESCE(
-                    SUM(available_quantity),
-                    0
-                ) AS total_available
-            FROM production_available
-            WHERE production_plan_id = ?
-        `).get(production_plan_id).total_available;
+            if (
+                totalAvailable + available_quantity >
+                totalProduced
+            ) {
+                throw new Error(
+                    `Available quantity cannot exceed total made quantity (${totalProduced}).`
+                );
+            }
 
-        if (
-            totalAvailable + available_quantity >
-            totalProduced
-        ) {
-            throw new Error(
-                `Available quantity cannot exceed total made quantity (${totalProduced}).`
-            );
-        }
-
-        const result = db.prepare(`
-            INSERT INTO production_available (
+            const result = db.prepare(`
+                INSERT INTO production_available (
+                    production_plan_id,
+                    available_quantity
+                )
+                VALUES (?, ?)
+            `).run(
                 production_plan_id,
                 available_quantity
-            )
-            VALUES (?, ?)
-        `).run(
-            production_plan_id,
-            available_quantity
-        );
+            );
 
-        return findProductionAvailableById(
-            result.lastInsertRowid
-        );
+            inventoryModel.createReceipt({
+                production_item_id: plan.production_item_id,
+                quantity: available_quantity,
+                reference_type: "PRODUCTION_AVAILABLE",
+                reference_id: result.lastInsertRowid
+            });
+
+            return findProductionAvailableById(
+                result.lastInsertRowid
+            );
+        });
+
+        return transaction();
     }
 
     return {
