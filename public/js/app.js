@@ -640,6 +640,10 @@ document
 
         trainingPreorderView.classList.remove("hidden");
 
+        trainingPreorderSuccess.classList.add(
+            "hidden"
+        );
+
         loadTrainingPreorder();
     });
 
@@ -5264,6 +5268,13 @@ async function loadTrainingProductionItem(
             ) || 0
             : 0;
 
+    const available =
+        overviewItem
+            ? Number(
+                overviewItem.available_quantity
+            ) || 0
+            : 0;
+
     const toMake =
         Math.max(
             committed - planned,
@@ -5286,6 +5297,11 @@ async function loadTrainingProductionItem(
             <div>
                 <strong>Made</strong>
                 <span>${made}</span>
+            </div>
+
+            <div>
+                <strong>Available</strong>
+                <span>${available}</span>
             </div>
 
             <div>
@@ -5340,6 +5356,29 @@ async function loadTrainingProductionItem(
             </button>
 
         </div>
+
+        <div class="training-production-available">
+
+            <label for="training-production-available-quantity">
+                Available quantity
+            </label>
+
+            <input
+                type="number"
+                id="training-production-available-quantity"
+                min="0"
+                step="1"
+                value="${available}"
+            >
+
+            <button
+                type="button"
+                id="save-training-production-available"
+            >
+                Save Available
+            </button>
+
+        </div>
     `;
 
     const plannedQuantityInput =
@@ -5362,6 +5401,15 @@ async function loadTrainingProductionItem(
             "save-training-production-made"
         );
 
+    const availableQuantityInput =
+        document.getElementById(
+            "training-production-available-quantity"
+        );
+
+    const saveAvailableButton =
+        document.getElementById(
+            "save-training-production-available"
+        );
 
     savePlanButton.addEventListener(
         "click",
@@ -5556,6 +5604,102 @@ async function loadTrainingProductionItem(
             } finally {
 
                 saveMadeButton.disabled = false;
+            }
+        }
+    );
+    saveAvailableButton.addEventListener(
+        "click",
+        async () => {
+
+            const newAvailableQuantity =
+                Number(
+                    availableQuantityInput.value
+                );
+
+            if (
+                !Number.isInteger(
+                    newAvailableQuantity
+                ) ||
+                newAvailableQuantity < 0
+            ) {
+                return;
+            }
+
+            if (!planId) {
+
+                alert(
+                    "Save a production plan before recording availability."
+                );
+
+                return;
+            }
+
+            const difference =
+                newAvailableQuantity - available;
+
+            if (difference < 0) {
+
+                alert(
+                    "Available quantity cannot be reduced because production availability is recorded as completed handoff."
+                );
+
+                return;
+            }
+
+            if (difference === 0) {
+                return;
+            }
+
+            try {
+
+                saveAvailableButton.disabled = true;
+
+                const response =
+                    await fetch(
+                        `/api/production/plans/${planId}/available`,
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                available_quantity:
+                                    difference
+                            })
+                        }
+                    );
+
+                const result =
+                    await response.json();
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to save training production availability."
+                    );
+                }
+
+                await loadTrainingProduction(
+                    trainingProductionDate
+                );
+
+                loadTrainingProductionItem(
+                    productionItem.id
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "Training production available save error:",
+                    error
+                );
+
+                alert(error.message);
+
+            } finally {
+
+                saveAvailableButton.disabled = false;
             }
         }
     );
