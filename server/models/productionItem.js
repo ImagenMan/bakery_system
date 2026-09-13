@@ -14,6 +14,7 @@ function createProductionItemModel(db) {
                 p.unit,
                 pi.base_batch_quantity,
                 pi.active,
+                pi.inventory_behavior,
                 pi.created_at,
                 pi.updated_at
             FROM production_items pi
@@ -52,6 +53,7 @@ function createProductionItemModel(db) {
                 p.unit,
                 pi.base_batch_quantity,
                 pi.active,
+                pi.inventory_behavior,
                 pi.created_at,
                 pi.updated_at,
                 1 AS units_per_sale,
@@ -75,6 +77,7 @@ function createProductionItemModel(db) {
                 p.unit,
                 pi.base_batch_quantity,
                 pi.active,
+                pi.inventory_behavior,
                 pi.created_at,
                 pi.updated_at,
                 m.units_per_sale AS units_per_sale,
@@ -98,6 +101,7 @@ function createProductionItemModel(db) {
                 p.unit,
                 pi.base_batch_quantity,
                 pi.active,
+                pi.inventory_behavior,
                 pi.created_at,
                 pi.updated_at
             FROM production_items pi
@@ -115,6 +119,17 @@ function createProductionItemModel(db) {
         if (!Number.isInteger(quantity) || quantity <= 0) {
             throw new Error(
                 "Base batch quantity must be a positive integer."
+            );
+        }
+    }
+
+    function validateInventoryBehavior(inventory_behavior) {
+        if (
+            inventory_behavior !== "SAME_DAY" &&
+            inventory_behavior !== "CARRY_FORWARD"
+        ) {
+            throw new Error(
+                "Inventory behavior must be SAME_DAY or CARRY_FORWARD."
             );
         }
     }
@@ -204,20 +219,24 @@ function createProductionItemModel(db) {
 
     function updateProductionItem({
         id,
-        base_batch_quantity
+        base_batch_quantity,
+        inventory_behavior
     }) {
         const existingProductionItem = findProductionItemById(id);
 
         validateBaseBatchQuantity(base_batch_quantity);
+        validateInventoryBehavior(inventory_behavior);
 
         db.prepare(`
             UPDATE production_items
             SET
                 base_batch_quantity = ?,
+                inventory_behavior = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `).run(
             base_batch_quantity,
+            inventory_behavior,
             existingProductionItem.id
         );
 

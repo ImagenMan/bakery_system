@@ -125,13 +125,15 @@ router.put("/items/:id", requireAdmin, (req, res) => {
         }
 
         const {
-            base_batch_quantity
+            base_batch_quantity,
+            inventory_behavior
         } = req.body;
 
         const item =
             req.models.productionItem.updateProductionItem({
                 id,
-                base_batch_quantity
+                base_batch_quantity,
+                inventory_behavior
             });
 
         res.json({
