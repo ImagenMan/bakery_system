@@ -193,7 +193,8 @@ function createProductionAvailableModel(db, inventoryModel) {
                 production_item_id: plan.production_item_id,
                 quantity: available_quantity,
                 reference_type: "PRODUCTION_AVAILABLE",
-                reference_id: result.lastInsertRowid
+                reference_id: result.lastInsertRowid,
+                source_production_available_id: result.lastInsertRowid
             });
 
             return findProductionAvailableById(

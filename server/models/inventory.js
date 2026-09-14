@@ -68,6 +68,7 @@ function createInventoryModel(db) {
                 it.transaction_type,
                 it.reference_type,
                 it.reference_id,
+                it.source_production_available_id,
                 it.created_at
             FROM inventory_transactions it
             WHERE it.id = ?
@@ -141,6 +142,7 @@ function createInventoryModel(db) {
                 it.transaction_type,
                 it.reference_type,
                 it.reference_id,
+                it.source_production_available_id,
                 it.created_at
             FROM inventory_transactions it
             WHERE it.production_item_id = ?
@@ -154,7 +156,8 @@ function createInventoryModel(db) {
         production_item_id,
         quantity,
         reference_type = null,
-        reference_id = null
+        reference_id = null,
+        source_production_available_id = null
     }) {
         validatePositiveInteger(
             production_item_id,
@@ -170,6 +173,31 @@ function createInventoryModel(db) {
             reference_type,
             reference_id
         );
+
+        if (
+            source_production_available_id !== null &&
+            source_production_available_id !== undefined
+        ) {
+            validatePositiveInteger(
+                source_production_available_id,
+                "Source production available ID"
+            );
+
+            const sourceAvailable = db.prepare(`
+                SELECT
+                    id,
+                    production_plan_id,
+                    available_quantity
+                FROM production_available
+                WHERE id = ?
+            `).get(source_production_available_id);
+
+            if (!sourceAvailable) {
+                throw new Error(
+                    "Source production available record not found."
+                );
+            }
+        }
 
         const productionItem = db.prepare(`
             SELECT
@@ -204,14 +232,16 @@ function createInventoryModel(db) {
                 quantity_delta,
                 transaction_type,
                 reference_type,
-                reference_id
+                reference_id,
+                source_production_available_id
             )
-            VALUES (?, ?, 'RECEIPT', ?, ?)
+            VALUES (?, ?, 'RECEIPT', ?, ?, ?)
         `).run(
             production_item_id,
             quantity,
             reference_type,
-            reference_id
+            reference_id,
+            source_production_available_id
         );
 
         return findInventoryTransactionById(
