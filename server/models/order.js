@@ -394,7 +394,7 @@ function createCounterSale({
             const inventoryQuantity =
                 item.quantity * production.units_per_sale;
 
-            inventory.createConsumption({
+            inventory.consumeFromAvailableLots({
                 production_item_id: production.id,
                 quantity: inventoryQuantity,
                 reference_type: "COUNTER_SALE",

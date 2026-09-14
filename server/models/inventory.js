@@ -253,26 +253,42 @@ function createInventoryModel(db) {
         production_item_id,
         quantity,
         reference_type = null,
-        reference_id = null
+        reference_id = null,
+        source_production_available_id = null
     }) {
-        validatePositiveInteger(
-            production_item_id,
-            "Production item ID"
-        );
+        validatePositiveInteger(production_item_id, "Production item ID");
+        validatePositiveInteger(quantity, "Consumption quantity");
+        validateReference(reference_type, reference_id);
 
-        validatePositiveInteger(
-            quantity,
-            "Consumption quantity"
-        );
+        if (source_production_available_id !== null) {
+            validatePositiveInteger(
+                source_production_available_id,
+                "Source production available ID"
+            );
 
-        validateReference(
-            reference_type,
-            reference_id
-        );
+            const sourceLot = db.prepare(`
+                SELECT
+                    pa.id,
+                    pp.production_item_id
+                FROM production_available pa
+                JOIN production_plans pp
+                    ON pp.id = pa.production_plan_id
+                WHERE pa.id = ?
+            `).get(source_production_available_id);
+
+            if (!sourceLot) {
+                throw new Error("Source production available record not found.");
+            }
+
+            if (sourceLot.production_item_id !== production_item_id) {
+                throw new Error(
+                    "Source production available record does not match the production item."
+                );
+            }
+        }
 
         const productionItem = db.prepare(`
-            SELECT
-                pi.id
+            SELECT pi.id
             FROM production_items pi
             WHERE pi.id = ?
         `).get(production_item_id);
@@ -281,14 +297,45 @@ function createInventoryModel(db) {
             throw new Error("Production item not found.");
         }
 
-        const currentBalance = getInventoryBalance(
-            production_item_id
-        );
-
-        if (quantity > currentBalance) {
-            throw new Error(
-                `Insufficient inventory. Available quantity is ${currentBalance}.`
+        if (source_production_available_id !== null) {
+            const sourceBalance = db.prepare(`
+                SELECT
+                    COALESCE(SUM(
+                        CASE
+                            WHEN transaction_type = 'RECEIPT'
+                            THEN quantity_delta
+                            ELSE 0
+                        END
+                    ), 0)
+                    +
+                    COALESCE(SUM(
+                        CASE
+                            WHEN transaction_type = 'CONSUMPTION'
+                            THEN quantity_delta
+                            ELSE 0
+                        END
+                    ), 0) AS balance
+                FROM inventory_transactions
+                WHERE production_item_id = ?
+                  AND source_production_available_id = ?
+            `).get(
+                production_item_id,
+                source_production_available_id
             );
+
+            if (quantity > sourceBalance.balance) {
+                throw new Error(
+                    `Insufficient inventory in source lot. Available quantity is ${sourceBalance.balance}.`
+                );
+            }
+        } else {
+            const currentBalance = getInventoryBalance(production_item_id);
+
+            if (quantity > currentBalance) {
+                throw new Error(
+                    `Insufficient inventory. Available quantity is ${currentBalance}.`
+                );
+            }
         }
 
         const result = db.prepare(`
@@ -297,19 +344,107 @@ function createInventoryModel(db) {
                 quantity_delta,
                 transaction_type,
                 reference_type,
-                reference_id
+                reference_id,
+                source_production_available_id
             )
-            VALUES (?, ?, 'CONSUMPTION', ?, ?)
+            VALUES (?, ?, 'CONSUMPTION', ?, ?, ?)
         `).run(
             production_item_id,
             -quantity,
             reference_type,
-            reference_id
+            reference_id,
+            source_production_available_id
         );
 
-        return findInventoryTransactionById(
-            result.lastInsertRowid
+        return findInventoryTransactionById(result.lastInsertRowid);
+    }
+
+    function consumeFromAvailableLots({
+        production_item_id,
+        quantity,
+        reference_type = null,
+        reference_id = null
+    }) {
+        validatePositiveInteger(production_item_id, "Production item ID");
+        validatePositiveInteger(quantity, "Consumption quantity");
+        validateReference(reference_type, reference_id);
+
+        const productionItem = db.prepare(`
+            SELECT pi.id
+            FROM production_items pi
+            WHERE pi.id = ?
+        `).get(production_item_id);
+
+        if (!productionItem) {
+            throw new Error("Production item not found.");
+        }
+
+        const lots = db.prepare(`
+            SELECT
+                pa.id AS source_production_available_id,
+                pa.created_at,
+                pa.available_quantity,
+                COALESCE(SUM(
+                    CASE
+                        WHEN it.transaction_type = 'RECEIPT'
+                        THEN it.quantity_delta
+                        WHEN it.transaction_type = 'CONSUMPTION'
+                        THEN it.quantity_delta
+                        ELSE 0
+                    END
+                ), 0) AS remaining_quantity
+            FROM production_available pa
+            JOIN production_plans pp
+                ON pp.id = pa.production_plan_id
+            LEFT JOIN inventory_transactions it
+                ON it.source_production_available_id = pa.id
+            WHERE pp.production_item_id = ?
+            GROUP BY
+                pa.id,
+                pa.created_at,
+                pa.available_quantity
+            HAVING remaining_quantity > 0
+            ORDER BY pa.created_at ASC, pa.id ASC
+        `).all(production_item_id);
+
+        const totalAvailable = lots.reduce(
+            (total, lot) => total + lot.remaining_quantity,
+            0
         );
+
+        if (quantity > totalAvailable) {
+            throw new Error(
+                `Insufficient inventory. Available quantity is ${totalAvailable}.`
+            );
+        }
+
+        let remainingToConsume = quantity;
+        const allocations = [];
+
+        for (const lot of lots) {
+            if (remainingToConsume === 0) {
+                break;
+            }
+
+            const allocationQuantity = Math.min(
+                remainingToConsume,
+                lot.remaining_quantity
+            );
+
+            const transaction = createConsumption({
+                production_item_id,
+                quantity: allocationQuantity,
+                reference_type,
+                reference_id,
+                source_production_available_id:
+                    lot.source_production_available_id
+            });
+
+            allocations.push(transaction);
+            remainingToConsume -= allocationQuantity;
+        }
+
+        return allocations;
     }
 
     return {
@@ -318,7 +453,8 @@ function createInventoryModel(db) {
         getInventoryBalance,
         getInventoryTransactionsByProductionItem,
         createReceipt,
-        createConsumption
+        createConsumption,
+        consumeFromAvailableLots
     };
 }
 
