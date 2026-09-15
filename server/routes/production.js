@@ -1082,6 +1082,74 @@ router.post(
 );
 
 // =========================================================
+// Frozen Inventory
+// =========================================================
+
+router.post(
+    "/available/:availableId/freeze",
+    (req, res) => {
+        try {
+            const availableId =
+                Number(req.params.availableId);
+
+            const {
+                quantity
+            } = req.body;
+
+            if (!Number.isInteger(availableId) || availableId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production available ID."
+                });
+            }
+
+            const frozen =
+                req.models.frozenInventory.createFrozenInventory({
+                    source_production_available_id: availableId,
+                    quantity
+                });
+
+            res.status(201).json({
+                success: true,
+                data: frozen
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/production/available/:availableId/freeze error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive") ||
+                error.message.includes("cannot exceed") ||
+                error.message.includes("Only CARRY_FORWARD") ||
+                error.message.includes("does not belong")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to freeze inventory."
+            });
+        }
+    }
+);
+
+// =========================================================
 // Production Supply
 // =========================================================
 

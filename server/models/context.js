@@ -15,6 +15,7 @@ const productionPlanModel = require("./productionPlan");
 const productionSupplyModel = require("./productionSupply");
 const productionOutputModel = require("./productionOutput");
 const inventoryModel = require("./inventory");
+const frozenInventoryModel = require("./frozenInventory");
 
 const productionDb = require("../config/database");
 
@@ -60,7 +61,9 @@ function createModels(db, authorizationUser) {
         productionOutput:
             productionOutputModel.createProductionOutputModel(db),
         inventory:
-            inventoryModel.createInventoryModel(db)
+            inventoryModel.createInventoryModel(db),
+        frozenInventory:
+            frozenInventoryModel.createFrozenInventoryModel(db)
     };
 }
 
