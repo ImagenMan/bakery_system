@@ -384,15 +384,34 @@ function createInventoryModel(db) {
                 pa.id AS source_production_available_id,
                 pa.created_at,
                 pa.available_quantity,
-                COALESCE(SUM(
-                    CASE
-                        WHEN it.transaction_type = 'RECEIPT'
-                        THEN it.quantity_delta
-                        WHEN it.transaction_type = 'CONSUMPTION'
-                        THEN it.quantity_delta
-                        ELSE 0
-                    END
-                ), 0) AS remaining_quantity
+                (
+                    COALESCE(SUM(
+                        CASE
+                            WHEN it.transaction_type = 'RECEIPT'
+                            THEN it.quantity_delta
+                            WHEN it.transaction_type = 'CONSUMPTION'
+                            THEN it.quantity_delta
+                            ELSE 0
+                        END
+                    ), 0)
+                    -
+                    MAX(
+                        0,
+                        COALESCE((
+                            SELECT SUM(
+                                CASE
+                                    WHEN fi.action_type = 'FREEZE'
+                                    THEN fi.quantity
+                                    WHEN fi.action_type = 'RELEASE'
+                                    THEN -fi.quantity
+                                    ELSE 0
+                                END
+                            )
+                            FROM frozen_inventory fi
+                            WHERE fi.source_production_available_id = pa.id
+                        ), 0)
+                    )
+                ) AS remaining_quantity
             FROM production_available pa
             JOIN production_plans pp
                 ON pp.id = pa.production_plan_id
