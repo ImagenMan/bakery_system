@@ -101,7 +101,7 @@ function createFrozenInventoryModel(db) {
                     SUM(
                         CASE
                             WHEN action_type = 'FREEZE' THEN quantity
-                            WHEN action_type = 'RELEASE' THEN -quantity
+                            WHEN action_type IN ('RELEASE', 'WASTE') THEN -quantity
                             ELSE 0
                         END
                     ),

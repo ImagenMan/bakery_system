@@ -19,10 +19,11 @@ function createInventoryModel(db) {
     function validateTransactionType(transaction_type) {
         if (
             transaction_type !== "RECEIPT" &&
-            transaction_type !== "CONSUMPTION"
+            transaction_type !== "CONSUMPTION" &&
+            transaction_type !== "WASTE"
         ) {
             throw new Error(
-                "Inventory transaction type must be RECEIPT or CONSUMPTION."
+                "Inventory transaction type must be RECEIPT, CONSUMPTION, or WASTE."
             );
         }
     }
@@ -300,24 +301,13 @@ function createInventoryModel(db) {
         if (source_production_available_id !== null) {
             const sourceBalance = db.prepare(`
                 SELECT
-                    COALESCE(SUM(
-                        CASE
-                            WHEN transaction_type = 'RECEIPT'
-                            THEN quantity_delta
-                            ELSE 0
-                        END
-                    ), 0)
-                    +
-                    COALESCE(SUM(
-                        CASE
-                            WHEN transaction_type = 'CONSUMPTION'
-                            THEN quantity_delta
-                            ELSE 0
-                        END
-                    ), 0) AS balance
+                    COALESCE(
+                        SUM(quantity_delta),
+                        0
+                    ) AS balance
                 FROM inventory_transactions
                 WHERE production_item_id = ?
-                  AND source_production_available_id = ?
+                    AND source_production_available_id = ?
             `).get(
                 production_item_id,
                 source_production_available_id
@@ -359,6 +349,162 @@ function createInventoryModel(db) {
         return findInventoryTransactionById(result.lastInsertRowid);
     }
 
+    function createWaste({
+        source_production_available_id,
+        quantity,
+        state,
+        reason,
+        notes = null
+    }) {
+        const transaction = db.transaction(() => {
+            validatePositiveInteger(
+                source_production_available_id,
+                "Source production available ID"
+            );
+
+            validatePositiveInteger(
+                quantity,
+                "Waste quantity"
+            );
+
+            if (state !== "FRESH" && state !== "FROZEN") {
+                throw new Error(
+                    "Waste state must be FRESH or FROZEN."
+                );
+            }
+
+            if (
+                reason !== "UNSOLD" &&
+                reason !== "DAMAGED" &&
+                reason !== "EXPIRED" &&
+                reason !== "OTHER"
+            ) {
+                throw new Error(
+                    "Waste reason must be UNSOLD, DAMAGED, EXPIRED, or OTHER."
+                );
+            }
+
+            if (notes !== null && typeof notes !== "string") {
+                throw new Error(
+                    "Waste notes must be a string or null."
+                );
+            }
+
+            const sourceLot = db.prepare(`
+                SELECT
+                    pa.id,
+                    pa.production_plan_id,
+                    pp.production_item_id
+                FROM production_available pa
+                JOIN production_plans pp
+                    ON pp.id = pa.production_plan_id
+                WHERE pa.id = ?
+            `).get(source_production_available_id);
+
+            if (!sourceLot) {
+                throw new Error(
+                    "Source production available record not found."
+                );
+            }
+
+            const physicalBalance = db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(quantity_delta),
+                        0
+                    ) AS balance
+                FROM inventory_transactions
+                WHERE source_production_available_id = ?
+            `).get(source_production_available_id).balance;
+
+            const frozenBalance = db.prepare(`
+                SELECT
+                    COALESCE(
+                        SUM(
+                            CASE
+                                WHEN action_type = 'FREEZE'
+                                THEN quantity
+                                WHEN action_type IN ('RELEASE', 'WASTE')
+                                THEN -quantity
+                                ELSE 0
+                            END
+                        ),
+                        0
+                    ) AS balance
+                FROM frozen_inventory
+                WHERE source_production_available_id = ?
+            `).get(source_production_available_id).balance;
+
+            const availableQuantity =
+                state === "FRESH"
+                    ? physicalBalance - Math.max(0, frozenBalance)
+                    : Math.max(0, frozenBalance);
+
+            if (quantity > availableQuantity) {
+                throw new Error(
+                    `Insufficient ${state.toLowerCase()} inventory in source lot. Available quantity is ${availableQuantity}.`
+                );
+            }
+
+            const result = db.prepare(`
+                INSERT INTO inventory_transactions (
+                    production_item_id,
+                    quantity_delta,
+                    transaction_type,
+                    source_production_available_id
+                )
+                VALUES (?, ?, 'WASTE', ?)
+            `).run(
+                sourceLot.production_item_id,
+                -quantity,
+                source_production_available_id
+            );
+
+            const inventoryTransactionId = result.lastInsertRowid;
+
+            if (state === "FROZEN") {
+                db.prepare(`
+                    INSERT INTO frozen_inventory (
+                        production_item_id,
+                        source_production_plan_id,
+                        source_production_available_id,
+                        quantity,
+                        action_type,
+                        inventory_transaction_id
+                    )
+                    VALUES (?, ?, ?, ?, 'WASTE', ?)
+                `).run(
+                    sourceLot.production_item_id,
+                    sourceLot.production_plan_id,
+                    source_production_available_id,
+                    quantity,
+                    inventoryTransactionId
+                );
+            }
+
+            db.prepare(`
+                INSERT INTO inventory_waste (
+                    inventory_transaction_id,
+                    state,
+                    reason,
+                    notes
+                )
+                VALUES (?, ?, ?, ?)
+            `).run(
+                inventoryTransactionId,
+                state,
+                reason,
+                notes
+            );
+
+            return findInventoryTransactionById(
+                inventoryTransactionId
+            );
+        });
+
+        return transaction();
+    }
+
     function consumeFromAvailableLots({
         production_item_id,
         quantity,
@@ -385,15 +531,10 @@ function createInventoryModel(db) {
                 pa.created_at,
                 pa.available_quantity,
                 (
-                    COALESCE(SUM(
-                        CASE
-                            WHEN it.transaction_type = 'RECEIPT'
-                            THEN it.quantity_delta
-                            WHEN it.transaction_type = 'CONSUMPTION'
-                            THEN it.quantity_delta
-                            ELSE 0
-                        END
-                    ), 0)
+                    COALESCE(
+                        SUM(it.quantity_delta),
+                        0
+                    )
                     -
                     MAX(
                         0,
@@ -402,7 +543,7 @@ function createInventoryModel(db) {
                                 CASE
                                     WHEN fi.action_type = 'FREEZE'
                                     THEN fi.quantity
-                                    WHEN fi.action_type = 'RELEASE'
+                                    WHEN fi.action_type IN ('RELEASE', 'WASTE')
                                     THEN -fi.quantity
                                     ELSE 0
                                 END
@@ -473,6 +614,7 @@ function createInventoryModel(db) {
         getInventoryTransactionsByProductionItem,
         createReceipt,
         createConsumption,
+        createWaste,
         consumeFromAvailableLots
     };
 }

@@ -1149,6 +1149,139 @@ router.post(
     }
 );
 
+router.post(
+    "/available/:availableId/release",
+    (req, res) => {
+        try {
+            const availableId =
+                Number(req.params.availableId);
+
+            const {
+                quantity
+            } = req.body;
+
+            if (!Number.isInteger(availableId) || availableId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production available ID."
+                });
+            }
+
+            const released =
+                req.models.frozenInventory.releaseFrozenInventory({
+                    source_production_available_id: availableId,
+                    quantity
+                });
+
+            res.status(201).json({
+                success: true,
+                data: released
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/production/available/:availableId/release error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive") ||
+                error.message.includes("cannot exceed") ||
+                error.message.includes("Only CARRY_FORWARD") ||
+                error.message.includes("does not belong")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to release frozen inventory."
+            });
+        }
+    }
+);
+
+router.post(
+    "/available/:availableId/waste",
+    (req, res) => {
+        try {
+            const availableId =
+                Number(req.params.availableId);
+
+            const {
+                quantity,
+                state,
+                reason,
+                notes = null
+            } = req.body;
+
+            if (!Number.isInteger(availableId) || availableId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production available ID."
+                });
+            }
+
+            const wasted =
+                req.models.inventory.createWaste({
+                    source_production_available_id: availableId,
+                    quantity,
+                    state,
+                    reason,
+                    notes
+                });
+
+            res.status(201).json({
+                success: true,
+                data: wasted
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/production/available/:availableId/waste error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive") ||
+                error.message.includes("Insufficient") ||
+                error.message.includes("must be a string")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to record waste."
+            });
+        }
+    }
+);
+
 // =========================================================
 // Production Supply
 // =========================================================
