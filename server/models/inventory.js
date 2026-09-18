@@ -153,6 +153,69 @@ function createInventoryModel(db) {
         `).all(production_item_id);
     }
 
+    function getSourceLotBalances(
+        source_production_available_id
+    ) {
+        validatePositiveInteger(
+            source_production_available_id,
+            "Source production available ID"
+        );
+
+        const sourceLot = db.prepare(`
+            SELECT
+                pa.id
+            FROM production_available pa
+            WHERE pa.id = ?
+        `).get(source_production_available_id);
+
+        if (!sourceLot) {
+            throw new Error(
+                "Source production available record not found."
+            );
+        }
+
+        const physicalBalance = db.prepare(`
+            SELECT
+                COALESCE(
+                    SUM(quantity_delta),
+                    0
+                ) AS balance
+            FROM inventory_transactions
+            WHERE source_production_available_id = ?
+        `).get(
+            source_production_available_id
+        ).balance;
+
+        const frozenBalance = db.prepare(`
+            SELECT
+                COALESCE(
+                    SUM(
+                        CASE
+                            WHEN action_type = 'FREEZE'
+                            THEN quantity
+                            WHEN action_type IN ('RELEASE', 'WASTE')
+                            THEN -quantity
+                            ELSE 0
+                        END
+                    ),
+                    0
+                ) AS balance
+            FROM frozen_inventory
+            WHERE source_production_available_id = ?
+        `).get(
+            source_production_available_id
+        ).balance;
+
+        return {
+            fresh:
+                physicalBalance -
+                Math.max(0, frozenBalance),
+
+            frozen:
+                Math.max(0, frozenBalance)
+        };
+    }
+
     function createReceipt({
         production_item_id,
         quantity,
@@ -612,6 +675,7 @@ function createInventoryModel(db) {
         findInventoryTransactionById,
         getInventoryBalance,
         getInventoryTransactionsByProductionItem,
+        getSourceLotBalances,
         createReceipt,
         createConsumption,
         createWaste,

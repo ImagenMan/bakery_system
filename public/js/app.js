@@ -175,6 +175,7 @@ let trainingProductionDate = null;
 let trainingProductionItems = [];
 let trainingProductionDemand = [];
 let trainingProductionOverview = [];
+let trainingSelectedAvailableId = null;
 
 function renderTrainingCounterSaleCart() {
 
@@ -2058,6 +2059,7 @@ async function loadProductionItem(
         // -------------------------------------------------
 
         let availableQuantity = 0;
+        let availableEntries = [];
 
         if (
             plan &&
@@ -2088,6 +2090,11 @@ async function loadProductionItem(
 
             availableQuantity =
                 Number(availableResult.data.total_available) || 0;
+
+            availableEntries =
+                Array.isArray(availableResult.data.entries)
+                    ? availableResult.data.entries
+                    : [];
         }
 
 
@@ -2108,7 +2115,10 @@ async function loadProductionItem(
                     Number(totals.total_produced) || 0,
 
                 available_quantity:
-                    availableQuantity
+                    availableQuantity,
+
+                available_entries:
+                    availableEntries
             },
             plan,
             productionDate,
@@ -2157,6 +2167,11 @@ function renderProductionItem(
 
     const available =
     Number(item.available_quantity) || 0;
+
+    const availableEntries =
+        Array.isArray(item.available_entries)
+            ? item.available_entries
+            : [];
 
     const toMake =
         Math.max(demand - planned, 0);
@@ -2259,6 +2274,31 @@ function renderProductionItem(
             >
                 + Available
             </button>
+
+        </div>
+
+        <div class="production-actions">
+
+            <label>
+                Available lots
+            </label>
+
+            <div>
+                ${
+                    availableEntries.length > 0
+                        ? availableEntries
+                            .map(
+                                (entry) => `
+                                    <div>
+                                        Lot #${entry.id}
+                                        — ${Number(entry.available_quantity) || 0}
+                                    </div>
+                                `
+                            )
+                            .join("")
+                        : "No available lots."
+                }
+            </div>
 
         </div>
     `;
@@ -5275,6 +5315,39 @@ async function loadTrainingProductionItem(
             ) || 0
             : 0;
 
+    let availableEntries = [];
+
+        if (planId) {
+
+            const availableResponse =
+                await fetch(
+                    `/api/production/plans/${planId}/available`
+                );
+
+            if (!availableResponse.ok) {
+                throw new Error(
+                    `Server returned ${availableResponse.status}.`
+                );
+            }
+
+            const availableResult =
+                await availableResponse.json();
+
+            if (!availableResult.success) {
+                throw new Error(
+                    availableResult.error ||
+                    "Failed to load production availability."
+                );
+            }
+
+            availableEntries =
+                Array.isArray(
+                    availableResult.data.entries
+                )
+                    ? availableResult.data.entries
+                    : [];
+        }
+
     const toMake =
         Math.max(
             committed - planned,
@@ -5379,6 +5452,128 @@ async function loadTrainingProductionItem(
             </button>
 
         </div>
+
+        <div class="training-production-available">
+
+            <label>
+                Available lots
+            </label>
+
+            <div>
+                ${
+                    availableEntries.length > 0
+                        ? availableEntries
+                            .map(
+                                (entry) => `
+                                    <button
+                                        type="button"
+                                        class="training-production-available-lot"
+                                        data-available-id="${entry.id}"
+                                    >
+                                        <div>
+                                            Lot #${entry.id}
+                                            — ${Number(entry.available_quantity) || 0}
+                                            <span class="training-production-available-lot-status"></span>
+                                        </div>
+
+                                        <div class="training-production-available-lot-balance">
+                                            Select lot to view inventory
+                                        </div>
+                                    </button>
+                                `
+                            )
+                            .join("")
+                        : "No available lots."
+                }
+            </div>
+
+        </div>
+
+        <div class="training-production-waste">
+
+            <label>
+                Waste / Loss
+            </label>
+
+            <div class="training-production-waste-content">
+                Select an available lot above to record waste or loss.
+            </div>
+
+            <div class="training-production-waste-form"
+                 hidden
+            >
+
+                <label>
+                    State
+                </label>
+
+                <select
+                    class="training-production-waste-state"
+                >
+                    <option value="FRESH">
+                        Fresh
+                    </option>
+
+                    <option value="FROZEN">
+                        Frozen
+                    </option>
+                </select>
+
+                <label>
+                    Quantity
+                </label>
+
+                <input
+                    type="number"
+                    class="training-production-waste-quantity"
+                    min="1"
+                    step="1"
+                    value="1"
+                />
+
+                <label>
+                    Reason
+                </label>
+
+                <select
+                    class="training-production-waste-reason"
+                >
+                    <option value="UNSOLD">
+                        Unsold
+                    </option>
+
+                    <option value="DAMAGED">
+                        Damaged
+                    </option>
+
+                    <option value="EXPIRED">
+                        Expired
+                    </option>
+
+                    <option value="OTHER">
+                        Other
+                    </option>
+                </select>
+
+                <label>
+                    Notes
+                </label>
+
+                <textarea
+                    class="training-production-waste-notes"
+                    rows="3"
+                ></textarea>
+
+                <button
+                    type="button"
+                    class="training-production-waste-save"
+                >
+                    Save Waste / Loss
+                </button>
+
+            </div>
+
+        </div>
     `;
 
     const plannedQuantityInput =
@@ -5410,6 +5605,329 @@ async function loadTrainingProductionItem(
         document.getElementById(
             "save-training-production-available"
         );
+
+    const trainingProductionWaste =
+        trainingProductionItemDetail.querySelector(
+            ".training-production-waste"
+        );
+
+    const saveWasteButton =
+        trainingProductionWaste
+            ? trainingProductionWaste.querySelector(
+                ".training-production-waste-save"
+            )
+            : null;
+
+    if (saveWasteButton) {
+
+        saveWasteButton.addEventListener(
+            "click",
+            async () => {
+
+                if (!trainingSelectedAvailableId) {
+                    alert(
+                        "Select an available lot first."
+                    );
+                    return;
+                }
+
+                const state =
+                    trainingProductionWaste.querySelector(
+                        ".training-production-waste-state"
+                    ).value;
+
+                const quantity =
+                    Number(
+                        trainingProductionWaste.querySelector(
+                            ".training-production-waste-quantity"
+                        ).value
+                    );
+
+                const reason =
+                    trainingProductionWaste.querySelector(
+                        ".training-production-waste-reason"
+                    ).value;
+
+                const notes =
+                    trainingProductionWaste.querySelector(
+                        ".training-production-waste-notes"
+                    ).value.trim();
+
+                if (!Number.isInteger(quantity) || quantity <= 0) {
+                    alert(
+                        "Enter a valid positive quantity."
+                    );
+                    return;
+                }
+
+                saveWasteButton.disabled = true;
+
+                try {
+
+                    const response =
+                        await fetch(
+                            `/api/production/available/${trainingSelectedAvailableId}/waste`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+                                body: JSON.stringify({
+                                    source_production_available_id:
+                                        trainingSelectedAvailableId,
+                                    quantity,
+                                    state,
+                                    reason,
+                                    notes:
+                                        notes || null
+                                })
+                            }
+                        );
+
+                    const result =
+                        await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error ||
+                            "Failed to save waste/loss."
+                        );
+                    }
+
+                    const balanceResponse =
+                       await fetch(
+                           `/api/production/available/${trainingSelectedAvailableId}/inventory`
+                       );
+
+                   if (!balanceResponse.ok) {
+                       throw new Error(
+                           `Server returned ${balanceResponse.status}.`
+                       );
+                   }
+
+                   const balanceResult =
+                       await balanceResponse.json();
+
+                   if (!balanceResult.success) {
+                       throw new Error(
+                           balanceResult.error ||
+                           "Waste was saved, but inventory could not be refreshed."
+                       );
+                   }
+
+                   const fresh =
+                       Number(balanceResult.data.fresh) || 0;
+
+                   const frozen =
+                       Number(balanceResult.data.frozen) || 0;
+
+                   const selectedLotButton =
+                       trainingProductionItemDetail.querySelector(
+                           `.training-production-available-lot[data-available-id="${trainingSelectedAvailableId}"]`
+                       );
+
+                   if (selectedLotButton) {
+
+                       const balance =
+                           selectedLotButton.querySelector(
+                               ".training-production-available-lot-balance"
+                           );
+
+                       if (balance) {
+                           balance.textContent =
+                               `Fresh: ${fresh} — Frozen: ${frozen}`;
+                       }
+                   }
+
+                   const wasteContent =
+                       trainingProductionWaste.querySelector(
+                           ".training-production-waste-content"
+                       );
+
+                   if (wasteContent) {
+                       wasteContent.innerHTML = `
+                           <div>
+                               Selected Lot #${trainingSelectedAvailableId}
+                           </div>
+
+                           <div>
+                               Fresh available: ${fresh}
+                           </div>
+
+                           <div>
+                               Frozen available: ${frozen}
+                           </div>
+                       `;
+                   }
+
+                   alert(
+                       "Waste / Loss saved."
+                   );
+
+                } catch (error) {
+
+                    console.error(
+                        "Failed to save waste/loss:",
+                        error
+                    );
+
+                    alert(
+                        error.message ||
+                        "Failed to save waste/loss."
+                    );
+
+                } finally {
+
+                    saveWasteButton.disabled = false;
+                }
+            }
+        );
+    }
+
+    const availableLotButtons =
+        trainingProductionItemDetail.querySelectorAll(
+            ".training-production-available-lot"
+        );
+
+    availableLotButtons.forEach(
+        (button) => {
+            button.addEventListener(
+                "click",
+                async () => {
+
+                    trainingSelectedAvailableId =
+                        Number(
+                            button.dataset.availableId
+                        );
+
+                    availableLotButtons.forEach(
+                        (lotButton) => {
+
+                            lotButton.classList.remove(
+                                "selected"
+                            );
+
+                            const status =
+                                lotButton.querySelector(
+                                    ".training-production-available-lot-status"
+                                );
+
+                            if (status) {
+                                status.textContent = "";
+                            }
+                        }
+                    );
+
+                    button.classList.add(
+                        "selected"
+                    );
+
+                    const status =
+                        button.querySelector(
+                            ".training-production-available-lot-status"
+                        );
+
+                    if (status) {
+                        status.textContent =
+                            " — Selected";
+                    }
+
+                    const balance =
+                        button.querySelector(
+                            ".training-production-available-lot-balance"
+                        );
+
+                    const wasteForm =
+                        trainingProductionWaste
+                            ? trainingProductionWaste.querySelector(
+                                ".training-production-waste-form"
+                            )
+                            : null;
+
+                    if (wasteForm) {
+                        wasteForm.hidden = false;
+                    }
+
+                    if (balance) {
+                        balance.textContent =
+                            "Loading inventory...";
+                    }
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/production/available/${trainingSelectedAvailableId}/inventory`
+                            );
+
+                        if (!response.ok) {
+                            throw new Error(
+                                `Server returned ${response.status}.`
+                            );
+                        }
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            throw new Error(
+                                result.error ||
+                                "Failed to load inventory."
+                            );
+                        }
+
+                        if (balance) {
+                            balance.textContent =
+                                `Fresh: ${Number(result.data.fresh) || 0} — Frozen: ${Number(result.data.frozen) || 0}`;
+                        }
+
+                        if (trainingProductionWaste) {
+
+                            const fresh =
+                                Number(result.data.fresh) || 0;
+
+                            const frozen =
+                                Number(result.data.frozen) || 0;
+
+                            const wasteContent =
+                                trainingProductionWaste.querySelector(
+                                    ".training-production-waste-content"
+                                );
+
+                            if (wasteContent) {
+                                wasteContent.innerHTML = `
+                                    <div>
+                                        Selected Lot #${trainingSelectedAvailableId}
+                                    </div>
+
+                                    <div>
+                                        Fresh available: ${fresh}
+                                    </div>
+
+                                    <div>
+                                        Frozen available: ${frozen}
+                                    </div>
+                                `;
+                            }
+                        }
+
+                    } catch (error) {
+
+                        console.error(
+                            "Failed to load available lot inventory:",
+                            error
+                        );
+
+                        if (balance) {
+                            balance.textContent =
+                                "Unable to load inventory.";
+                        }
+                    }
+                }
+            );
+        }
+    );
 
     savePlanButton.addEventListener(
         "click",

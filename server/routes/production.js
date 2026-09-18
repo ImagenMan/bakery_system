@@ -1085,6 +1085,62 @@ router.post(
 // Frozen Inventory
 // =========================================================
 
+router.get(
+    "/available/:availableId/inventory",
+    (req, res) => {
+        try {
+            const availableId =
+                Number(req.params.availableId);
+
+            if (!Number.isInteger(availableId) || availableId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production available ID."
+                });
+            }
+
+            const balances =
+                req.models.inventory.getSourceLotBalances(
+                    availableId
+                );
+
+            res.json({
+                success: true,
+                data: balances
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/production/available/:availableId/inventory error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to load inventory balances."
+            });
+        }
+    }
+);
+
 router.post(
     "/available/:availableId/freeze",
     (req, res) => {
