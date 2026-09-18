@@ -727,11 +727,71 @@ router.put("/plans/:id", requireAdmin, (req, res) => {
     }
 });
 
+router.post(
+    "/plans/:planId/end-of-day",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const planId =
+                Number(req.params.planId);
+
+            if (!Number.isInteger(planId) || planId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production plan ID."
+                });
+            }
+
+            const wasteTransactions =
+                req.models.inventory
+                    .wasteRemainingFreshForProductionPlan({
+                        production_plan_id: planId
+                    });
+
+            res.json({
+                success: true,
+                data: {
+                    waste_transactions: wasteTransactions,
+                    waste_count: wasteTransactions.length
+                }
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/production/plans/:planId/end-of-day error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive") ||
+                error.message.includes("insufficient")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to close production day."
+            });
+        }
+    }
+);
+
 // =========================================================
 // Production Outputs
 // =========================================================
-
-
 
 router.get("/outputs/:id", (req, res) => {
     try {
