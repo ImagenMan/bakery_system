@@ -742,6 +742,26 @@ router.post(
                 });
             }
 
+            const productionPlan =
+                req.models.productionPlan.findProductionPlanById(planId);
+
+            const today =
+                new Date();
+
+            const todayDate =
+                [
+                    today.getFullYear(),
+                    String(today.getMonth() + 1).padStart(2, "0"),
+                    String(today.getDate()).padStart(2, "0")
+                ].join("-");
+
+            if (productionPlan.production_date > todayDate) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Cannot close a future production date."
+                });
+            }
+
             const wasteTransactions =
                 req.models.inventory
                     .wasteRemainingFreshForProductionPlan({
@@ -773,7 +793,7 @@ router.post(
                 error.message.includes("required") ||
                 error.message.includes("valid") ||
                 error.message.includes("positive") ||
-                error.message.includes("insufficient")
+                error.message.includes("Insufficient")
             ) {
                 return res.status(400).json({
                     success: false,
@@ -1331,6 +1351,7 @@ router.post(
 
 router.post(
     "/available/:availableId/waste",
+    requireAdmin,
     (req, res) => {
         try {
             const availableId =
