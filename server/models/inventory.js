@@ -568,6 +568,64 @@ function createInventoryModel(db) {
         return transaction();
     }
 
+    function wasteRemainingFreshForProductionPlan({
+        production_plan_id
+    }) {
+        validatePositiveInteger(
+            production_plan_id,
+            "Production plan ID"
+        );
+
+        const transaction = db.transaction(() => {
+            const productionPlan = db.prepare(`
+                SELECT
+                    pp.id,
+                    pp.production_item_id,
+                    pp.production_date
+                FROM production_plans pp
+                WHERE pp.id = ?
+            `).get(production_plan_id);
+
+            if (!productionPlan) {
+                throw new Error("Production plan not found.");
+            }
+
+            const lots = db.prepare(`
+                SELECT
+                    pa.id AS source_production_available_id
+                FROM production_available pa
+                WHERE pa.production_plan_id = ?
+                ORDER BY pa.created_at ASC, pa.id ASC
+            `).all(production_plan_id);
+
+            const wasteTransactions = [];
+
+            for (const lot of lots) {
+                const balances = getSourceLotBalances(
+                    lot.source_production_available_id
+                );
+
+                if (balances.fresh <= 0) {
+                    continue;
+                }
+
+                const wasteTransaction = createWaste({
+                    source_production_available_id:
+                        lot.source_production_available_id,
+                    quantity: balances.fresh,
+                    state: "FRESH",
+                    reason: "UNSOLD"
+                });
+
+                wasteTransactions.push(wasteTransaction);
+            }
+
+            return wasteTransactions;
+        });
+
+        return transaction();
+    }
+
     function consumeFromAvailableLots({
         production_item_id,
         quantity,
@@ -679,6 +737,7 @@ function createInventoryModel(db) {
         createReceipt,
         createConsumption,
         createWaste,
+        wasteRemainingFreshForProductionPlan,
         consumeFromAvailableLots
     };
 }
