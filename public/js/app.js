@@ -1684,7 +1684,7 @@ loginForm.addEventListener(
 
             loginPassword.value = "";
 
-            showApplication();
+            await checkAuthentication();
 
         } catch (error) {
 
@@ -2304,7 +2304,6 @@ function renderProductionItem(
                 : ""
         }
 
-
     `;
 
     document
@@ -2345,7 +2344,106 @@ function renderProductionItem(
                 );
             }
         );
+    const endOfDayButton =
+        document.getElementById("end-production-day");
 
+    if (endOfDayButton) {
+        endOfDayButton.addEventListener(
+            "click",
+            () => {
+                endProductionDay(
+                    plan,
+                    productionDate,
+                    productionItemId
+                );
+            }
+        );
+    }
+
+}
+
+async function endProductionDay(
+    plan,
+    productionDate,
+    productionItemId
+) {
+
+    if (!plan || !Number(plan.id)) {
+        alert("Save a production plan first.");
+        return;
+    }
+
+    const confirmed =
+        window.confirm(
+            "End this production day?\n\n" +
+            "Any remaining fresh inventory will be written off as waste.\n\n" +
+            "Frozen inventory will not be affected.\n\n" +
+            "This action cannot be undone."
+        );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const button =
+        document.getElementById("end-production-day");
+
+    if (!button) {
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Ending Day...";
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/production/plans/${Number(plan.id)}/end-of-day`,
+                {
+                    method: "POST"
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to close production day."
+            );
+        }
+
+        const wasteCount =
+            Number(result.data?.waste_count) || 0;
+
+        alert(
+            wasteCount > 0
+                ? `Production day ended. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded.`
+                : "Production day ended. No remaining fresh inventory was found."
+        );
+
+        await loadProductionItem(
+            productionItemId,
+            productionDate
+        );
+
+    } catch (error) {
+
+        console.error(
+            "endProductionDay error:",
+            error
+        );
+
+        alert(
+            error.message ||
+            "Failed to close production day."
+        );
+
+        button.disabled = false;
+        button.textContent = "End Production Day";
+    }
 }
 
 async function recordProductionMade(
@@ -5578,6 +5676,33 @@ async function loadTrainingProductionItem(
             </div>
 
         </div>
+
+        ${
+            currentUser &&
+            currentUser.role === "ADMIN"
+                ? `
+                    <div class="training-production-eod">
+
+                        <label>
+                            End of Day
+                        </label>
+
+                        <p>
+                            Remaining fresh inventory will be written off.
+                            Frozen inventory is not affected.
+                        </p>
+
+                        <button
+                            type="button"
+                            class="training-production-eod-button"
+                        >
+                            End Production Day
+                        </button>
+
+                    </div>
+                `
+                : ""
+        }
     `;
 
     const plannedQuantityInput =
@@ -6225,6 +6350,107 @@ async function loadTrainingProductionItem(
             }
         }
     );
+
+        const trainingEndOfDayButton =
+            trainingProductionItemDetail.querySelector(
+                ".training-production-eod-button"
+            );
+
+        if (trainingEndOfDayButton) {
+
+            trainingEndOfDayButton.addEventListener(
+                "click",
+                async () => {
+
+                    if (!planId) {
+
+                        alert(
+                            "Save a production plan first."
+                        );
+
+                        return;
+                    }
+
+                    const confirmed =
+                        window.confirm(
+                            "End this production day?\n\n" +
+                            "Any remaining fresh inventory will be written off as waste.\n\n" +
+                            "Frozen inventory will not be affected.\n\n" +
+                            "This action cannot be undone."
+                        );
+
+                    if (!confirmed) {
+                        return;
+                    }
+
+                    trainingEndOfDayButton.disabled = true;
+
+                    trainingEndOfDayButton.textContent =
+                        "Ending Day...";
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/production/plans/${Number(planId)}/end-of-day`,
+                                {
+                                    method: "POST"
+                                }
+                            );
+
+                        const result =
+                            await response.json();
+
+                        if (
+                            !response.ok ||
+                            !result.success
+                        ) {
+                            throw new Error(
+                                result.error ||
+                                "Failed to close production day."
+                            );
+                        }
+
+                        const wasteCount =
+                            Number(
+                                result.data?.waste_count
+                            ) || 0;
+
+                        alert(
+                            wasteCount > 0
+                                ? `Production day ended. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded.`
+                                : "Production day ended. No remaining fresh inventory was found."
+                        );
+
+                        await loadTrainingProduction(
+                            trainingProductionDate
+                        );
+
+                        loadTrainingProductionItem(
+                            productionItem.id
+                        );
+
+                    } catch (error) {
+
+                        console.error(
+                            "Training production EOD error:",
+                            error
+                        );
+
+                        alert(
+                            error.message ||
+                            "Failed to close production day."
+                        );
+
+                        trainingEndOfDayButton.disabled =
+                            false;
+
+                        trainingEndOfDayButton.textContent =
+                            "End Production Day";
+                    }
+                }
+            );
+        }
 }
 
 async function loadTrainingCounterSale() {
