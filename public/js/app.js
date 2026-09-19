@@ -3,6 +3,8 @@
 // Orders UI
 // =========================================================
 
+let currentUser = null;
+
 // --- DOM Elements ---
 
 const loginView = document.getElementById("login-view");
@@ -1602,6 +1604,8 @@ async function checkAuthentication() {
             showLogin();
             return;
         }
+
+        currentUser = result.data;
 
         await showApplication();
 
