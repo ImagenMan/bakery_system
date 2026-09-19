@@ -2277,30 +2277,6 @@ function renderProductionItem(
 
         </div>
 
-        <div class="production-actions">
-
-            <label>
-                Available lots
-            </label>
-
-            <div>
-                ${
-                    availableEntries.length > 0
-                        ? availableEntries
-                            .map(
-                                (entry) => `
-                                    <div>
-                                        Lot #${entry.id}
-                                        — ${Number(entry.available_quantity) || 0}
-                                    </div>
-                                `
-                            )
-                            .join("")
-                        : "No available lots."
-                }
-            </div>
-
-        </div>
     `;
 
     document
