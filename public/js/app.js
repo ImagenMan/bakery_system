@@ -2258,7 +2258,7 @@ function renderProductionItem(
 
         </div>
 
-                <div class="production-actions">
+        <div class="production-actions">
 
             <label for="available-quantity">
                 Quantity available
@@ -2280,6 +2280,30 @@ function renderProductionItem(
             </button>
 
         </div>
+
+        ${
+            currentUser &&
+            currentUser.role === "ADMIN"
+                ? `
+                    <div class="production-eod">
+                        <h3>End of Day</h3>
+
+                        <p>
+                            Remaining fresh inventory will be written off.
+                            Frozen inventory is not affected.
+                        </p>
+
+                        <button
+                            type="button"
+                            id="end-production-day"
+                        >
+                            End Production Day
+                        </button>
+                    </div>
+                `
+                : ""
+        }
+
 
     `;
 
