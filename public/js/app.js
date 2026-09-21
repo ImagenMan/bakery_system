@@ -1893,21 +1893,69 @@ async function loadPickupList() {
             return;
         }
 
-        pickupList.innerHTML = result.data.map(order => `
-            <div class="order-card">
-                <strong>
-                    ${escapeHTML(order.order_number)}
-                </strong>
+        pickupList.innerHTML = result.data.map(order => {
 
-                <span>
-                    ${escapeHTML(order.customer_name || "Walk-in")}
-                </span>
+            const items = Array.isArray(order.items)
+                ? order.items
+                : [];
 
-                <span>
-                    ${escapeHTML(order.pickup_time || "")}
-                </span>
-            </div>
-        `).join("");
+            return `
+                <div class="pickup-order-card">
+
+                    <div class="pickup-order-header">
+
+                        <div>
+                            <strong>
+                                ${escapeHTML(
+                                    order.pickup_time || "No time"
+                                )}
+                            </strong>
+
+                            <span>
+                                ${escapeHTML(
+                                    order.customer_name || "Walk-in"
+                                )}
+                            </span>
+                        </div>
+
+                        <strong>
+                            ${escapeHTML(order.order_number)}
+                        </strong>
+
+                    </div>
+
+                    <div class="pickup-order-items">
+
+                        ${
+                            items.length === 0
+                                ? `
+                                    <p>
+                                        No items.
+                                    </p>
+                                `
+                                : items.map(item => `
+                                    <div class="pickup-order-item">
+
+                                        <strong>
+                                            ${Number(item.quantity)}
+                                        </strong>
+
+                                        <span>
+                                            ${escapeHTML(
+                                                item.product_name ||
+                                                "Unknown item"
+                                            )}
+                                        </span>
+
+                                    </div>
+                                `).join("")
+                        }
+
+                    </div>
+
+                </div>
+            `;
+        }).join("");
 
     } catch (error) {
 
