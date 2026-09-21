@@ -1486,6 +1486,131 @@ function getAllOrders() {
     return orders;
 }
 
+function getPickupOrdersByDate(pickupDate) {
+    const orders = db.prepare(`
+        SELECT
+            o.id,
+            o.order_number,
+            o.order_type,
+            o.status,
+            o.payment_status,
+            o.total_amount,
+            o.amount_paid,
+            o.pickup_date,
+            o.pickup_time,
+            o.delivery,
+            o.notes,
+
+            c.id AS customer_id,
+            c.name AS customer_name,
+            c.phone AS customer_phone,
+            c.preferred_language AS customer_language
+
+        FROM orders o
+
+        LEFT JOIN customers c
+            ON o.customer_id = c.id
+
+        WHERE o.order_type = 'PREORDER'
+          AND o.pickup_date = ?
+          AND o.status != 'CANCELLED'
+
+        ORDER BY
+            o.pickup_time,
+            o.created_at,
+            o.id
+    `).all(pickupDate);
+
+    const getItems = db.prepare(`
+        SELECT
+            oi.id,
+            oi.product_id,
+            oi.custom_product_id,
+            p.sku,
+
+            COALESCE(
+                p.name,
+                cp.name,
+                oi.custom_name
+            ) AS product_name,
+
+            oi.quantity,
+            oi.production_status,
+            oi.decorator_priority,
+
+            COALESCE(
+                (
+                    SELECT SUM(oip.quantity)
+                    FROM order_item_pickups oip
+                    WHERE oip.order_item_id = oi.id
+                ),
+                0
+            ) AS quantity_picked_up,
+
+            oi.quantity -
+            COALESCE(
+                (
+                    SELECT SUM(oip.quantity)
+                    FROM order_item_pickups oip
+                    WHERE oip.order_item_id = oi.id
+                ),
+                0
+            ) AS quantity_remaining,
+
+            COALESCE(
+                (
+                    SELECT SUM(oisa.quantity)
+                    FROM order_item_set_asides oisa
+                    WHERE oisa.order_item_id = oi.id
+                ),
+                0
+            ) AS quantity_set_aside,
+
+            MAX(
+                0,
+                COALESCE(
+                    (
+                        SELECT SUM(oisa.quantity)
+                        FROM order_item_set_asides oisa
+                        WHERE oisa.order_item_id = oi.id
+                    ),
+                    0
+                ) -
+                COALESCE(
+                    (
+                        SELECT SUM(oip.quantity)
+                        FROM order_item_pickups oip
+                        WHERE oip.order_item_id = oi.id
+                    ),
+                    0
+                )
+            ) AS quantity_set_aside_remaining,
+
+            oi.unit_price,
+            oi.notes,
+
+            ROUND(oi.quantity * oi.unit_price, 2) AS line_total
+
+        FROM order_items oi
+
+        LEFT JOIN products p
+            ON oi.product_id = p.id
+
+        LEFT JOIN custom_products cp
+            ON oi.custom_product_id = cp.id
+
+        WHERE oi.order_id = ?
+
+        ORDER BY oi.id
+    `);
+
+    for (const order of orders) {
+        order.items = getItems.all(order.id);
+    }
+
+    return orders;
+}
+
 function updateOrderStatus(id, status) {
     const validStatuses = [
         "NEW",
@@ -1718,6 +1843,7 @@ function getPaymentHistory(orderId) {
         getOrderById,
         getOrderByNumber,
         getAllOrders,
+        getPickupOrdersByDate,
         updateOrderStatus,
         recordPayment,
         getPaymentHistory

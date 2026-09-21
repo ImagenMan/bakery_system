@@ -618,6 +618,35 @@ router.get("/orders", (req, res) => {
     }
 });
 
+router.get("/pickups", (req, res) => {
+    try {
+        const pickupDate = req.query.date;
+
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(pickupDate || "")) {
+            return res.status(400).json({
+                success: false,
+                error: "A valid pickup date in YYYY-MM-DD format is required."
+            });
+        }
+
+        const orders =
+            req.models.order.getPickupOrdersByDate(pickupDate);
+
+        res.json({
+            success: true,
+            data: orders
+        });
+
+    } catch (error) {
+        console.error("GET /api/pickups error:", error);
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve pickup orders."
+        });
+    }
+});
+
 router.get("/orders/:id", (req, res) => {
     try {
         const orderId = Number(req.params.id);
