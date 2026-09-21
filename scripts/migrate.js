@@ -2,92 +2,108 @@ const fs = require("fs");
 const path = require("path");
 const { openDatabase } = require("../server/config/database");
 
-const dbPath =
-    process.argv[2] ||
-    path.join(__dirname, "../data/bakery.db");
-
-const db = openDatabase(dbPath);
-
 const migrationsPath = path.join(
     __dirname,
     "../data/migrations"
 );
 
-console.log("🔄 Running database migrations...");
+const defaultDatabasePaths = [
+    path.join(__dirname, "../data/bakery.db"),
+    path.join(__dirname, "../data/training.db")
+];
 
-try {
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            migration TEXT NOT NULL UNIQUE,
-            applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
+const databasePaths = process.argv[2]
+    ? [process.argv[2]]
+    : defaultDatabasePaths;
 
-const migrationColumns = db
-.prepare(`PRAGMA table_info(schema_migrations)`)
-.all();
+function migrateDatabase(dbPath) {
+    const db = openDatabase(dbPath);
 
-const hasMigrationColumn = migrationColumns.some(
-    column => column.name === "migration"
-);
+    console.log(`\n🔄 Running database migrations: ${dbPath}`);
 
-const hasFilenameColumn = migrationColumns.some(
-    column => column.name === "filename"
-);
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                migration TEXT NOT NULL UNIQUE,
+                applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-if (!hasMigrationColumn && hasFilenameColumn) {
-    db.exec(`
-        ALTER TABLE schema_migrations
-        RENAME COLUMN filename TO migration
-    `);
+        const migrationColumns = db
+            .prepare(`PRAGMA table_info(schema_migrations)`)
+            .all();
 
-    console.log(
-        "🔧 Upgraded legacy schema_migrations column."
-    );
-}
+        const hasMigrationColumn = migrationColumns.some(
+            column => column.name === "migration"
+        );
 
-    const migrations = fs.readdirSync(migrationsPath)
-        .filter(file => file.endsWith(".sql"))
-        .sort();
+        const hasFilenameColumn = migrationColumns.some(
+            column => column.name === "filename"
+        );
 
-    for (const filename of migrations) {
-        const alreadyApplied = db.prepare(`
-            SELECT id
-            FROM schema_migrations
-            WHERE migration = ?
-        `).get(filename);
+        if (!hasMigrationColumn && hasFilenameColumn) {
+            db.exec(`
+                ALTER TABLE schema_migrations
+                RENAME COLUMN filename TO migration
+            `);
 
-        if (alreadyApplied) {
-            console.log(`⏭️  Skipping ${filename}`);
-            continue;
+            console.log(
+                "🔧 Upgraded legacy schema_migrations column."
+            );
         }
 
-        const migrationPath = path.join(
-            migrationsPath,
-            filename
-        );
+        const migrations = fs.readdirSync(migrationsPath)
+            .filter(file => file.endsWith(".sql"))
+            .sort();
 
-        const sql = fs.readFileSync(
-            migrationPath,
-            "utf8"
-        );
+        for (const filename of migrations) {
+            const alreadyApplied = db.prepare(`
+                SELECT id
+                FROM schema_migrations
+                WHERE migration = ?
+            `).get(filename);
 
-        const runMigration = db.transaction(() => {
-            db.exec(sql);
+            if (alreadyApplied) {
+                console.log(`⏭️  Skipping ${filename}`);
+                continue;
+            }
 
-            db.prepare(`
-                INSERT INTO schema_migrations (migration)
-                VALUES (?)
-            `).run(filename);
-        });
+            const migrationPath = path.join(
+                migrationsPath,
+                filename
+            );
 
-        runMigration();
+            const sql = fs.readFileSync(
+                migrationPath,
+                "utf8"
+            );
 
-        console.log(`✅ Applied ${filename}`);
+            const runMigration = db.transaction(() => {
+                db.exec(sql);
+
+                db.prepare(`
+                    INSERT INTO schema_migrations (migration)
+                    VALUES (?)
+                `).run(filename);
+            });
+
+            runMigration();
+
+            console.log(`✅ Applied ${filename}`);
+        }
+
+        console.log("🎉 Database migrations complete.");
+    } finally {
+        db.close();
+        console.log("🔒 Database connection closed.");
     }
+}
 
-    console.log("🎉 Database migrations complete.");
+try {
+    for (const dbPath of databasePaths) {
+        migrateDatabase(dbPath);
+    }
 } catch (err) {
     console.error(
         "❌ Migration failed:",
@@ -95,7 +111,4 @@ if (!hasMigrationColumn && hasFilenameColumn) {
     );
 
     process.exitCode = 1;
-} finally {
-    db.close();
-    console.log("🔒 Database connection closed.");
 }
