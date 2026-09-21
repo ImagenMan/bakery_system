@@ -441,6 +441,8 @@ font-size: 22px;
 
     border-radius: 10px;
     border: 1px solid #ddd;
+
+    cursor: pointer;
 }
 
 .pickup-order-header {

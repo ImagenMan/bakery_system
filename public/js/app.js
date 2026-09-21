@@ -4,6 +4,7 @@
 // =========================================================
 
 let currentUser = null;
+let orderDetailReturnView = "orders";
 
 // --- DOM Elements ---
 
@@ -1927,7 +1928,10 @@ async function loadPickupList() {
                     : [];
 
                 return `
-                    <div class="pickup-order-card">
+                    <div
+                        class="pickup-order-card"
+                        data-order-id="${Number(order.id)}"
+                    >
 
                         <div class="pickup-order-header">
 
@@ -1984,6 +1988,33 @@ async function loadPickupList() {
                 `;
 
             }).join("");
+
+            document
+                .querySelectorAll(".pickup-order-card")
+                .forEach(card => {
+
+                    card.addEventListener(
+                        "click",
+                        () => {
+
+                            const orderId =
+                                Number(card.dataset.orderId);
+
+                            if (
+                                !Number.isInteger(orderId) ||
+                                orderId <= 0
+                            ) {
+                                return;
+                            }
+
+                            orderDetailReturnView = "pickup";
+
+                            pickupListView.classList.add("hidden");
+
+                            loadOrderDetail(orderId);
+                        }
+                    );
+                });
         }
 
         renderPickupList("ALL");
@@ -8131,8 +8162,7 @@ document
         }
     );
 
-
-// Back from Order Detail to Orders
+// Back from Order Detail
 
 document
     .getElementById("back-to-orders")
@@ -8141,6 +8171,16 @@ document
         () => {
 
             orderDetailView.classList.add("hidden");
+
+            if (orderDetailReturnView === "pickup") {
+
+                pickupListView.classList.remove("hidden");
+
+                loadPickupList();
+
+                return;
+            }
+
             ordersView.classList.remove("hidden");
 
             loadOrders();
