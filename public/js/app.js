@@ -1901,15 +1901,32 @@ async function loadPickupList() {
             let filteredOrders = orders;
 
             if (filter === "NOT_COMPLETED") {
-                filteredOrders = orders.filter(
-                    order => order.status !== "COMPLETED"
-                );
+                filteredOrders = orders.filter(order => {
+
+                    const items = Array.isArray(order.items)
+                        ? order.items
+                        : [];
+
+                    return items.some(item => {
+                        return Number(item.quantity_remaining) > 0;
+                    });
+                });
             }
 
             if (filter === "COMPLETED") {
-                filteredOrders = orders.filter(
-                    order => order.status === "COMPLETED"
-                );
+                filteredOrders = orders.filter(order => {
+
+                    const items = Array.isArray(order.items)
+                        ? order.items
+                        : [];
+
+                    return (
+                        items.length > 0 &&
+                        items.every(item => {
+                            return Number(item.quantity_remaining) === 0;
+                        })
+                    );
+                });
             }
 
             if (filteredOrders.length === 0) {
