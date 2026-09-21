@@ -853,6 +853,194 @@ function getPickupHistory(orderId) {
     `).all(orderId);
 }
 
+function recordItemSetAside(
+    orderId,
+    orderItemId,
+    quantity,
+    setAsideBy = null,
+    notes = null
+) {
+    getMutableOrder(orderId);
+
+    const order = db.prepare(`
+        SELECT id
+        FROM orders
+        WHERE id = ?
+    `).get(orderId);
+
+    if (!order) {
+        throw new Error(`Order ${orderId} not found.`);
+    }
+
+    const item = db.prepare(`
+        SELECT
+            id,
+            order_id,
+            quantity
+        FROM order_items
+        WHERE id = ?
+    `).get(orderItemId);
+
+    if (!item) {
+        throw new Error(
+            `Order item ${orderItemId} not found.`
+        );
+    }
+
+    if (item.order_id !== orderId) {
+        throw new Error(
+            `Order item ${orderItemId} does not belong to order ${orderId}.`
+        );
+    }
+
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+        throw new Error(
+            "Set aside quantity must be greater than zero."
+        );
+    }
+
+    const pickedUpResult = db.prepare(`
+        SELECT COALESCE(
+            SUM(quantity),
+            0
+        ) AS quantity_picked_up
+        FROM order_item_pickups
+        WHERE order_item_id = ?
+    `).get(orderItemId);
+
+    const setAsideResult = db.prepare(`
+        SELECT COALESCE(
+            SUM(quantity),
+            0
+        ) AS quantity_set_aside
+        FROM order_item_set_asides
+        WHERE order_item_id = ?
+    `).get(orderItemId);
+
+    const quantityPickedUp =
+        pickedUpResult.quantity_picked_up;
+
+    const quantitySetAside =
+        setAsideResult.quantity_set_aside;
+
+    const remainingQuantity =
+        item.quantity -
+        quantityPickedUp -
+        quantitySetAside;
+
+    if (quantity > remainingQuantity) {
+        throw new Error(
+            `Set aside quantity exceeds remaining quantity of ${remainingQuantity}.`
+        );
+    }
+
+    db.prepare(`
+        INSERT INTO order_item_set_asides (
+            order_item_id,
+            quantity,
+            set_aside_by,
+            notes
+        )
+        VALUES (?, ?, ?, ?)
+    `).run(
+        orderItemId,
+        quantity,
+        setAsideBy,
+        notes
+    );
+
+    return getOrderById(orderId);
+}
+
+function getSetAsideHistory(orderId) {
+    const order = db.prepare(`
+        SELECT id
+        FROM orders
+        WHERE id = ?
+    `).get(orderId);
+
+    if (!order) {
+        throw new Error(
+            `Order ${orderId} not found.`
+        );
+    }
+
+    return db.prepare(`
+        SELECT
+            oisa.id,
+            oisa.order_item_id,
+            COALESCE(p.name, oi.custom_name) AS product_name,
+            p.sku,
+            oisa.quantity,
+            oisa.set_aside_by,
+            u.name AS set_aside_by_name,
+            oisa.set_aside_at,
+            oisa.notes
+        FROM order_item_set_asides oisa
+
+        JOIN order_items oi
+            ON oisa.order_item_id = oi.id
+
+        LEFT JOIN products p
+            ON oi.product_id = p.id
+
+        LEFT JOIN users u
+            ON oisa.set_aside_by = u.id
+
+        WHERE oi.order_id = ?
+
+        ORDER BY
+            oisa.set_aside_at,
+            oisa.id
+    `).all(orderId);
+}
+
+function updateOrderItemDecoratorPriority(
+    orderId,
+    orderItemId,
+    priority
+) {
+    getMutableOrder(orderId);
+
+    const item = db.prepare(`
+        SELECT
+            id,
+            order_id
+        FROM order_items
+        WHERE id = ?
+    `).get(orderItemId);
+
+    if (!item) {
+        throw new Error(
+            `Order item ${orderItemId} not found.`
+        );
+    }
+
+    if (item.order_id !== orderId) {
+        throw new Error(
+            `Order item ${orderItemId} does not belong to order ${orderId}.`
+        );
+    }
+
+    if (priority !== 0 && priority !== 1) {
+        throw new Error(
+            "Decorator priority must be 0 or 1."
+        );
+    }
+
+    db.prepare(`
+        UPDATE order_items
+        SET
+            decorator_priority = ?
+        WHERE id = ?
+    `).run(
+        priority,
+        orderItemId
+    );
+
+    return getOrderById(orderId);
+}
+
 function updateOrderDetails(
     orderId,
     {
@@ -971,9 +1159,26 @@ function updateOrderItem(orderId, orderItemId, { quantity, notes = null }) {
 
     const quantityPickedUp = pickedUpResult.quantity_picked_up;
 
+    const setAsideResult = db.prepare(`
+        SELECT COALESCE(
+            SUM(quantity),
+            0
+        ) AS quantity_set_aside
+        FROM order_item_set_asides
+        WHERE order_item_id = ?
+    `).get(orderItemId);
+
+    const quantitySetAside = setAsideResult.quantity_set_aside;
+
     if (quantity < quantityPickedUp) {
         throw new Error(
             `Quantity cannot be less than the ${quantityPickedUp} already picked up.`
+        );
+    }
+
+    if (quantity < quantitySetAside) {
+        throw new Error(
+            `Quantity cannot be less than the ${quantitySetAside} already set aside.`
         );
     }
 
@@ -1164,6 +1369,8 @@ function getOrderById(id) {
 
             oi.production_status,
 
+            oi.decorator_priority,
+
             COALESCE(
                 (
                     SELECT SUM(oip.quantity)
@@ -1182,6 +1389,35 @@ function getOrderById(id) {
                 ),
                 0
             ) AS quantity_remaining,
+
+            COALESCE(
+                (
+                    SELECT SUM(oisa.quantity)
+                    FROM order_item_set_asides oisa
+                    WHERE oisa.order_item_id = oi.id
+                ),
+                0
+            ) AS quantity_set_aside,
+
+            MAX(
+                0,
+                COALESCE(
+                    (
+                        SELECT SUM(oisa.quantity)
+                        FROM order_item_set_asides oisa
+                        WHERE oisa.order_item_id = oi.id
+                    ),
+                    0
+                ) -
+                COALESCE(
+                    (
+                        SELECT SUM(oip.quantity)
+                        FROM order_item_pickups oip
+                        WHERE oip.order_item_id = oi.id
+                    ),
+                    0
+                )
+            ) AS quantity_set_aside_remaining,
 
             oi.unit_price,
             oi.notes,
@@ -1472,6 +1708,9 @@ function getPaymentHistory(orderId) {
         removeOrderItem,
         recordItemPickup,
         getPickupHistory,
+        recordItemSetAside,
+        getSetAsideHistory,
+        updateOrderItemDecoratorPriority,
         updateOrderDetails,
         updateOrderItem,
         updateOrderItemProductionStatus,
