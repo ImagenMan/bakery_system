@@ -14,6 +14,7 @@ const pickupListView = document.getElementById("pickup-list-view");
 const pickupListButton = document.getElementById("open-pickup-list");
 const pickupListBackButton = document.getElementById("pickup-list-back");
 const pickupList = document.getElementById("pickup-list");
+const pickupListDate = document.getElementById("pickup-list-date");
 const orderDetailView = document.getElementById("order-detail-view");
 const newOrderView = document.getElementById("new-order-view");
 const counterSaleView = document.getElementById("counter-sale-view");
@@ -1860,14 +1861,27 @@ async function loadPickupList() {
         </p>
     `;
 
-    const today = new Date()
-        .toISOString()
-        .split("T")[0];
+    const today = new Date();
+
+    const localDate =
+        today.getFullYear() +
+        "-" +
+        String(today.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(today.getDate()).padStart(2, "0");
+
+    if (pickupListDate && !pickupListDate.value) {
+        pickupListDate.value = localDate;
+    }
+
+    const pickupDate = pickupListDate
+        ? pickupListDate.value
+        : localDate;
 
     try {
 
         const response = await fetch(
-            `/api/pickups?date=${encodeURIComponent(today)}`
+            `/api/pickups?date=${encodeURIComponent(pickupDate)}`
         );
 
         if (!response.ok) {
@@ -8116,6 +8130,12 @@ pickupListButton.addEventListener(
     }
 );
 
+pickupListDate.addEventListener(
+    "change",
+    () => {
+        loadPickupList();
+    }
+);
 
 // Back from Pickup List to Orders
 

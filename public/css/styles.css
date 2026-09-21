@@ -492,6 +492,24 @@ font-size: 22px;
     font-size: 16px;
 }
 
+.pickup-list-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.pickup-list-date label {
+    font-weight: bold;
+}
+
+.pickup-list-date input {
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font: inherit;
+}
+
 .pickup-list-filters {
     display: flex;
     gap: 8px;
