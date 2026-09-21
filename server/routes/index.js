@@ -1289,6 +1289,204 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
     }
 });
 
+router.post(
+    "/orders/:id/items/:itemId/set-aside",
+    (req, res) => {
+        try {
+            const orderId = Number(req.params.id);
+            const itemId = Number(req.params.itemId);
+
+            const {
+                quantity,
+                notes
+            } = req.body;
+
+            if (!Number.isInteger(orderId) || orderId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid order ID."
+                });
+            }
+
+            if (!Number.isInteger(itemId) || itemId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid order item ID."
+                });
+            }
+
+            if (!Number.isInteger(quantity) || quantity <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Set aside quantity must be greater than zero."
+                });
+            }
+
+            const order = req.models.order.recordItemSetAside(
+                orderId,
+                itemId,
+                quantity,
+                req.user.id,
+                notes
+            );
+
+            res.json({
+                success: true,
+                data: order
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/orders/:id/items/:itemId/set-aside error:",
+                error
+            );
+
+            if (
+                error.message.includes("not found") ||
+                error.message.includes("does not belong")
+            ) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("Set aside quantity") ||
+                error.message.includes("remaining quantity") ||
+                error.message.includes("cannot be modified")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to set aside item."
+            });
+        }
+    }
+);
+
+router.get("/orders/:id/set-asides", (req, res) => {
+    try {
+        const orderId = Number(req.params.id);
+
+        if (!Number.isInteger(orderId) || orderId <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid order ID."
+            });
+        }
+
+        const setAsides =
+            req.models.order.getSetAsideHistory(orderId);
+
+        res.json({
+            success: true,
+            data: setAsides
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/orders/:id/set-asides error:",
+            error
+        );
+
+        if (error.message.includes("not found")) {
+            return res.status(404).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve set-aside history."
+        });
+    }
+});
+
+router.put(
+    "/orders/:id/items/:itemId/decorator-priority",
+    (req, res) => {
+        try {
+            const orderId = Number(req.params.id);
+            const itemId = Number(req.params.itemId);
+
+            const {
+                priority
+            } = req.body;
+
+            if (!Number.isInteger(orderId) || orderId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid order ID."
+                });
+            }
+
+            if (!Number.isInteger(itemId) || itemId <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid order item ID."
+                });
+            }
+
+            if (priority !== 0 && priority !== 1) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Decorator priority must be 0 or 1."
+                });
+            }
+
+            const order =
+                req.models.order.updateOrderItemDecoratorPriority(
+                    orderId,
+                    itemId,
+                    priority
+                );
+
+            res.json({
+                success: true,
+                data: order
+            });
+
+        } catch (error) {
+            console.error(
+                "PUT /api/orders/:id/items/:itemId/decorator-priority error:",
+                error
+            );
+
+            if (
+                error.message.includes("not found") ||
+                error.message.includes("does not belong")
+            ) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("Decorator priority") ||
+                error.message.includes("cannot be modified")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to update decorator priority."
+            });
+        }
+    }
+);
+
 router.get("/orders/:id/pickups", (req, res) => {
     try {
         const orderId = Number(req.params.id);
