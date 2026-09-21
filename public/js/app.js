@@ -10,8 +10,9 @@ let currentUser = null;
 const loginView = document.getElementById("login-view");
 const ordersView = document.getElementById("orders-view");
 const pickupListView = document.getElementById("pickup-list-view");
-const pickupListButton = document.getElementById("pickup-list");
+const pickupListButton = document.getElementById("open-pickup-list");
 const pickupListBackButton = document.getElementById("pickup-list-back");
+const pickupList = document.getElementById("pickup-list");
 const orderDetailView = document.getElementById("order-detail-view");
 const newOrderView = document.getElementById("new-order-view");
 const counterSaleView = document.getElementById("counter-sale-view");
@@ -1848,6 +1849,79 @@ function renderOrders(orders) {
                 loadOrderDetail(orderId);
             });
         });
+}
+
+async function loadPickupList() {
+
+    pickupList.innerHTML = `
+        <p class="loading">
+            Loading pickup list...
+        </p>
+    `;
+
+    const today = new Date()
+        .toISOString()
+        .split("T")[0];
+
+    try {
+
+        const response = await fetch(
+            `/api/pickups?date=${encodeURIComponent(today)}`
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                `Server returned ${response.status}.`
+            );
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to load pickup list."
+            );
+        }
+
+        if (!Array.isArray(result.data) || result.data.length === 0) {
+            pickupList.innerHTML = `
+                <p>
+                    No pickups for today.
+                </p>
+            `;
+            return;
+        }
+
+        pickupList.innerHTML = result.data.map(order => `
+            <div class="order-card">
+                <strong>
+                    ${escapeHTML(order.order_number)}
+                </strong>
+
+                <span>
+                    ${escapeHTML(order.customer_name || "Walk-in")}
+                </span>
+
+                <span>
+                    ${escapeHTML(order.pickup_time || "")}
+                </span>
+            </div>
+        `).join("");
+
+    } catch (error) {
+
+        console.error(
+            "loadPickupList error:",
+            error
+        );
+
+        pickupList.innerHTML = `
+            <p class="error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
 }
 
 // =========================================================
@@ -7887,6 +7961,8 @@ pickupListButton.addEventListener(
         productionView.classList.add("hidden");
 
         pickupListView.classList.remove("hidden");
+
+        loadPickupList();
     }
 );
 
