@@ -9,6 +9,9 @@ let currentUser = null;
 
 const loginView = document.getElementById("login-view");
 const ordersView = document.getElementById("orders-view");
+const pickupListView = document.getElementById("pickup-list-view");
+const pickupListButton = document.getElementById("pickup-list");
+const pickupListBackButton = document.getElementById("pickup-list-back");
 const orderDetailView = document.getElementById("order-detail-view");
 const newOrderView = document.getElementById("new-order-view");
 const counterSaleView = document.getElementById("counter-sale-view");
@@ -7870,6 +7873,37 @@ document
             }
         }
     );
+
+// Open Pickup List view
+
+pickupListButton.addEventListener(
+    "click",
+    () => {
+
+        ordersView.classList.add("hidden");
+        newOrderView.classList.add("hidden");
+        orderDetailView.classList.add("hidden");
+        counterSaleView.classList.add("hidden");
+        productionView.classList.add("hidden");
+
+        pickupListView.classList.remove("hidden");
+    }
+);
+
+
+// Back from Pickup List to Orders
+
+pickupListBackButton.addEventListener(
+    "click",
+    () => {
+
+        pickupListView.classList.add("hidden");
+
+        ordersView.classList.remove("hidden");
+
+        loadOrders();
+    }
+);
 
 // Open Counter Sale view
 
