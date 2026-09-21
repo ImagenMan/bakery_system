@@ -1893,69 +1893,123 @@ async function loadPickupList() {
             return;
         }
 
-        pickupList.innerHTML = result.data.map(order => {
+        const orders = result.data;
 
-            const items = Array.isArray(order.items)
-                ? order.items
-                : [];
+        function renderPickupList(filter) {
 
-            return `
-                <div class="pickup-order-card">
+            let filteredOrders = orders;
 
-                    <div class="pickup-order-header">
+            if (filter === "NOT_COMPLETED") {
+                filteredOrders = orders.filter(
+                    order => order.status !== "COMPLETED"
+                );
+            }
 
-                        <div>
+            if (filter === "COMPLETED") {
+                filteredOrders = orders.filter(
+                    order => order.status === "COMPLETED"
+                );
+            }
+
+            if (filteredOrders.length === 0) {
+                pickupList.innerHTML = `
+                    <p>
+                        No pickups match this filter.
+                    </p>
+                `;
+                return;
+            }
+
+            pickupList.innerHTML = filteredOrders.map(order => {
+
+                const items = Array.isArray(order.items)
+                    ? order.items
+                    : [];
+
+                return `
+                    <div class="pickup-order-card">
+
+                        <div class="pickup-order-header">
+
+                            <div>
+                                <strong>
+                                    ${escapeHTML(
+                                        order.pickup_time || "No time"
+                                    )}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(
+                                        order.customer_name || "Walk-in"
+                                    )}
+                                </span>
+                            </div>
+
                             <strong>
-                                ${escapeHTML(
-                                    order.pickup_time || "No time"
-                                )}
+                                ${escapeHTML(order.order_number)}
                             </strong>
 
-                            <span>
-                                ${escapeHTML(
-                                    order.customer_name || "Walk-in"
-                                )}
-                            </span>
                         </div>
 
-                        <strong>
-                            ${escapeHTML(order.order_number)}
-                        </strong>
+                        <div class="pickup-order-items">
+
+                            ${
+                                items.length === 0
+                                    ? `
+                                        <p>
+                                            No items.
+                                        </p>
+                                    `
+                                    : items.map(item => `
+                                        <div class="pickup-order-item">
+
+                                            <strong>
+                                                ${Number(item.quantity)}
+                                            </strong>
+
+                                            <span>
+                                                ${escapeHTML(
+                                                    item.product_name ||
+                                                    "Unknown item"
+                                                )}
+                                            </span>
+
+                                        </div>
+                                    `).join("")
+                            }
+
+                        </div>
 
                     </div>
+                `;
 
-                    <div class="pickup-order-items">
+            }).join("");
+        }
 
-                        ${
-                            items.length === 0
-                                ? `
-                                    <p>
-                                        No items.
-                                    </p>
-                                `
-                                : items.map(item => `
-                                    <div class="pickup-order-item">
+        renderPickupList("ALL");
 
-                                        <strong>
-                                            ${Number(item.quantity)}
-                                        </strong>
+        document
+            .querySelectorAll(".pickup-filter")
+            .forEach(button => {
 
-                                        <span>
-                                            ${escapeHTML(
-                                                item.product_name ||
-                                                "Unknown item"
-                                            )}
-                                        </span>
+                button.addEventListener(
+                    "click",
+                    () => {
 
-                                    </div>
-                                `).join("")
-                        }
+                        document
+                            .querySelectorAll(".pickup-filter")
+                            .forEach(filterButton => {
+                                filterButton.classList.remove("active");
+                            });
 
-                    </div>
+                        button.classList.add("active");
 
-                </div>
-            `;
-        }).join("");
+                        renderPickupList(
+                            button.dataset.pickupFilter
+                        );
+                    }
+                );
+            });
 
     } catch (error) {
 
