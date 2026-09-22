@@ -541,41 +541,111 @@ trainingCounterSaleCashReceived.addEventListener(
 
 completeTrainingCounterSale.addEventListener(
     "click",
-    () => {
+    async () => {
 
         if (completeTrainingCounterSale.disabled) {
             return;
         }
 
-        const total =
-            getTrainingCounterSaleTotal();
+        completeTrainingCounterSale.disabled = true;
 
-        const paymentMethod =
-            trainingCounterSalePaymentMethod.value;
+        trainingCounterSalePaymentError.classList.add(
+            "hidden"
+        );
 
-        const cashReceived =
-            Number(
-                trainingCounterSaleCashReceived.value
+        try {
+
+            const response = await fetch(
+                "/api/counter-sales",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        customer_id:
+                            document.getElementById(
+                                "training-counter-sale-customer"
+                            ).value || null,
+
+                        items:
+                            trainingCounterSaleCart.map(
+                                item => ({
+                                    product_id:
+                                        item.product_id ?? null,
+
+                                    custom_product_id:
+                                        item.custom_product_id ?? null,
+
+                                    quantity:
+                                        item.quantity
+                                })
+                            ),
+
+                        payment_method:
+                            trainingCounterSalePaymentMethod.value,
+
+                        cash_received:
+                            trainingCounterSalePaymentMethod.value === "CASH"
+                                ? Number(
+                                    trainingCounterSaleCashReceived.value
+                                )
+                                : null
+                    })
+                }
             );
 
-        if (
-            trainingCounterSaleCart.length === 0 ||
-            total <= 0 ||
-            paymentMethod === ""
-        ) {
-            return;
-        }
+            const data =
+                await response.json();
 
-        if (
-            paymentMethod === "CASH" &&
-            (
-                !Number.isFinite(cashReceived) ||
-                cashReceived < total
-            )
-        ) {
+            if (!response.ok || !data.success) {
+                throw new Error(
+                    data.error ||
+                    "Failed to complete training counter sale."
+                );
+            }
+
+            console.log(
+                "Training Counter Sale completed:",
+                data
+            );
+
+            const change =
+                Number(data.change ?? 0);
+
+            const changeMessage =
+                change > 0
+                    ? `\nChange: $${change.toFixed(2)}`
+                    : "";
+
+            alert(
+                `Training sale completed successfully.\n\n` +
+                `Order: ${data.order.order_number}` +
+                changeMessage
+            );
+
+            trainingCounterSaleCart = [];
+
+            trainingCounterSaleSelectedCategoryId =
+                null;
+
+            document.getElementById(
+                "training-counter-sale-customer"
+            ).value = "";
+
+            resetTrainingCounterSalePayment();
+
+            renderTrainingCounterSaleCart();
+
+        } catch (error) {
+
+            console.error(
+                "Training Counter Sale completion error:",
+                error
+            );
 
             trainingCounterSalePaymentError.textContent =
-                "Cash received must be at least the sale total.";
+                error.message;
 
             trainingCounterSalePaymentError.classList.remove(
                 "hidden"
@@ -583,59 +653,12 @@ completeTrainingCounterSale.addEventListener(
 
             updateTrainingCounterSalePayment();
 
-            return;
+        } finally {
+
+            completeTrainingCounterSale.disabled =
+                false;
+
         }
-
-        completeTrainingCounterSale.disabled =
-            true;
-
-        let message =
-            "Training sale completed.\n\n" +
-            `Total: $${total.toFixed(2)}\n`;
-
-        if (paymentMethod === "CASH") {
-
-            const change =
-                cashReceived - total;
-
-            message +=
-                `Payment: Cash\n` +
-                `Cash received: $${cashReceived.toFixed(2)}\n` +
-                `Change: $${change.toFixed(2)}\n`;
-
-        } else if (paymentMethod === "CARD") {
-
-            message +=
-                "Payment: Card\n";
-
-        } else if (paymentMethod === "BANK_TRANSFER") {
-
-            message +=
-                "Payment: Bank Transfer\n";
-
-        } else {
-
-            message +=
-                "Payment: Other\n";
-        }
-
-        message +=
-            "\nNo real sale was recorded.";
-
-        alert(message);
-
-        trainingCounterSaleCart = [];
-
-        trainingCounterSaleSelectedCategoryId =
-            null;
-
-        document.getElementById(
-            "training-counter-sale-customer"
-        ).value = "";
-
-        resetTrainingCounterSalePayment();
-
-        renderTrainingCounterSaleCart();
     }
 );
 
