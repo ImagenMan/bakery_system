@@ -1863,20 +1863,20 @@ async function loadPickupList() {
 
     const today = new Date();
 
-    const localDate =
-        today.getFullYear() +
+    const utcDate =
+        today.getUTCFullYear() +
         "-" +
-        String(today.getMonth() + 1).padStart(2, "0") +
+        String(today.getUTCMonth() + 1).padStart(2, "0") +
         "-" +
-        String(today.getDate()).padStart(2, "0");
+        String(today.getUTCDate()).padStart(2, "0");
 
     if (pickupListDate && !pickupListDate.value) {
-        pickupListDate.value = localDate;
+        pickupListDate.value = utcDate;
     }
 
     const pickupDate = pickupListDate
         ? pickupListDate.value
-        : localDate;
+        : utcDate;
 
     try {
 
@@ -1902,7 +1902,7 @@ async function loadPickupList() {
         if (!Array.isArray(result.data) || result.data.length === 0) {
             pickupList.innerHTML = `
                 <p>
-                    No pickups for today.
+                    No pickups for ${pickupDate}.
                 </p>
             `;
             return;
