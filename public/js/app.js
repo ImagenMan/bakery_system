@@ -2009,6 +2009,16 @@ async function loadPickupList() {
                                                 )}
                                             </span>
 
+                                            <span class="pickup-item-progress">
+                                                ${
+                                                    Number(item.quantity_remaining) === 0
+                                                        ? "✓ Fully picked up"
+                                                        : Number(item.quantity_remaining) === Number(item.quantity)
+                                                            ? `${Number(item.quantity_remaining)} remaining`
+                                                            : `${Number(item.quantity) - Number(item.quantity_remaining)} picked up · ${Number(item.quantity_remaining)} remaining`
+                                                }
+                                            </span>
+
                                         </div>
                                     `).join("")
                             }
