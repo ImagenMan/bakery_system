@@ -2486,7 +2486,7 @@ function renderProductionItem(
 
         </div>
 
-                <div class="production-plan-editor">
+        <div class="production-plan-editor">
 
             <label for="planned-quantity">
                 Planned quantity
@@ -2529,6 +2529,55 @@ function renderProductionItem(
             >
                 + Made
             </button>
+
+        </div>
+
+                <div class="production-available">
+
+            <label>
+                Available lots
+            </label>
+
+            <div>
+                ${
+                    availableEntries.length > 0
+                        ? availableEntries
+                            .map(
+                                (entry) => `
+                                    <div class="production-available-lot">
+                                        <button
+                                            type="button"
+                                            class="production-available-lot-select"
+                                            data-available-id="${entry.id}"
+                                        >
+                                            <div>
+                                                Lot #${entry.id}
+                                                — ${Number(entry.available_quantity) || 0}
+                                                <span class="production-available-lot-status"></span>
+                                            </div>
+
+                                            <div class="production-available-lot-balance">
+                                                Select lot to view inventory
+                                            </div>
+                                        </button>
+
+                                        <div class="production-available-lot-actions">
+                                            <button
+                                                type="button"
+                                                class="production-freeze-button"
+                                                data-available-id="${entry.id}"
+                                                disabled
+                                            >
+                                                Freeze
+                                            </button>
+                                        </div>
+                                    </div>
+                                `
+                            )
+                            .join("")
+                        : "No available lots."
+                }
+            </div>
 
         </div>
 
@@ -2618,6 +2667,337 @@ function renderProductionItem(
                 );
             }
         );
+
+    const availableLotButtons =
+        productionItemDetail.querySelectorAll(
+            ".production-available-lot-select"
+        );
+
+    availableLotButtons.forEach(
+        (button) => {
+            button.addEventListener(
+                "click",
+                async () => {
+
+                    const availableId =
+                        Number(
+                            button.dataset.availableId
+                        );
+
+                    if (
+                        !Number.isInteger(availableId) ||
+                        availableId <= 0
+                    ) {
+                        alert(
+                            "Invalid available lot."
+                        );
+                        return;
+                    }
+
+                    availableLotButtons.forEach(
+                        (lotButton) => {
+
+                            lotButton.classList.remove(
+                                "selected"
+                            );
+
+                            const status =
+                                lotButton.querySelector(
+                                    ".production-available-lot-status"
+                                );
+
+                            if (status) {
+                                status.textContent = "";
+                            }
+                        }
+                    );
+
+                    button.classList.add(
+                        "selected"
+                    );
+
+                    const status =
+                        button.querySelector(
+                            ".production-available-lot-status"
+                        );
+
+                    if (status) {
+                        status.textContent =
+                            " — Selected";
+                    }
+
+                    const balance =
+                        button.querySelector(
+                            ".production-available-lot-balance"
+                        );
+
+                    const lotContainer =
+                        button.closest(
+                            ".production-available-lot"
+                        );
+
+                    const freezeButton =
+                        lotContainer
+                            ? lotContainer.querySelector(
+                                ".production-freeze-button"
+                            )
+                            : null;
+
+                    if (freezeButton) {
+                        freezeButton.disabled = true;
+                    }
+
+                    if (balance) {
+                        balance.textContent =
+                            "Loading inventory...";
+                    }
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/production/available/${availableId}/inventory`
+                            );
+
+                        if (!response.ok) {
+                            throw new Error(
+                                `Server returned ${response.status}.`
+                            );
+                        }
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            throw new Error(
+                                result.error ||
+                                "Failed to load inventory."
+                            );
+                        }
+
+                        const fresh =
+                            Number(result.data.fresh) || 0;
+
+                        const frozen =
+                            Number(result.data.frozen) || 0;
+
+                        if (balance) {
+                            balance.textContent =
+                                `Fresh: ${fresh} — Frozen: ${frozen}`;
+                        }
+
+                        if (freezeButton) {
+                            freezeButton.disabled = fresh <= 0;
+                        }
+
+                    } catch (error) {
+
+                        console.error(
+                            "Failed to load available lot inventory:",
+                            error
+                        );
+
+                        if (balance) {
+                            balance.textContent =
+                                "Unable to load inventory.";
+                        }
+
+                        alert(
+                            error.message ||
+                            "Failed to load inventory."
+                        );
+                    }
+                }
+            );
+        }
+    );
+
+    const freezeButtons =
+        productionItemDetail.querySelectorAll(
+            ".production-freeze-button"
+        );
+
+    freezeButtons.forEach(
+        (freezeButton) => {
+            freezeButton.addEventListener(
+                "click",
+                async (event) => {
+
+                    event.stopPropagation();
+
+                    const availableId =
+                        Number(
+                            freezeButton.dataset.availableId
+                        );
+
+                    if (
+                        !Number.isInteger(availableId) ||
+                        availableId <= 0
+                    ) {
+                        alert(
+                            "Invalid available lot."
+                        );
+                        return;
+                    }
+
+                    const selectedLot =
+                        freezeButton.closest(
+                            ".production-available-lot"
+                        );
+
+                    const selectedLotButton =
+                        selectedLot
+                            ? selectedLot.querySelector(
+                                ".production-available-lot-select"
+                            )
+                            : null;
+
+                    if (
+                        !selectedLotButton ||
+                        !selectedLotButton.classList.contains(
+                            "selected"
+                        )
+                    ) {
+                        alert(
+                            "Select this lot first."
+                        );
+                        return;
+                    }
+
+                    freezeButton.disabled = true;
+
+                    try {
+
+                        const inventoryResponse =
+                            await fetch(
+                                `/api/production/available/${availableId}/inventory`
+                            );
+
+                        if (!inventoryResponse.ok) {
+                            throw new Error(
+                                `Server returned ${inventoryResponse.status}.`
+                            );
+                        }
+
+                        const inventoryResult =
+                            await inventoryResponse.json();
+
+                        if (!inventoryResult.success) {
+                            throw new Error(
+                                inventoryResult.error ||
+                                "Failed to load inventory."
+                            );
+                        }
+
+                        const fresh =
+                            Number(
+                                inventoryResult.data.fresh
+                            ) || 0;
+
+                        if (fresh <= 0) {
+                            throw new Error(
+                                "This lot has no fresh inventory to freeze."
+                            );
+                        }
+
+                        const response =
+                            await fetch(
+                                `/api/production/available/${availableId}/freeze`,
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json"
+                                    },
+                                    body: JSON.stringify({
+                                        source_production_available_id:
+                                            availableId,
+                                        quantity: fresh
+                                    })
+                                }
+                            );
+
+                        if (!response.ok) {
+                            throw new Error(
+                                `Server returned ${response.status}.`
+                            );
+                        }
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            throw new Error(
+                                result.error ||
+                                "Failed to freeze inventory."
+                            );
+                        }
+
+                        const updatedInventoryResponse =
+                            await fetch(
+                                `/api/production/available/${availableId}/inventory`
+                            );
+
+                        if (!updatedInventoryResponse.ok) {
+                            throw new Error(
+                                `Server returned ${updatedInventoryResponse.status}.`
+                            );
+                        }
+
+                        const updatedInventoryResult =
+                            await updatedInventoryResponse.json();
+
+                        if (!updatedInventoryResult.success) {
+                            throw new Error(
+                                updatedInventoryResult.error ||
+                                "Failed to refresh inventory."
+                            );
+                        }
+
+                        const updatedFresh =
+                            Number(
+                                updatedInventoryResult.data.fresh
+                            ) || 0;
+
+                        const updatedFrozen =
+                            Number(
+                                updatedInventoryResult.data.frozen
+                            ) || 0;
+
+                        const balance =
+                            selectedLot
+                                ? selectedLot.querySelector(
+                                    ".production-available-lot-balance"
+                                )
+                                : null;
+
+                        if (balance) {
+                            balance.textContent =
+                                `Fresh: ${updatedFresh} — Frozen: ${updatedFrozen}`;
+                        }
+
+                        freezeButton.disabled =
+                            updatedFresh <= 0;
+
+                    } catch (error) {
+
+                        console.error(
+                            "Failed to freeze available lot:",
+                            error
+                        );
+
+                        freezeButton.disabled = false;
+
+                        alert(
+                            error.message ||
+                            "Failed to freeze inventory."
+                        );
+                    }
+                }
+            );
+        }
+    );
+
     const endOfDayButton =
         document.getElementById("end-production-day");
 
