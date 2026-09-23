@@ -2570,6 +2570,15 @@ function renderProductionItem(
                                             >
                                                 Freeze
                                             </button>
+
+                                            <button
+                                                type="button"
+                                                class="production-waste-button"
+                                                data-available-id="${entry.id}"
+                                                disabled
+                                            >
+                                                Waste / Loss
+                                            </button>
                                         </div>
                                     </div>
                                 `
@@ -2603,6 +2612,100 @@ function renderProductionItem(
             </button>
 
         </div>
+
+        ${
+            currentUser &&
+            currentUser.role === "ADMIN"
+                ? `
+                    <div class="production-waste">
+
+                        <label>
+                            Waste / Loss
+                        </label>
+
+                        <div class="production-waste-content">
+                            Select an available lot above to record waste or loss.
+                        </div>
+
+                        <div
+                            class="production-waste-form"
+                            hidden
+                        >
+
+                            <label>
+                                State
+                            </label>
+
+                            <select
+                                class="production-waste-state"
+                            >
+                                <option value="FRESH">
+                                    Fresh
+                                </option>
+
+                                <option value="FROZEN">
+                                    Frozen
+                                </option>
+                            </select>
+
+                            <label>
+                                Quantity
+                            </label>
+
+                            <input
+                                type="number"
+                                class="production-waste-quantity"
+                                min="1"
+                                step="1"
+                                value="1"
+                            />
+
+                            <label>
+                                Reason
+                            </label>
+
+                            <select
+                                class="production-waste-reason"
+                            >
+                                <option value="UNSOLD">
+                                    Unsold
+                                </option>
+
+                                <option value="DAMAGED">
+                                    Damaged
+                                </option>
+
+                                <option value="EXPIRED">
+                                    Expired
+                                </option>
+
+                                <option value="OTHER">
+                                    Other
+                                </option>
+                            </select>
+
+                            <label>
+                                Notes
+                            </label>
+
+                            <textarea
+                                class="production-waste-notes"
+                                rows="3"
+                            ></textarea>
+
+                            <button
+                                type="button"
+                                class="production-waste-save"
+                            >
+                                Save Waste / Loss
+                            </button>
+
+                        </div>
+
+                    </div>
+                `
+                : ""
+        }
 
         ${
             currentUser &&
@@ -2668,6 +2771,178 @@ function renderProductionItem(
             }
         );
 
+    const productionWaste =
+        productionItemDetail.querySelector(
+            ".production-waste"
+        );
+
+    const wasteContent =
+        productionWaste
+            ? productionWaste.querySelector(
+                ".production-waste-content"
+            )
+            : null;
+
+    const saveWasteButton =
+        productionWaste
+            ? productionWaste.querySelector(
+                ".production-waste-save"
+            )
+            : null;
+
+    let selectedWasteAvailableId = null;
+
+    if (saveWasteButton) {
+
+        saveWasteButton.addEventListener(
+            "click",
+            async () => {
+
+                if (!selectedWasteAvailableId) {
+                    alert(
+                        "Select an available lot first."
+                    );
+                    return;
+                }
+
+                const state =
+                    productionWaste.querySelector(
+                        ".production-waste-state"
+                    ).value;
+
+                const quantity =
+                    Number(
+                        productionWaste.querySelector(
+                            ".production-waste-quantity"
+                        ).value
+                    );
+
+                const reason =
+                    productionWaste.querySelector(
+                        ".production-waste-reason"
+                    ).value;
+
+                const notes =
+                    productionWaste.querySelector(
+                        ".production-waste-notes"
+                    ).value.trim();
+
+                if (!Number.isInteger(quantity) || quantity <= 0) {
+                    alert(
+                        "Enter a valid positive quantity."
+                    );
+                    return;
+                }
+
+                saveWasteButton.disabled = true;
+
+                try {
+
+                    const response =
+                        await fetch(
+                            `/api/production/available/${selectedWasteAvailableId}/waste`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "Content-Type":
+                                        "application/json"
+                                },
+                                body: JSON.stringify({
+                                    source_production_available_id:
+                                        selectedWasteAvailableId,
+                                    quantity,
+                                    state,
+                                    reason,
+                                    notes:
+                                        notes || null
+                                })
+                            }
+                        );
+
+                    const result =
+                        await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error ||
+                            "Failed to save waste/loss."
+                        );
+                    }
+
+                    const balanceResponse =
+                        await fetch(
+                            `/api/production/available/${selectedWasteAvailableId}/inventory`
+                        );
+
+                    if (!balanceResponse.ok) {
+                        throw new Error(
+                            `Server returned ${balanceResponse.status}.`
+                        );
+                    }
+
+                    const balanceResult =
+                        await balanceResponse.json();
+
+                    if (!balanceResult.success) {
+                        throw new Error(
+                            balanceResult.error ||
+                            "Waste was saved, but inventory could not be refreshed."
+                        );
+                    }
+
+                    const fresh =
+                        Number(balanceResult.data.fresh) || 0;
+
+                    const frozen =
+                        Number(balanceResult.data.frozen) || 0;
+
+                    const selectedLotButton =
+                        productionItemDetail.querySelector(
+                            `.production-available-lot-select[data-available-id="${selectedWasteAvailableId}"]`
+                        );
+
+                    if (selectedLotButton) {
+
+                        const balance =
+                            selectedLotButton.querySelector(
+                                ".production-available-lot-balance"
+                            );
+
+                        if (balance) {
+                            balance.textContent =
+                                `Fresh: ${fresh} — Frozen: ${frozen}`;
+                        }
+                    }
+
+                    if (wasteContent) {
+                        wasteContent.textContent =
+                            `Selected Lot #${selectedWasteAvailableId} — Fresh available: ${fresh} — Frozen available: ${frozen}`;
+                    }
+
+                    alert(
+                        "Waste / Loss saved."
+                    );
+
+                } catch (error) {
+
+                    console.error(
+                        "Failed to save waste/loss:",
+                        error
+                    );
+
+                    alert(
+                        error.message ||
+                        "Failed to save waste/loss."
+                    );
+
+                } finally {
+
+                    saveWasteButton.disabled = false;
+                }
+            }
+        );
+    }
+
     const availableLotButtons =
         productionItemDetail.querySelectorAll(
             ".production-available-lot-select"
@@ -2693,6 +2968,8 @@ function renderProductionItem(
                         );
                         return;
                     }
+
+                    selectedWasteAvailableId = availableId;
 
                     availableLotButtons.forEach(
                         (lotButton) => {
@@ -2743,8 +3020,47 @@ function renderProductionItem(
                             )
                             : null;
 
+                    const wasteButton =
+                        lotContainer
+                            ? lotContainer.querySelector(
+                                ".production-waste-button"
+                            )
+                            : null;
+
+                    const wasteSection =
+                        productionItemDetail.querySelector(
+                            ".production-waste"
+                        );
+
+                    const wasteContent =
+                        wasteSection
+                            ? wasteSection.querySelector(
+                                ".production-waste-content"
+                            )
+                            : null;
+
+                    const wasteForm =
+                        wasteSection
+                            ? wasteSection.querySelector(
+                                ".production-waste-form"
+                            )
+                            : null;
+
                     if (freezeButton) {
                         freezeButton.disabled = true;
+                    }
+
+                    if (wasteButton) {
+                        wasteButton.disabled = true;
+                    }
+
+                    if (wasteForm) {
+                        wasteForm.hidden = true;
+                    }
+
+                    if (wasteContent) {
+                        wasteContent.textContent =
+                            `Selected Lot #${availableId} — Loading inventory...`;
                     }
 
                     if (balance) {
@@ -2786,8 +3102,22 @@ function renderProductionItem(
                                 `Fresh: ${fresh} — Frozen: ${frozen}`;
                         }
 
+                        if (wasteContent) {
+                            wasteContent.textContent =
+                                `Selected Lot #${availableId} — Fresh available: ${fresh} — Frozen available: ${frozen}`;
+                        }
+
+                        if (wasteForm) {
+                            wasteForm.hidden = false;
+                        }
+
                         if (freezeButton) {
                             freezeButton.disabled = fresh <= 0;
+                        }
+
+                        if (wasteButton) {
+                            wasteButton.disabled =
+                                fresh <= 0 && frozen <= 0;
                         }
 
                     } catch (error) {
@@ -2800,6 +3130,15 @@ function renderProductionItem(
                         if (balance) {
                             balance.textContent =
                                 "Unable to load inventory.";
+                        }
+
+                        if (wasteForm) {
+                            wasteForm.hidden = true;
+                        }
+
+                        if (wasteContent) {
+                            wasteContent.textContent =
+                                `Selected Lot #${availableId} — Unable to load inventory.`;
                         }
 
                         alert(
