@@ -275,6 +275,58 @@ button:hover {
     font-weight: bold;
 }
 
+.item-set-aside,
+.item-decorator-priority {
+    gap: 6px;
+}
+
+.item-set-aside strong,
+.item-decorator-priority strong {
+    font-size: 14px;
+}
+
+.item-set-aside > span,
+.item-decorator-priority > span {
+    color: #555;
+    font-size: 13px;
+}
+
+.pickup-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.set-aside-quantity {
+    width: 60px;
+    box-sizing: border-box;
+    padding: 8px 6px;
+    font-size: 16px;
+    text-align: center;
+}
+
+.set-aside-item {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.decorator-priority {
+    min-height: 38px;
+    padding: 8px 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.item-set-aside .set-aside-item {
+    border-color: #888;
+}
+
+.item-decorator-priority .decorator-priority {
+    border-color: #555;
+}
+
 /* =========================================================
    Production Overview
    ========================================================= */
