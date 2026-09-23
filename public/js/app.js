@@ -4570,67 +4570,152 @@ function renderOrderItem(
 
             </div>
 
-
             <div class="item-pickup">
 
                 ${
-    isCompletedCounterSale
-        ? `
-            ${
-                remaining > 0
-                    ? `
-                        <span>
-                            ${remaining}
-                            remaining
-                        </span>
-                    `
-                    : `
-                        <span class="pickup-complete">
-                            ✓ Fully Picked Up
-                        </span>
-                    `
-            }
-        `
-        : remaining > 0
-            ? `
-                <div class="pickup-control">
+                    isCompletedCounterSale
+                        ? `
+                            ${
+                                remaining > 0
+                                    ? `
+                                        <span>
+                                            ${remaining}
+                                            remaining
+                                        </span>
+                                    `
+                                    : `
+                                        <span class="pickup-complete">
+                                            ✓ Fully Picked Up
+                                        </span>
+                                    `
+                            }
+                        `
+                        : remaining > 0
+                            ? `
+                                <div class="pickup-control">
 
-                    <input
-                        type="number"
-                        class="pickup-quantity"
-                        data-item-id="${Number(item.id)}"
-                        data-remaining="${remaining}"
-                        min="1"
-                        max="${remaining}"
-                        step="1"
-                        value="1"
-                        inputmode="numeric"
-                    >
+                                    <input
+                                        type="number"
+                                        class="pickup-quantity"
+                                        data-item-id="${Number(item.id)}"
+                                        data-remaining="${remaining}"
+                                        min="1"
+                                        max="${remaining}"
+                                        step="1"
+                                        value="1"
+                                        inputmode="numeric"
+                                    >
 
-                    <button
-                        type="button"
-                        class="pickup-item"
-                        data-item-id="${Number(item.id)}"
-                        data-remaining="${remaining}"
-                    >
-                        Pick Up
-                    </button>
+                                    <button
+                                        type="button"
+                                        class="pickup-item"
+                                        data-item-id="${Number(item.id)}"
+                                        data-remaining="${remaining}"
+                                    >
+                                        Pick Up
+                                    </button>
 
-                </div>
+                                </div>
 
-                <small>
-                    ${remaining}
-                    remaining
-                </small>
-            `
-            : `
-                <span class="pickup-complete">
-                    ✓ Fully Picked Up
-                </span>
-            `
-}
+                                <small>
+                                    ${remaining}
+                                    remaining
+                                </small>
+                            `
+                            : `
+                                <span class="pickup-complete">
+                                    ✓ Fully Picked Up
+                                </span>
+                            `
+                }
+
+                ${
+                    !isCompletedCounterSale
+                        ? `
+                            <div class="item-set-aside">
+
+                                <strong>
+                                    Set Aside
+                                </strong>
+
+                                <span>
+                                    ${Number(item.quantity_set_aside_remaining)}
+                                    currently set aside
+                                </span>
+
+                                ${
+                                    Number(item.quantity_remaining) -
+                                    Number(item.quantity_set_aside)
+                                    > 0
+                                        ? `
+                                            <div class="pickup-control">
+
+                                                <input
+                                                    type="number"
+                                                    class="set-aside-quantity"
+                                                    data-item-id="${Number(item.id)}"
+                                                    data-remaining="${
+                                                        Number(item.quantity_remaining) -
+                                                        Number(item.quantity_set_aside)
+                                                    }"
+                                                    min="1"
+                                                    max="${
+                                                        Number(item.quantity_remaining) -
+                                                        Number(item.quantity_set_aside)
+                                                    }"
+                                                    step="1"
+                                                    value="1"
+                                                    inputmode="numeric"
+                                                >
+
+                                                <button
+                                                    type="button"
+                                                    class="set-aside-item"
+                                                    data-item-id="${Number(item.id)}"
+                                                >
+                                                    Set Aside
+                                                </button>
+
+                                            </div>
+                                        `
+                                        : `
+                                            <span>
+                                                Nothing remaining to set aside
+                                            </span>
+                                        `
+                                }
+
+                            </div>
+
+                            <div class="item-decorator-priority">
+
+                                <strong>
+                                    Decorator
+                                </strong>
+
+                                <button
+                                    type="button"
+                                    class="decorator-priority"
+                                    data-item-id="${Number(item.id)}"
+                                    data-priority="${
+                                        Number(item.decorator_priority) === 1
+                                            ? "1"
+                                            : "0"
+                                    }"
+                                >
+                                    ${
+                                        Number(item.decorator_priority) === 1
+                                            ? "Priority: YES"
+                                            : "Priority: NO"
+                                    }
+                                </button>
+
+                            </div>
+                        `
+                        : ""
+                }
+
             </div>
-
 
             <strong class="item-total">
                 ${formatMoney(item.line_total)}
@@ -5401,6 +5486,176 @@ function attachOrderDetailListeners(order) {
                 }
             );
         });
+
+    // -----------------------------------------------------
+    // Set Aside
+    // -----------------------------------------------------
+
+    document
+        .querySelectorAll(".set-aside-item")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                async () => {
+
+                    const itemId =
+                        Number(button.dataset.itemId);
+
+                    const input =
+                        document.querySelector(
+                            `.set-aside-quantity[data-item-id="${itemId}"]`
+                        );
+
+                    if (!input) {
+                        return;
+                    }
+
+                    const remaining =
+                        Number(input.dataset.remaining);
+
+                    const quantity =
+                        Number(input.value);
+
+                    if (
+                        !Number.isInteger(quantity) ||
+                        quantity <= 0
+                    ) {
+
+                        alert(
+                            "Set aside quantity must be a whole number greater than zero."
+                        );
+
+                        input.focus();
+                        return;
+                    }
+
+                    if (quantity > remaining) {
+
+                        alert(
+                            `Only ${remaining} item(s) remain available to set aside.`
+                        );
+
+                        input.focus();
+                        return;
+                    }
+
+                    button.disabled = true;
+                    button.textContent = "Setting Aside...";
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/orders/${order.id}/items/${itemId}/set-aside`,
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json"
+                                    },
+                                    body: JSON.stringify({
+                                        quantity
+                                    })
+                                }
+                            );
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            throw new Error(
+                                result.error ||
+                                "Failed to set aside item."
+                            );
+                        }
+
+                        renderOrderDetail(result.data);
+
+                    } catch (error) {
+
+                        console.error(
+                            "set aside error:",
+                            error
+                        );
+
+                        alert(error.message);
+
+                        button.disabled = false;
+                        button.textContent = "Set Aside";
+                    }
+                }
+            );
+        });
+
+
+    // -----------------------------------------------------
+    // Decorator Priority
+    // -----------------------------------------------------
+
+    document
+        .querySelectorAll(".decorator-priority")
+        .forEach(button => {
+
+            button.addEventListener(
+                "click",
+                async () => {
+
+                    const itemId =
+                        Number(button.dataset.itemId);
+
+                    const currentPriority =
+                        Number(button.dataset.priority) === 1;
+
+                    const priority =
+                        currentPriority ? 0 : 1;
+
+                    button.disabled = true;
+
+                    try {
+
+                        const response =
+                            await fetch(
+                                `/api/orders/${order.id}/items/${itemId}/decorator-priority`,
+                                {
+                                    method: "PUT",
+                                    headers: {
+                                        "Content-Type":
+                                            "application/json"
+                                    },
+                                    body: JSON.stringify({
+                                        priority
+                                    })
+                                }
+                            );
+
+                        const result =
+                            await response.json();
+
+                        if (!result.success) {
+                            throw new Error(
+                                result.error ||
+                                "Failed to update decorator priority."
+                            );
+                        }
+
+                        renderOrderDetail(result.data);
+
+                    } catch (error) {
+
+                        console.error(
+                            "decorator priority error:",
+                            error
+                        );
+
+                        alert(error.message);
+
+                        button.disabled = false;
+                    }
+                }
+            );
+        });
+
 
     // -----------------------------------------------------
     // Payment
