@@ -4644,9 +4644,7 @@ function renderOrderItem(
                                 </span>
 
                                 ${
-                                    Number(item.quantity_remaining) -
-                                    Number(item.quantity_set_aside)
-                                    > 0
+                                    Number(item.quantity_available_to_set_aside) > 0
                                         ? `
                                             <div class="pickup-control">
 
@@ -4654,15 +4652,9 @@ function renderOrderItem(
                                                     type="number"
                                                     class="set-aside-quantity"
                                                     data-item-id="${Number(item.id)}"
-                                                    data-remaining="${
-                                                        Number(item.quantity_remaining) -
-                                                        Number(item.quantity_set_aside)
-                                                    }"
+                                                    data-remaining="${Number(item.quantity_available_to_set_aside)}"
                                                     min="1"
-                                                    max="${
-                                                        Number(item.quantity_remaining) -
-                                                        Number(item.quantity_set_aside)
-                                                    }"
+                                                    max="${Number(item.quantity_available_to_set_aside)}"
                                                     step="1"
                                                     value="1"
                                                     inputmode="numeric"

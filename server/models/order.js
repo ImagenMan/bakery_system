@@ -923,10 +923,15 @@ function recordItemSetAside(
     const quantitySetAside =
         setAsideResult.quantity_set_aside;
 
+    const quantitySetAsideRemaining = Math.max(
+        0,
+        quantitySetAside - quantityPickedUp
+    );
+
     const remainingQuantity =
         item.quantity -
         quantityPickedUp -
-        quantitySetAside;
+        quantitySetAsideRemaining;
 
     if (quantity > remainingQuantity) {
         throw new Error(
@@ -1419,6 +1424,38 @@ function getOrderById(id) {
                 )
             ) AS quantity_set_aside_remaining,
 
+            MAX(
+                0,
+                oi.quantity -
+                COALESCE(
+                    (
+                        SELECT SUM(oip.quantity)
+                        FROM order_item_pickups oip
+                        WHERE oip.order_item_id = oi.id
+                    ),
+                    0
+                ) -
+                MAX(
+                    0,
+                    COALESCE(
+                        (
+                            SELECT SUM(oisa.quantity)
+                            FROM order_item_set_asides oisa
+                            WHERE oisa.order_item_id = oi.id
+                        ),
+                        0
+                    ) -
+                    COALESCE(
+                        (
+                            SELECT SUM(oip.quantity)
+                            FROM order_item_pickups oip
+                            WHERE oip.order_item_id = oi.id
+                        ),
+                        0
+                    )
+                )
+            ) AS quantity_available_to_set_aside,
+
             oi.unit_price,
             oi.notes,
 
@@ -1585,6 +1622,38 @@ function getPickupOrdersByDate(pickupDate) {
                     0
                 )
             ) AS quantity_set_aside_remaining,
+
+            MAX(
+                0,
+                oi.quantity -
+                COALESCE(
+                    (
+                        SELECT SUM(oip.quantity)
+                        FROM order_item_pickups oip
+                        WHERE oip.order_item_id = oi.id
+                    ),
+                    0
+                ) -
+                MAX(
+                    0,
+                    COALESCE(
+                        (
+                            SELECT SUM(oisa.quantity)
+                            FROM order_item_set_asides oisa
+                            WHERE oisa.order_item_id = oi.id
+                        ),
+                        0
+                    ) -
+                    COALESCE(
+                        (
+                            SELECT SUM(oip.quantity)
+                            FROM order_item_pickups oip
+                            WHERE oip.order_item_id = oi.id
+                        ),
+                        0
+                    )
+                )
+            ) AS quantity_available_to_set_aside,
 
             oi.unit_price,
             oi.notes,
