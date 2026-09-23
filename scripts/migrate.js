@@ -93,6 +93,29 @@ function migrateDatabase(dbPath) {
             console.log(`✅ Applied ${filename}`);
         }
 
+        if (path.basename(dbPath) === "training.db") {
+            db.prepare(`
+                INSERT INTO users (
+                    name,
+                    role,
+                    language,
+                    active
+                )
+                SELECT
+                    'Training User',
+                    'ADMIN',
+                    'ENGLISH',
+                    1
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM users
+                    WHERE name = 'Training User'
+                )
+            `).run();
+
+            console.log("✅ Training User provisioned.");
+        }
+
         console.log("🎉 Database migrations complete.");
     } finally {
         db.close();
