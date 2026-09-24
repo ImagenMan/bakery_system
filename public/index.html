@@ -701,6 +701,10 @@
 
         <div class="header-actions">
 
+            <button id="open-counter-today">
+                Counter
+            </button>
+
             <button id="open-pickup-list">
                 Pickup List
             </button>
@@ -729,6 +733,49 @@
 
         <p class="loading">
             Loading orders...
+        </p>
+
+    </div>
+
+</section>
+
+<!-- Counter Today -->
+
+<section id="counter-today-view" class="view hidden">
+
+    <div class="section-header">
+
+        <h2>Counter — Today</h2>
+
+        <div class="header-actions">
+
+            <button id="counter-today-back">
+                ← Orders
+            </button>
+
+            <button id="counter-today-pickups">
+                Pickups
+            </button>
+
+            <button
+                id="counter-today-receive"
+                disabled
+            >
+                Receive
+            </button>
+
+            <button id="counter-today-sale">
+                Counter Sale
+            </button>
+
+        </div>
+
+    </div>
+
+    <div id="counter-today-list">
+
+        <p class="loading">
+            Loading counter availability...
         </p>
 
     </div>

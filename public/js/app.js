@@ -38,6 +38,8 @@ function savePickupListState() {
 const loginView = document.getElementById("login-view");
 const ordersView = document.getElementById("orders-view");
 const pickupListView = document.getElementById("pickup-list-view");
+const counterTodayView = document.getElementById("counter-today-view");
+const counterTodayButton = document.getElementById("open-counter-today");
 const pickupListButton = document.getElementById("open-pickup-list");
 const pickupListBackButton = document.getElementById("pickup-list-back");
 const pickupList = document.getElementById("pickup-list");
@@ -8199,6 +8201,96 @@ async function loadTrainingCounterSale() {
     }
 }
 
+async function loadCounterToday() {
+
+    const counterTodayList =
+        document.getElementById("counter-today-list");
+
+    try {
+
+        const response =
+            await fetch("/api/counter/today");
+
+        if (!response.ok) {
+            throw new Error(
+                "Failed to load counter availability."
+            );
+        }
+
+        const data =
+            await response.json();
+
+        renderCounterToday(data.categories);
+
+    } catch (error) {
+
+        console.error(
+            "Counter Today load error:",
+            error
+        );
+
+        counterTodayList.innerHTML = `
+            <p class="error">
+                Unable to load counter availability.
+            </p>
+        `;
+    }
+}
+
+function renderCounterToday(categories) {
+
+    const counterTodayList =
+        document.getElementById("counter-today-list");
+
+    if (!categories || categories.length === 0) {
+
+        counterTodayList.innerHTML = `
+            <p class="loading">
+                Nothing currently available to sell.
+            </p>
+        `;
+
+        return;
+    }
+
+    counterTodayList.innerHTML =
+        categories.map(category => `
+            <div class="counter-today-category">
+
+                <div class="counter-today-category-header">
+
+                    <h3>
+                        ${category.category_name}
+                    </h3>
+
+                    <strong>
+                        ${category.total_quantity}
+                    </strong>
+
+                </div>
+
+                <div class="counter-today-products">
+
+                    ${category.products.map(product => `
+                        <div class="counter-today-product">
+
+                            <span>
+                                ${product.product_name}
+                            </span>
+
+                            <strong>
+                                ${product.available_quantity}
+                            </strong>
+
+                        </div>
+                    `).join("")}
+
+                </div>
+
+            </div>
+        `).join("");
+}
+
 async function loadTrainingPreorder() {
 
     try {
@@ -9540,6 +9632,84 @@ document
 
                 alert(error.message);
             }
+        }
+    );
+
+// Open Counter Today view
+
+counterTodayButton.addEventListener(
+    "click",
+    () => {
+
+        ordersView.classList.add("hidden");
+        newOrderView.classList.add("hidden");
+        orderDetailView.classList.add("hidden");
+        pickupListView.classList.add("hidden");
+        counterSaleView.classList.add("hidden");
+        productionView.classList.add("hidden");
+
+        appView = "counter-today";
+        saveNavigationState();
+
+        counterTodayView.classList.remove("hidden");
+
+        loadCounterToday();
+    }
+);
+
+// Counter Today navigation
+
+document
+    .getElementById("counter-today-back")
+    .addEventListener(
+        "click",
+        () => {
+
+            counterTodayView.classList.add("hidden");
+
+            appView = "orders";
+            saveNavigationState();
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
+
+document
+    .getElementById("counter-today-pickups")
+    .addEventListener(
+        "click",
+        () => {
+
+            counterTodayView.classList.add("hidden");
+            newOrderView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+            counterSaleView.classList.add("hidden");
+            productionView.classList.add("hidden");
+
+            appView = "pickup";
+            saveNavigationState();
+
+            pickupListView.classList.remove("hidden");
+
+            loadPickupList();
+        }
+    );
+
+document
+    .getElementById("counter-today-sale")
+    .addEventListener(
+        "click",
+        () => {
+
+            counterTodayView.classList.add("hidden");
+            newOrderView.classList.add("hidden");
+            orderDetailView.classList.add("hidden");
+
+            counterSaleView.classList.remove("hidden");
+
+            loadCounterSale();
         }
     );
 
