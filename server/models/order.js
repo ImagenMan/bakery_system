@@ -1329,6 +1329,7 @@ function getOrderById(id) {
             o.order_type,
             o.status,
             o.payment_status,
+            o.customer_here,
             o.total_amount,
             o.amount_paid,
             o.pickup_date,
@@ -1499,6 +1500,7 @@ function getAllOrders() {
             o.order_type,
             o.status,
             o.payment_status,
+            o.customer_here,
             o.total_amount,
             o.amount_paid,
             o.pickup_date,
@@ -1531,6 +1533,7 @@ function getPickupOrdersByDate(pickupDate) {
             o.order_type,
             o.status,
             o.payment_status,
+            o.customer_here,
             o.total_amount,
             o.amount_paid,
             o.pickup_date,
@@ -1728,6 +1731,43 @@ function updateOrderStatus(id, status) {
     return getOrderById(id);
 }
 
+function updateCustomerHere(id, customerHere) {
+
+    const order = db.prepare(`
+        SELECT
+            id,
+            order_type,
+            status
+        FROM orders
+        WHERE id = ?
+    `).get(id);
+
+    if (!order) {
+        throw new Error(
+            `Order ${id} not found.`
+        );
+    }
+
+    if (order.order_type !== "PREORDER") {
+        throw new Error(
+            "Customer Here is only available for preorders."
+        );
+    }
+
+    db.prepare(`
+        UPDATE orders
+        SET
+            customer_here = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `).run(
+        customerHere ? 1 : 0,
+        id
+    );
+
+    return getOrderById(id);
+}
+
 function recordPayment({
     orderId,
     amount,
@@ -1914,6 +1954,7 @@ function getPaymentHistory(orderId) {
         getAllOrders,
         getPickupOrdersByDate,
         updateOrderStatus,
+        updateCustomerHere,
         recordPayment,
         getPaymentHistory
     };

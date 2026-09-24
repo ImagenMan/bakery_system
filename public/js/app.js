@@ -6,6 +6,33 @@
 let currentUser = null;
 let orderDetailReturnView = "orders";
 
+let appMode = "NORMAL";
+let appView = "orders";
+
+function saveNavigationState() {
+
+    sessionStorage.setItem(
+        "bakery-app-mode",
+        appMode
+    );
+
+    sessionStorage.setItem(
+        "bakery-app-view",
+        appView
+    );
+}
+
+function savePickupListState() {
+
+    if (pickupListDate) {
+        sessionStorage.setItem(
+            "bakery-pickup-date",
+            pickupListDate.value
+        );
+    }
+
+}
+
 // --- DOM Elements ---
 
 const loginView = document.getElementById("login-view");
@@ -461,6 +488,10 @@ async function setNormalMode() {
 
     modeIndicator.textContent = "NORMAL MODE";
     modeIndicator.className = "mode-indicator normal";
+    appMode = "NORMAL";
+
+    document.getElementById("training-mode").textContent =
+        "Training / Playground";
 }
 
 
@@ -485,6 +516,10 @@ async function setTrainingMode() {
 
     modeIndicator.textContent = "TRAINING MODE";
     modeIndicator.className = "mode-indicator training";
+    appMode = "TRAINING";
+
+    document.getElementById("training-mode").textContent =
+        "Return to Normal";
 }
 
 document
@@ -492,19 +527,48 @@ document
     .addEventListener(
         "click",
         async () => {
-            try {
-                await setTrainingMode();
-            ordersView.classList.add("hidden");
-            orderDetailView.classList.add("hidden");
-            newOrderView.classList.add("hidden");
-            counterSaleView.classList.add("hidden");
-            productionView.classList.add("hidden");
 
-            trainingView.classList.remove("hidden");
+            try {
+
+                if (appMode === "TRAINING") {
+
+                    await setNormalMode();
+
+                    appView = "orders";
+                    saveNavigationState();
+
+                    trainingView.classList.add("hidden");
+                    pickupListView.classList.add("hidden");
+                    orderDetailView.classList.add("hidden");
+                    newOrderView.classList.add("hidden");
+                    counterSaleView.classList.add("hidden");
+                    productionView.classList.add("hidden");
+
+                    ordersView.classList.remove("hidden");
+
+                    loadOrders();
+
+                    return;
+                }
+
+                await setTrainingMode();
+
+                appView = "training";
+                saveNavigationState();
+
+                ordersView.classList.add("hidden");
+                orderDetailView.classList.add("hidden");
+                newOrderView.classList.add("hidden");
+                counterSaleView.classList.add("hidden");
+                productionView.classList.add("hidden");
+                pickupListView.classList.add("hidden");
+
+                trainingView.classList.remove("hidden");
 
             } catch (error) {
+
                 console.error(
-                    "Failed to enter Training Mode:",
+                    "Failed to change application mode:",
                     error
                 );
 
@@ -526,6 +590,22 @@ document
             renderTrainingCounterSaleCart();
 
             loadTrainingCounterSale();
+        }
+    );
+
+document
+    .getElementById("training-pickup-list")
+    .addEventListener(
+        "click",
+        () => {
+            trainingView.classList.add("hidden");
+
+            appView = "pickup";
+            saveNavigationState();
+
+            pickupListView.classList.remove("hidden");
+
+            loadPickupList();
         }
     );
 
@@ -1589,20 +1669,65 @@ function showLogin() {
 }
 
 async function showApplication() {
+
     loginView.classList.add("hidden");
 
+    const savedMode =
+        sessionStorage.getItem(
+            "bakery-app-mode"
+        ) || "NORMAL";
+
+    const savedView =
+        sessionStorage.getItem(
+            "bakery-app-view"
+        ) || "orders";
+
     try {
-        await setNormalMode();
+
+        if (savedMode === "TRAINING") {
+            await setTrainingMode();
+        } else {
+            await setNormalMode();
+        }
+
     } catch (error) {
+
         console.error(
-            "Failed to establish Normal Mode:",
+            "Failed to establish application mode:",
             error
         );
 
         loginError.textContent =
-            "Unable to establish Normal Mode.";
+            "Unable to establish application mode.";
 
         loginError.classList.remove("hidden");
+
+        return;
+    }
+
+    ordersView.classList.add("hidden");
+    orderDetailView.classList.add("hidden");
+    newOrderView.classList.add("hidden");
+    counterSaleView.classList.add("hidden");
+    productionView.classList.add("hidden");
+    trainingView.classList.add("hidden");
+    pickupListView.classList.add("hidden");
+
+    if (savedView === "pickup") {
+
+        pickupListView.classList.remove("hidden");
+
+        loadPickupList();
+
+        return;
+    }
+
+    if (
+        savedMode === "TRAINING" &&
+        savedView === "training"
+    ) {
+
+        trainingView.classList.remove("hidden");
 
         return;
     }
@@ -1894,12 +2019,21 @@ async function loadPickupList() {
         String(today.getUTCDate()).padStart(2, "0");
 
     if (pickupListDate && !pickupListDate.value) {
-        pickupListDate.value = utcDate;
+
+        const savedPickupDate =
+            sessionStorage.getItem(
+                "bakery-pickup-date"
+            );
+
+        pickupListDate.value =
+            savedPickupDate || utcDate;
     }
 
     const pickupDate = pickupListDate
         ? pickupListDate.value
         : utcDate;
+
+    savePickupListState();
 
     try {
 
@@ -2048,14 +2182,120 @@ async function loadPickupList() {
 
                         </div>
 
+                        <div class="pickup-order-actions">
+
+                            <button
+                                type="button"
+                                class="customer-here-button"
+                                data-order-id="${Number(order.id)}"
+                            >
+                                ${
+                                    Number(order.customer_here) === 1
+                                        ? "✓ Customer Here"
+                                        : "Customer Here"
+                                }
+                            </button>
+
+                        </div>
+
                     </div>
                 `;
 
-            }).join("");
+                        }).join("");
 
             document
                 .querySelectorAll(".pickup-order-card")
                 .forEach(card => {
+
+                    card
+                        .querySelector(".customer-here-button")
+                        .addEventListener(
+                            "click",
+                            async event => {
+
+                                event.stopPropagation();
+
+                                const orderId =
+                                    Number(
+                                        event.currentTarget.dataset.orderId
+                                    );
+
+                                if (
+                                    !Number.isInteger(orderId) ||
+                                    orderId <= 0
+                                ) {
+                                    return;
+                                }
+
+                                const newValue =
+                                    Number(
+                                        orders.find(
+                                            order =>
+                                                Number(order.id) === orderId
+                                        )?.customer_here || 0
+                                    ) !== 1;
+
+                                const button =
+                                    event.currentTarget;
+
+                                button.disabled = true;
+
+                                try {
+
+                                    const response = await fetch(
+                                        `/api/orders/${orderId}/customer-here`,
+                                        {
+                                            method: "PUT",
+                                            headers: {
+                                                "Content-Type":
+                                                    "application/json"
+                                            },
+                                            body: JSON.stringify({
+                                                customer_here:
+                                                    newValue
+                                            })
+                                        }
+                                    );
+
+                                    const result =
+                                        await response.json();
+
+                                    if (
+                                        !response.ok ||
+                                        !result.success
+                                    ) {
+                                        throw new Error(
+                                            result.error ||
+                                            "Failed to update customer arrival."
+                                        );
+                                    }
+
+                                    const orderIndex =
+                                        orders.findIndex(
+                                            order =>
+                                                Number(order.id) === orderId
+                                        );
+
+                                    if (orderIndex !== -1) {
+                                        orders[orderIndex] =
+                                            result.data;
+                                    }
+
+                                    renderPickupList(filter);
+
+                                } catch (error) {
+
+                                    console.error(
+                                        "customer here error:",
+                                        error
+                                    );
+
+                                    alert(error.message);
+
+                                    button.disabled = false;
+                                }
+                            }
+                        );
 
                     card.addEventListener(
                         "click",
@@ -2081,7 +2321,23 @@ async function loadPickupList() {
                 });
         }
 
-        renderPickupList("ALL");
+        const savedPickupFilter =
+            sessionStorage.getItem(
+                "bakery-pickup-filter"
+            ) || "ALL";
+
+        document
+            .querySelectorAll(".pickup-filter")
+            .forEach(button => {
+
+                button.classList.toggle(
+                    "active",
+                    button.dataset.pickupFilter ===
+                        savedPickupFilter
+                );
+            });
+
+        renderPickupList(savedPickupFilter);
 
         document
             .querySelectorAll(".pickup-filter")
@@ -2098,6 +2354,11 @@ async function loadPickupList() {
                             });
 
                         button.classList.add("active");
+
+                        sessionStorage.setItem(
+                            "bakery-pickup-filter",
+                            button.dataset.pickupFilter
+                        );
 
                         renderPickupList(
                             button.dataset.pickupFilter
@@ -9095,6 +9356,9 @@ document
             try {
                 await setNormalMode();
 
+                appView = "orders";
+                saveNavigationState();
+
                 trainingView.classList.add("hidden");
                 ordersView.classList.remove("hidden");
 
@@ -9123,6 +9387,9 @@ pickupListButton.addEventListener(
         counterSaleView.classList.add("hidden");
         productionView.classList.add("hidden");
 
+        appView = "pickup";
+        saveNavigationState();
+
         pickupListView.classList.remove("hidden");
 
         loadPickupList();
@@ -9143,6 +9410,9 @@ pickupListBackButton.addEventListener(
     () => {
 
         pickupListView.classList.add("hidden");
+
+        appView = "orders";
+        saveNavigationState();
 
         ordersView.classList.remove("hidden");
 

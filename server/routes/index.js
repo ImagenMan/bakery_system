@@ -1318,6 +1318,70 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
     }
 });
 
+router.put(
+    "/orders/:id/customer-here",
+    (req, res) => {
+        try {
+            const orderId = Number(req.params.id);
+            const { customer_here } = req.body;
+
+            if (
+                !Number.isInteger(orderId) ||
+                orderId <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid order ID."
+                });
+            }
+
+            if (
+                typeof customer_here !== "boolean"
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "customer_here must be true or false."
+                });
+            }
+
+            const order =
+                req.models.order.updateCustomerHere(
+                    orderId,
+                    customer_here
+                );
+
+            res.json({
+                success: true,
+                data: order
+            });
+
+        } catch (error) {
+
+            console.error(
+                "PUT /api/orders/:id/customer-here error:",
+                error
+            );
+
+            if (
+                error.message.includes("not found") ||
+                error.message.includes("only available")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error:
+                    "Failed to update customer arrival."
+            });
+        }
+    }
+);
+
 router.post(
     "/orders/:id/items/:itemId/set-aside",
     (req, res) => {
