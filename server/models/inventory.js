@@ -117,6 +117,78 @@ function createInventoryModel(db) {
         return result.quantity;
     }
 
+    function getCounterAvailableInventory() {
+        return db.prepare(`
+            SELECT
+                available.production_item_id,
+                available.product_id,
+                available.sku,
+                available.product_name,
+                available.unit,
+                available.product_display_order,
+                available.category_id,
+                available.category_code,
+                available.category_name,
+                available.category_display_order,
+                available.available_quantity
+            FROM (
+                SELECT
+                    pi.id AS production_item_id,
+                    p.id AS product_id,
+                    p.sku,
+                    p.name AS product_name,
+                    p.unit,
+                    p.display_order AS product_display_order,
+                    c.id AS category_id,
+                    c.code AS category_code,
+                    c.name AS category_name,
+                    c.display_order AS category_display_order,
+                    (
+                        COALESCE((
+                            SELECT SUM(it.quantity_delta)
+                            FROM inventory_transactions it
+                            WHERE it.production_item_id = pi.id
+                        ), 0)
+                        -
+                        MAX(
+                            0,
+                            COALESCE((
+                                SELECT SUM(
+                                    CASE
+                                        WHEN fi.action_type = 'FREEZE'
+                                        THEN fi.quantity
+                                        WHEN fi.action_type IN ('RELEASE', 'WASTE')
+                                        THEN -fi.quantity
+                                        ELSE 0
+                                    END
+                                )
+                                FROM frozen_inventory fi
+                                JOIN production_available pa
+                                    ON pa.id = fi.source_production_available_id
+                                JOIN production_plans pp
+                                    ON pp.id = pa.production_plan_id
+                                WHERE pp.production_item_id = pi.id
+                            ), 0)
+                        )
+                    ) AS available_quantity
+                FROM production_items pi
+                JOIN products p
+                    ON p.id = pi.product_id
+                JOIN categories c
+                    ON c.id = p.category_id
+                WHERE pi.active = 1
+                  AND p.active = 1
+                  AND c.active = 1
+            ) available
+            WHERE available.available_quantity > 0
+            ORDER BY
+                available.category_display_order,
+                available.category_name,
+                available.product_display_order,
+                available.product_name
+        `).all();
+    }
+
     function getInventoryTransactionsByProductionItem(
         production_item_id
     ) {
@@ -732,6 +804,7 @@ function createInventoryModel(db) {
         getInventoryTransactionById,
         findInventoryTransactionById,
         getInventoryBalance,
+        getCounterAvailableInventory,
         getInventoryTransactionsByProductionItem,
         getSourceLotBalances,
         createReceipt,

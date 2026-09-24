@@ -799,6 +799,55 @@ router.post("/preorders", (req, res) => {
     }
 });
 
+router.get("/counter/today", (req, res) => {
+    try {
+        const items = req.models.inventory.getCounterAvailableInventory();
+
+        const categories = [];
+
+        for (const item of items) {
+            let category = categories.find(
+                existing => existing.category_id === item.category_id
+            );
+
+            if (!category) {
+                category = {
+                    category_id: item.category_id,
+                    category_code: item.category_code,
+                    category_name: item.category_name,
+                    category_display_order: item.category_display_order,
+                    total_quantity: 0,
+                    products: []
+                };
+
+                categories.push(category);
+            }
+
+            category.total_quantity += Number(item.available_quantity);
+
+            category.products.push({
+                production_item_id: item.production_item_id,
+                product_id: item.product_id,
+                sku: item.sku,
+                product_name: item.product_name,
+                unit: item.unit,
+                available_quantity: Number(item.available_quantity),
+                product_display_order: item.product_display_order
+            });
+        }
+
+        res.json({
+            categories
+        });
+    } catch (error) {
+        console.error("GET /api/counter/today error:", error);
+
+        res.status(500).json({
+            error: error.message || "Failed to load counter availability."
+        });
+    }
+});
+
 router.post("/counter-sales", (req, res) => {
     try {
         const {
