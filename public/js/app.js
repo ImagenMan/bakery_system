@@ -2155,7 +2155,11 @@ async function loadPickupList() {
                                         </p>
                                     `
                                     : items.map(item => `
-                                        <div class="pickup-order-item">
+                                        <div
+                                            class="pickup-order-item"
+                                            data-item-id="${Number(item.id)}"
+                                            data-remaining="${Number(item.quantity_remaining)}"
+                                        >
 
                                             <strong>
                                                 ${Number(item.quantity)}
@@ -2177,6 +2181,35 @@ async function loadPickupList() {
                                                             : `${Number(item.quantity) - Number(item.quantity_remaining)} picked up · ${Number(item.quantity_remaining)} remaining`
                                                 }
                                             </span>
+
+                                            ${
+                                                Number(item.quantity_remaining) > 0
+                                                    ? `
+                                                        <div class="pickup-list-item-action">
+                                                            <input
+                                                                type="number"
+                                                                class="pickup-list-quantity"
+                                                                data-item-id="${Number(item.id)}"
+                                                                data-remaining="${Number(item.quantity_remaining)}"
+                                                                min="1"
+                                                                max="${Number(item.quantity_remaining)}"
+                                                                step="1"
+                                                                value="1"
+                                                                inputmode="numeric"
+                                                            >
+
+                                                            <button
+                                                                type="button"
+                                                                class="pickup-list-pickup"
+                                                                data-item-id="${Number(item.id)}"
+                                                                data-remaining="${Number(item.quantity_remaining)}"
+                                                            >
+                                                                Pick Up
+                                                            </button>
+                                                        </div>
+                                                    `
+                                                    : ""
+                                            }
 
                                         </div>
                                     `).join("")
@@ -2277,7 +2310,158 @@ async function loadPickupList() {
                             loadOrderDetail(orderId);
                         }
                     );
+                });
 
+            document
+                .querySelectorAll(".pickup-list-quantity")
+                .forEach(input => {
+
+                    input.addEventListener(
+                        "click",
+                        event => {
+                            event.stopPropagation();
+                        }
+                    );
+                });
+
+            document
+                .querySelectorAll(".pickup-list-pickup")
+                .forEach(button => {
+
+                    button.addEventListener(
+                        "click",
+                        async event => {
+
+                            event.stopPropagation();
+
+                            const itemId =
+                                Number(
+                                    event.currentTarget.dataset.itemId
+                                );
+
+                            const remaining =
+                                Number(
+                                    event.currentTarget.dataset.remaining
+                                );
+
+                            const input =
+                                document.querySelector(
+                                    `.pickup-list-quantity[data-item-id="${itemId}"]`
+                                );
+
+                            if (!input) {
+                                return;
+                            }
+
+                            const quantity =
+                                Number(input.value);
+
+                            if (
+                                !Number.isInteger(quantity) ||
+                                quantity <= 0
+                            ) {
+                                alert(
+                                    "Pickup quantity must be a whole number greater than zero."
+                                );
+                                input.focus();
+                                return;
+                            }
+
+                            if (quantity > remaining) {
+                                alert(
+                                    `Only ${remaining} item(s) remain to be picked up.`
+                                );
+                                input.focus();
+                                return;
+                            }
+
+                            const card =
+                                event.currentTarget.closest(
+                                    ".pickup-order-card"
+                                );
+
+                            const orderId =
+                                Number(
+                                    card?.dataset.orderId
+                                );
+
+                            if (
+                                !Number.isInteger(orderId) ||
+                                orderId <= 0
+                            ) {
+                                return;
+                            }
+
+                            event.currentTarget.disabled = true;
+                            event.currentTarget.textContent =
+                                "Recording...";
+
+                            try {
+
+                                const response =
+                                    await fetch(
+                                        `/api/orders/${orderId}/items/${itemId}/pickup`,
+                                        {
+                                            method: "POST",
+                                            headers: {
+                                                "Content-Type":
+                                                    "application/json"
+                                            },
+                                            body: JSON.stringify({
+                                                quantity
+                                            })
+                                        }
+                                    );
+
+                                const result =
+                                    await response.json();
+
+                                if (!result.success) {
+                                    throw new Error(
+                                        result.error ||
+                                        "Failed to record pickup."
+                                    );
+                                }
+
+                                const orderIndex =
+                                    orders.findIndex(
+                                        order =>
+                                            Number(order.id) ===
+                                            orderId
+                                    );
+
+                                if (orderIndex !== -1) {
+                                    orders[orderIndex] =
+                                        result.data;
+                                }
+
+                                renderPickupList(
+                                    document
+                                        .querySelector(
+                                            ".pickup-list-filter.active"
+                                        )
+                                        ?.dataset.filter ||
+                                    "ALL"
+                                );
+
+                            } catch (error) {
+
+                                console.error(
+                                    "pickup list record pickup error:",
+                                    error
+                                );
+
+                                alert(error.message);
+
+                                event.currentTarget.disabled =
+                                    false;
+
+                                event.currentTarget.textContent =
+                                    "Pick Up";
+                            }
+
+                        }
+                    );
                 });
 
             document
