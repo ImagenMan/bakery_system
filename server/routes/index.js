@@ -1382,6 +1382,59 @@ router.put(
     }
 );
 
+router.put("/orders/:id/pickup-ready", (req, res) => {
+    try {
+        const orderId = Number(req.params.id);
+        const { pickup_ready } = req.body;
+
+        if (!Number.isInteger(orderId) || orderId <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid order ID."
+            });
+        }
+
+        if (typeof pickup_ready !== "boolean") {
+            return res.status(400).json({
+                success: false,
+                error: "pickup_ready must be true or false."
+            });
+        }
+
+        const order = req.models.order.updatePickupReady(
+            orderId,
+            pickup_ready
+        );
+
+        res.json({
+            success: true,
+            data: order
+        });
+
+    } catch (error) {
+
+        console.error(
+            "PUT /api/orders/:id/pickup-ready error:",
+            error
+        );
+
+        if (
+            error.message.includes("not found") ||
+            error.message.includes("only available for preorders")
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to update pickup readiness."
+        });
+    }
+});
+
 router.post(
     "/orders/:id/items/:itemId/set-aside",
     (req, res) => {

@@ -2196,6 +2196,18 @@ async function loadPickupList() {
                                 }
                             </button>
 
+                            <button
+                                type="button"
+                                class="pickup-ready-button"
+                                data-order-id="${Number(order.id)}"
+                            >
+                                ${
+                                    Number(order.pickup_ready) === 1
+                                        ? "✓ Ready"
+                                        : "Not Ready"
+                                }
+                            </button>
+
                         </div>
 
                     </div>
@@ -2319,6 +2331,99 @@ async function loadPickupList() {
                         }
                     );
                 });
+
+                document
+                    .querySelectorAll(".pickup-ready-button")
+                    .forEach(button => {
+
+                        button.addEventListener(
+                            "click",
+                            async event => {
+
+                                event.stopPropagation();
+
+                                const orderId =
+                                    Number(
+                                        event.currentTarget.dataset.orderId
+                                    );
+
+                                if (
+                                    !Number.isInteger(orderId) ||
+                                    orderId <= 0
+                                ) {
+                                    return;
+                                }
+
+                                const newValue =
+                                    Number(
+                                        orders.find(
+                                            order =>
+                                                Number(order.id) === orderId
+                                        )?.pickup_ready || 0
+                                    ) !== 1;
+
+                                const readyButton =
+                                    event.currentTarget;
+
+                                readyButton.disabled = true;
+
+                                try {
+
+                                    const response = await fetch(
+                                        `/api/orders/${orderId}/pickup-ready`,
+                                        {
+                                            method: "PUT",
+                                            headers: {
+                                                "Content-Type":
+                                                    "application/json"
+                                            },
+                                            body: JSON.stringify({
+                                                pickup_ready:
+                                                    newValue
+                                            })
+                                        }
+                                    );
+
+                                    const result =
+                                        await response.json();
+
+                                    if (
+                                        !response.ok ||
+                                        !result.success
+                                    ) {
+                                        throw new Error(
+                                            result.error ||
+                                            "Failed to update pickup readiness."
+                                        );
+                                    }
+
+                                    const orderIndex =
+                                        orders.findIndex(
+                                            order =>
+                                                Number(order.id) === orderId
+                                        );
+
+                                    if (orderIndex !== -1) {
+                                        orders[orderIndex] =
+                                            result.data;
+                                    }
+
+                                    renderPickupList(filter);
+
+                                } catch (error) {
+
+                                    console.error(
+                                        "pickup ready error:",
+                                        error
+                                    );
+
+                                    alert(error.message);
+
+                                    readyButton.disabled = false;
+                                }
+                            }
+                        );
+                    });
         }
 
         const savedPickupFilter =

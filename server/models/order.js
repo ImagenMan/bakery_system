@@ -1330,6 +1330,7 @@ function getOrderById(id) {
             o.status,
             o.payment_status,
             o.customer_here,
+            o.pickup_ready,
             o.total_amount,
             o.amount_paid,
             o.pickup_date,
@@ -1534,6 +1535,7 @@ function getPickupOrdersByDate(pickupDate) {
             o.status,
             o.payment_status,
             o.customer_here,
+            o.pickup_ready,
             o.total_amount,
             o.amount_paid,
             o.pickup_date,
@@ -1727,6 +1729,42 @@ function updateOrderStatus(id, status) {
             updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
     `).run(status, id);
+
+    return getOrderById(id);
+}
+
+function updatePickupReady(id, pickupReady) {
+
+    const order = db.prepare(`
+        SELECT
+            id,
+            order_type
+        FROM orders
+        WHERE id = ?
+    `).get(id);
+
+    if (!order) {
+        throw new Error(
+            `Order ${id} not found.`
+        );
+    }
+
+    if (order.order_type !== "PREORDER") {
+        throw new Error(
+            "Pickup readiness is only available for preorders."
+        );
+    }
+
+    db.prepare(`
+        UPDATE orders
+        SET
+            pickup_ready = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `).run(
+        pickupReady ? 1 : 0,
+        id
+    );
 
     return getOrderById(id);
 }
@@ -1954,6 +1992,7 @@ function getPaymentHistory(orderId) {
         getAllOrders,
         getPickupOrdersByDate,
         updateOrderStatus,
+        updatePickupReady,
         updateCustomerHere,
         recordPayment,
         getPaymentHistory
