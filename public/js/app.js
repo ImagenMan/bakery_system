@@ -2182,6 +2182,35 @@ async function loadPickupList() {
 
                         </div>
 
+                        <div class="pickup-payment-status">
+
+                            ${
+                                order.payment_status === "PAID"
+                                    ? `
+                                        <span class="pickup-paid-status">
+                                            ✓ Paid
+                                        </span>
+                                    `
+                                    : `
+                                        <button
+                                            type="button"
+                                            class="pickup-pay-button"
+                                            data-order-id="${Number(order.id)}"
+                                        >
+                                            ${
+                                                order.payment_status === "PARTIAL"
+                                                    ? `Pay Balance — $${Number(
+                                                        Number(order.total_amount) -
+                                                        Number(order.amount_paid)
+                                                    ).toFixed(2)} remaining`
+                                                    : "Pay Balance"
+                                            }
+                                        </button>
+                                    `
+                            }
+
+                        </div>
+
                         <div class="pickup-order-actions">
 
                             <button
@@ -2214,6 +2243,40 @@ async function loadPickupList() {
                 `;
 
                         }).join("");
+
+            document
+                .querySelectorAll(".pickup-pay-button")
+                .forEach(button => {
+
+                    button.addEventListener(
+                        "click",
+                        event => {
+
+                            event.stopPropagation();
+
+                            const orderId =
+                                Number(
+                                    event.currentTarget.dataset.orderId
+                                );
+
+                            if (
+                                !Number.isInteger(orderId) ||
+                                orderId <= 0
+                            ) {
+                                return;
+                            }
+
+                            orderDetailReturnView = "pickup";
+
+                            document
+                                .getElementById("pickup-list-view")
+                                .classList.add("hidden");
+
+                            loadOrderDetail(orderId);
+                        }
+                    );
+
+                });
 
             document
                 .querySelectorAll(".pickup-order-card")
