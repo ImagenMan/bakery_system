@@ -1836,6 +1836,7 @@ router.post("/orders/:id/payments", (req, res) => {
             error.message.includes("Invalid payment method") ||
             error.message.includes("Payment exceeds") ||
             error.message.includes("Cash received") ||
+            error.message.includes("Bank transfer must pay the full remaining balance") ||
             error.message.includes("cannot be modified")
         ) {
             return res.status(400).json({

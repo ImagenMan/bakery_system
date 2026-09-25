@@ -1851,6 +1851,16 @@ function recordPayment({
             );
         }
 
+        if (
+            paymentMethod === "BANK_TRANSFER" &&
+            roundMoney(amount) !==
+                roundMoney(order.total_amount - order.amount_paid)
+        ) {
+            throw new Error(
+                "Bank transfer must pay the full remaining balance."
+            );
+        }
+
         const newAmountPaid = roundMoney(order.amount_paid + amount);
 
         let change = 0;
