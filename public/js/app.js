@@ -6274,26 +6274,48 @@ const paymentMethodInput =
 const cashReceivedField =
     document.getElementById("cash-received-field");
 
-function updateCashReceivedVisibility() {
+function updatePaymentMethodUI() {
 
-    if (!paymentMethodInput || !cashReceivedField) {
+    if (!paymentMethodInput) {
         return;
     }
 
-    cashReceivedField.style.display =
-        paymentMethodInput.value === "CASH"
-            ? ""
-            : "none";
+    const isCash =
+        paymentMethodInput.value === "CASH";
+
+    const isBankTransfer =
+        paymentMethodInput.value === "BANK_TRANSFER";
+
+    if (cashReceivedField) {
+        cashReceivedField.style.display =
+            isCash
+                ? ""
+                : "none";
+    }
+
+    const amountInput =
+        document.getElementById("payment-amount");
+
+    if (amountInput) {
+
+        if (isBankTransfer) {
+            amountInput.value =
+                balance.toFixed(2);
+            amountInput.disabled = true;
+        } else {
+            amountInput.disabled = false;
+        }
+    }
 }
 
 if (paymentMethodInput) {
 
     paymentMethodInput.addEventListener(
         "change",
-        updateCashReceivedVisibility
+        updatePaymentMethodUI
     );
 
-    updateCashReceivedVisibility();
+    updatePaymentMethodUI();
 }
 
 const cashReceivedInput =
