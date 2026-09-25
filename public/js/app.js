@@ -6896,6 +6896,8 @@ document
         }
     );
 
+let counterSaleAvailability = new Map();
+
 async function loadCounterSale() {
 
     counterSaleCart = [];
@@ -6913,11 +6915,15 @@ async function loadCounterSale() {
         const [
             customersResponse,
             productsResponse,
-            customProductsResponse
+            customProductsResponse,
+            availabilityResponse
         ] = await Promise.all([
             fetch("/api/customers"),
             fetch("/api/products"),
-            fetch("/api/custom-products")
+            fetch("/api/custom-products"),
+            fetch("/api/counter/today", {
+                cache: "no-store"
+            })
         ]);
 
         if (
@@ -6938,6 +6944,25 @@ async function loadCounterSale() {
 
         const customProductsData =
             await customProductsResponse.json();
+
+        const availabilityData =
+            await availabilityResponse.json();
+
+        counterSaleAvailability =
+            new Map();
+
+        (availabilityData.categories || []).forEach(
+            category => {
+                (category.products || []).forEach(
+                    product => {
+                        counterSaleAvailability.set(
+                            product.product_id,
+                            Number(product.available_quantity) || 0
+                        );
+                    }
+                );
+            }
+        );
 
         renderCounterSaleCustomers(
             customersData.data
@@ -9369,8 +9394,33 @@ function selectCounterSaleCategory(categoryId) {
         button.className =
             "counter-sale-product";
 
-        button.textContent =
-            `${product.name} — $${Number(product.price).toFixed(2)}`;
+        const productionBacked =
+            product.production_item_id !== null &&
+            product.production_item_id !== undefined &&
+            Number.isInteger(
+                Number(product.production_item_id)
+            );
+
+        if (productionBacked) {
+
+            const availableQuantity =
+                Number(
+                    counterSaleAvailability.get(product.id)
+                ) || 0;
+
+            button.textContent =
+                `${product.name} — $${Number(product.price).toFixed(2)} — ${availableQuantity} available`;
+
+            if (availableQuantity <= 0) {
+                button.disabled = true;
+                button.classList.add("unavailable");
+            }
+
+        } else {
+
+            button.textContent =
+                `${product.name} — $${Number(product.price).toFixed(2)}`;
+        }
 
         button.addEventListener(
             "click",
@@ -9426,11 +9476,35 @@ function renderCounterSaleCustomProducts(
 
 function addCounterSaleProduct(product) {
 
+    const productionBacked =
+        product.production_item_id !== null &&
+        product.production_item_id !== undefined &&
+        Number.isInteger(
+            Number(product.production_item_id)
+        );
+
+    const availableQuantity =
+        Number(
+            counterSaleAvailability.get(product.id)
+        );
+
     const existingItem =
         counterSaleCart.find(
             item =>
                 item.product_id === product.id
         );
+
+    if (
+        productionBacked &&
+        Number.isFinite(availableQuantity) &&
+        (
+            existingItem
+                ? existingItem.quantity >= availableQuantity
+                : availableQuantity < 1
+        )
+    ) {
+        return;
+    }
 
     if (existingItem) {
 
@@ -9440,6 +9514,8 @@ function addCounterSaleProduct(product) {
 
         counterSaleCart.push({
             product_id: product.id,
+            production_item_id:
+                product.production_item_id,
             name: product.name,
             unit_price: Number(product.price),
             quantity: 1
@@ -9604,6 +9680,27 @@ function changeCounterSaleQuantity(
         counterSaleCart[index];
 
     if (!item) {
+        return;
+    }
+
+    const productionBacked =
+        item.production_item_id !== null &&
+        item.production_item_id !== undefined &&
+        Number.isInteger(
+            Number(item.production_item_id)
+        );
+
+    const availableQuantity =
+        Number(
+            counterSaleAvailability.get(item.product_id)
+        );
+
+    if (
+        amount > 0 &&
+        productionBacked &&
+        Number.isFinite(availableQuantity) &&
+        item.quantity + amount > availableQuantity
+    ) {
         return;
     }
 

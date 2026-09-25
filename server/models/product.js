@@ -18,6 +18,13 @@ function createProductModel(
                 p.unit,
                 p.display_order,
                 p.active,
+                (
+                    SELECT pi.id
+                    FROM production_items pi
+                    WHERE pi.product_id = p.id
+                      AND pi.active = 1
+                    LIMIT 1
+                ) AS production_item_id,
                 c.id AS category_id,
                 c.code AS category_code,
                 c.name AS category_name
