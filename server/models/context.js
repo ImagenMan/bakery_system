@@ -17,6 +17,7 @@ const productionOutputModel = require("./productionOutput");
 const inventoryModel = require("./inventory");
 const frozenInventoryModel = require("./frozenInventory");
 const dailyRecordModel = require("./dailyRecord");
+const operationalEventModel = require("./operationalEvent");
 
 const productionDb = require("../config/database");
 
@@ -66,7 +67,9 @@ function createModels(db, authorizationUser) {
         frozenInventory:
             frozenInventoryModel.createFrozenInventoryModel(db),
         dailyRecord:
-            dailyRecordModel.createDailyRecordModel(db)
+            dailyRecordModel.createDailyRecordModel(db),
+        operationalEvent:
+            operationalEventModel.createOperationalEventModel(db)
     };
 }
 
