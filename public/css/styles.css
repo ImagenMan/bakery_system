@@ -8,25 +8,33 @@
 }
 
 :root {
-    --page-bg: #f6f5f2;
+    --page-bg: #f5f3ef;
     --surface: #ffffff;
-    --surface-muted: #f8f8f6;
-    --border: #d9d9d4;
-    --border-strong: #c4c4be;
+    --surface-muted: #faf9f6;
+
+    --border: #dedbd4;
+    --border-strong: #c7c3bb;
+
     --text: #2f302d;
-    --text-muted: #666863;
+    --text-muted: #686963;
     --text-light: #858780;
+
     --accent: #5d5a52;
     --accent-hover: #47453f;
     --focus: #8a7d62;
+
     --success-bg: #edf7ee;
     --success-border: #9ac69d;
     --success-text: #245c29;
+
     --warning-bg: #fff8dc;
     --danger: #b00020;
-    --radius: 9px;
-    --radius-small: 6px;
-    --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+    --radius: 10px;
+    --radius-small: 7px;
+
+    --shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 5px 14px rgba(0, 0, 0, 0.08);
 }
 
 body {
@@ -126,8 +134,7 @@ button {
     transition:
         background 0.12s ease,
         border-color 0.12s ease,
-        box-shadow 0.12s ease,
-        transform 0.05s ease;
+        box-shadow 0.12s ease;
 }
 
 button:hover {
@@ -136,7 +143,7 @@ button:hover {
 }
 
 button:active {
-    transform: translateY(1px);
+    transform: none;
 }
 
 button:focus-visible,
@@ -150,6 +157,18 @@ textarea:focus-visible {
 button:disabled {
     cursor: not-allowed;
     opacity: 0.6;
+}
+
+button.primary-action {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #ffffff;
+    font-weight: bold;
+}
+
+button.primary-action:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
 }
 
 input,
@@ -230,7 +249,7 @@ textarea {
 
 .order-card:hover {
     border-color: #bbb;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-hover);
     transform: translateY(-1px);
 }
 
@@ -595,7 +614,7 @@ textarea {
 
 .pickup-order-card:hover {
     border-color: #bbb;
-    box-shadow: var(--shadow);
+    box-shadow: var(--shadow-hover);
 }
 
 .pickup-order-header {
