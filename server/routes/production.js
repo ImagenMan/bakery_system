@@ -3,6 +3,120 @@ const router = express.Router();
 
 const { requireAdmin } = require("../middleware/auth");
 
+router.post(
+    "/days/:productionDate/close",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const productionDate =
+                req.params.productionDate;
+
+            const productionRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(productionDate);
+
+            if (!productionRecord) {
+                return res.status(404).json({
+                    success: false,
+                    error:
+                        `No daily record exists for production date ${productionDate}.`
+                });
+            }
+
+            if (!productionRecord.opened_at) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Cannot close production for a daily record that has not been opened."
+                });
+            }
+
+            if (productionRecord.closed_at) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Cannot close production for a daily record that is already closed."
+                });
+            }
+
+            const today =
+                new Date();
+
+            const todayDate =
+                [
+                    today.getUTCFullYear(),
+                    String(today.getUTCMonth() + 1).padStart(2, "0"),
+                    String(today.getUTCDate()).padStart(2, "0")
+                ].join("-");
+
+            if (productionDate > todayDate) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Cannot close a future production date."
+                });
+            }
+
+            const eventAt =
+                [
+                    today.getUTCFullYear(),
+                    String(today.getUTCMonth() + 1).padStart(2, "0"),
+                    String(today.getUTCDate()).padStart(2, "0")
+                ].join("-") +
+                " " +
+                [
+                    String(today.getUTCHours()).padStart(2, "0"),
+                    String(today.getUTCMinutes()).padStart(2, "0"),
+                    String(today.getUTCSeconds()).padStart(2, "0")
+                ].join(":");
+
+            const event =
+                req.models.operationalEvent.closeProductionDay({
+                    daily_record_id:
+                        productionRecord.id,
+                    event_at: eventAt,
+                    user_id:
+                        req.user.id
+                });
+
+            res.json({
+                success: true,
+                data: event
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/production/days/:productionDate/close error:",
+                error
+            );
+
+            if (error.message.includes("not found")) {
+                return res.status(404).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            if (
+                error.message.includes("required") ||
+                error.message.includes("valid") ||
+                error.message.includes("positive") ||
+                error.message.includes("future") ||
+                error.message.includes("opened") ||
+                error.message.includes("closed")
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: error.message
+                });
+            }
+
+            res.status(500).json({
+                success: false,
+                error: "Failed to close production day."
+            });
+        }
+    }
+);
 
 // =========================================================
 // Production Items
