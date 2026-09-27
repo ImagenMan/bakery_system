@@ -2770,7 +2770,9 @@ async function loadProductionOverview(date) {
         }
 
         renderProductionOverview(
-            result.data,
+            result.data.items,
+            result.data.production_day_closed,
+            result.data.business_day_closed,
             date
         );
 
@@ -4251,19 +4253,88 @@ async function recordProductionAvailable(
 
 function renderProductionOverview(
     items,
+    productionDayClosed,
+    businessDayClosed,
     productionDate
 ) {
 
-    if (!Array.isArray(items) || items.length === 0) {
+        const productionDayStatus =
+            productionDayClosed
+                ? `
+                    <div class="production-day-status">
+                        <strong>
+                            Production Day Closed
+                        </strong>
+
+                        <p>
+                            Production for this date is closed.
+                            New production plans, output, and available inventory
+                            cannot be added.
+                        </p>
+                    </div>
+                `
+                : businessDayClosed
+                    ? `
+                        <div class="production-day-status">
+                            <strong>
+                                Business Day Closed
+                            </strong>
+
+                            <p>
+                                The bakery business day is already closed.
+                                Production cannot be closed separately.
+                            </p>
+                        </div>
+                    `
+                    : currentUser &&
+                    currentUser.role === "ADMIN"
+                        ? `
+                            <div class="production-day-status">
+                                <strong>
+                                    Production Day Open
+                                </strong>
+
+                                <p>
+                                    Close production when all production work for this
+                                    date is finished.
+                                </p>
+
+                                <button
+                                    type="button"
+                                    id="close-production-day"
+                                >
+                                    Close Production Day
+                                </button>
+                            </div>
+                        `
+                        : "";
+
+        if (!Array.isArray(items) || items.length === 0) {
+
+            productionOverview.innerHTML = `
+                ${productionDayStatus}
+
+                <p>
+                    No production demand for this date.
+                </p>
+            `;
+
+            if (
+                !productionDayClosed &&
+                !businessDayClosed
+            ) {
+                attachCloseProductionDayHandler(
+                    productionDate
+                );
+            }
+
+            return;
+        }
 
         productionOverview.innerHTML = `
-            <p>No production demand for this date.</p>
-        `;
+            ${productionDayStatus}
 
-        return;
-    }
-
-    productionOverview.innerHTML = items.map(item => {
+            ${items.map(item => {
 
         const demand =
             Number(item.demand_quantity) || 0;
@@ -4304,10 +4375,11 @@ function renderProductionOverview(
             </button>
         `;
 
-    }).join("");
+            }).join("")}
+        `;
 
-    document
-        .querySelectorAll(".production-item")
+        document
+            .querySelectorAll(".production-item")
         .forEach(button => {
 
             button.addEventListener(
@@ -4333,6 +4405,91 @@ function renderProductionOverview(
                 }
             );
         });
+
+            if (
+                !productionDayClosed &&
+                !businessDayClosed
+            ) {
+                attachCloseProductionDayHandler(
+                    productionDate
+                );
+            }
+}
+
+function attachCloseProductionDayHandler(
+    productionDate
+) {
+
+    const button =
+        document.getElementById(
+            "close-production-day"
+        );
+
+    if (!button) {
+        return;
+    }
+
+    button.addEventListener(
+        "click",
+        async () => {
+
+            const confirmed =
+                window.confirm(
+                    `Close production for ${productionDate}?`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            button.disabled = true;
+            button.textContent =
+                "Closing Production Day...";
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/api/production/days/${encodeURIComponent(
+                            productionDate
+                        )}/close`,
+                        {
+                            method: "POST"
+                        }
+                    );
+
+                const result =
+                    await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to close production day."
+                    );
+                }
+
+                await loadProductionOverview(
+                    productionDate
+                );
+
+            } catch (error) {
+
+                console.error(
+                    "closeProductionDay error:",
+                    error
+                );
+
+                alert(
+                    error.message ||
+                    "Failed to close production day."
+                );
+
+                button.disabled = false;
+                button.textContent =
+                    "Close Production Day";
+            }
+        }
+    );
 }
 
 // =========================================================

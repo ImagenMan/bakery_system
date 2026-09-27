@@ -753,9 +753,27 @@ router.get("/overview", (req, res) => {
         const result =
             req.models.productionPlan.getProductionOverviewByDate(date);
 
+        const productionDayClosed =
+            req.models.operationalEvent
+                .isProductionDayClosed(date);
+
+        const dailyRecord =
+            req.models.dailyRecord
+                .findDailyRecordByDate(date);
+
+        const businessDayClosed =
+            Boolean(
+                dailyRecord &&
+                dailyRecord.closed_at
+            );
+
         res.json({
             success: true,
-            data: result
+            data: {
+                items: result,
+                production_day_closed: productionDayClosed,
+                business_day_closed: businessDayClosed
+            }
         });
 
     } catch (error) {
