@@ -23,7 +23,7 @@ app.use(session({
 
 app.use(express.static("public"));
 
-app.use("/api/auth", authRoutes);
+app.use("/api/auth", attachModels, authRoutes);
 app.use("/api/production", requireAuth, attachModels, productionRoutes);
 app.use("/api", requireAuth, attachModels, apiRoutes);
 

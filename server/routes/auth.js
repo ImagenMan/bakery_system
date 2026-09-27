@@ -3,6 +3,62 @@ const router = express.Router();
 
 const user = require("../models/user");
 const { requireAuth } = require("../middleware/auth");
+const { productionDb, trainingDb } =
+    require("../models/context");
+
+function recordLogin(req, authenticatedUser) {
+    const db =
+        req.mode === "TRAINING"
+            ? trainingDb
+            : productionDb;
+
+    const now =
+        new Date();
+
+    const recordDate =
+        [
+            now.getUTCFullYear(),
+            String(now.getUTCMonth() + 1).padStart(2, "0"),
+            String(now.getUTCDate()).padStart(2, "0")
+        ].join("-");
+
+    const eventAt =
+        recordDate +
+        " " +
+        [
+            String(now.getUTCHours()).padStart(2, "0"),
+            String(now.getUTCMinutes()).padStart(2, "0"),
+            String(now.getUTCSeconds()).padStart(2, "0")
+        ].join(":");
+
+    return db.transaction(() => {
+        let dailyRecord =
+            req.models.dailyRecord
+                .getDailyRecordByDate(recordDate);
+
+        if (!dailyRecord) {
+            dailyRecord =
+                req.models.dailyRecord
+                    .openDailyRecord(recordDate);
+        }
+
+        const event =
+            req.models.operationalEvent
+                .createOperationalEvent({
+                    event_type: "LOGIN",
+                    event_at: eventAt,
+                    daily_record_id:
+                        dailyRecord.id,
+                    user_id:
+                        authenticatedUser.id
+                });
+
+        return {
+            dailyRecord,
+            event
+        };
+    })();
+}
 
 // =========================================================
 // Login with username/password
@@ -35,7 +91,13 @@ router.post("/login/password", (req, res) => {
         const authenticatedUser =
             user.verifyPassword(username, password);
 
-        req.session.userId = authenticatedUser.id;
+        recordLogin(
+            req,
+            authenticatedUser
+        );
+
+        req.session.userId =
+            authenticatedUser.id;
 
         res.json({
             success: true,
@@ -96,7 +158,13 @@ router.post("/login/pin", (req, res) => {
         const authenticatedUser =
             user.verifyPin(userId, pin);
 
-        req.session.userId = authenticatedUser.id;
+        recordLogin(
+            req,
+            authenticatedUser
+        );
+
+        req.session.userId =
+            authenticatedUser.id;
 
         res.json({
             success: true,
