@@ -50,7 +50,9 @@ function recordLogin(req, authenticatedUser) {
                     daily_record_id:
                         dailyRecord.id,
                     user_id:
-                        authenticatedUser.id
+                        req.mode === "TRAINING"
+                            ? 1
+                            : authenticatedUser.id
                 });
 
         return {
@@ -104,7 +106,9 @@ function recordLogout(req, authenticatedUser) {
                     daily_record_id:
                         dailyRecord.id,
                     user_id:
-                        authenticatedUser.id
+                        req.mode === "TRAINING"
+                            ? 1
+                            : authenticatedUser.id
                 });
 
         return {

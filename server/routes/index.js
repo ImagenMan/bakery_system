@@ -1,8 +1,39 @@
 const express = require("express");
 const router = express.Router();
 
-const { models } = require("../models/context");
+const {
+    models,
+    productionDb,
+    trainingDb
+} = require("../models/context");
+
 const { requireAdmin } = require("../middleware/auth");
+
+function getCurrentRecordDate() {
+    const now =
+        new Date();
+
+    return [
+        now.getUTCFullYear(),
+        String(now.getUTCMonth() + 1).padStart(2, "0"),
+        String(now.getUTCDate()).padStart(2, "0")
+    ].join("-");
+}
+
+function getCurrentEventAt() {
+    const now =
+        new Date();
+
+    return (
+        getCurrentRecordDate() +
+        " " +
+        [
+            String(now.getUTCHours()).padStart(2, "0"),
+            String(now.getUTCMinutes()).padStart(2, "0"),
+            String(now.getUTCSeconds()).padStart(2, "0")
+        ].join(":")
+    );
+}
 
 // =========================================================
 // Application Mode
@@ -47,6 +78,153 @@ router.get("/mode", (req, res) => {
         mode
     });
 });
+
+// =========================================================
+// Business Day
+// =========================================================
+
+router.post(
+    "/business-day/open",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const recordDate =
+                getCurrentRecordDate();
+
+            const eventAt =
+                getCurrentEventAt();
+
+            const db =
+                req.mode === "TRAINING"
+                    ? trainingDb
+                    : productionDb;
+
+            const result =
+                db.transaction(() => {
+                    const dailyRecord =
+                        req.models.dailyRecord
+                            .openDailyRecord(recordDate);
+
+                    const event =
+                        req.models.operationalEvent
+                            .openBusinessDay({
+                                daily_record_id:
+                                    dailyRecord.id,
+                                event_at:
+                                    eventAt,
+                                user_id:
+                                    req.mode === "TRAINING"
+                                        ? 1
+                                        : req.user.id
+                            });
+
+                    return {
+                        dailyRecord,
+                        event
+                    };
+                })();
+
+            res.json({
+                success: true,
+                data: result
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/business-day/open error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+router.post(
+    "/business-day/close",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const recordDate =
+                getCurrentRecordDate();
+
+            const eventAt =
+                getCurrentEventAt();
+
+            const db =
+                req.mode === "TRAINING"
+                    ? trainingDb
+                    : productionDb;
+
+            const result =
+                db.transaction(() => {
+                    const dailyRecord =
+                        req.models.dailyRecord
+                            .findDailyRecordByDate(recordDate);
+
+                    const openingEvent =
+                        req.models.operationalEvent
+                            .getBusinessDayOpeningEvent(
+                                dailyRecord.id
+                            );
+
+                    if (!openingEvent) {
+                        throw new Error(
+                            `Business day for ${recordDate} has not been opened.`
+                        );
+                    }
+
+                    if (dailyRecord.closed_at !== null) {
+                        throw new Error(
+                            `Daily record for ${recordDate} is already closed.`
+                        );
+                    }
+
+                    const closedRecord =
+                        req.models.dailyRecord
+                            .closeDailyRecord(recordDate);
+
+                    const event =
+                        req.models.operationalEvent
+                            .closeBusinessDay({
+                                daily_record_id:
+                                    closedRecord.id,
+                                event_at:
+                                    eventAt,
+                                user_id:
+                                    req.mode === "TRAINING"
+                                        ? 1
+                                        : req.user.id
+                            });
+
+                    return {
+                        dailyRecord:
+                            closedRecord,
+                        event
+                    };
+                })();
+
+            res.json({
+                success: true,
+                data: result
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/business-day/close error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
 
 // =========================================================
 // Customers
