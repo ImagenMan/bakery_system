@@ -60,6 +60,60 @@ function recordLogin(req, authenticatedUser) {
     })();
 }
 
+function recordLogout(req, authenticatedUser) {
+    const db =
+        req.mode === "TRAINING"
+            ? trainingDb
+            : productionDb;
+
+    const now =
+        new Date();
+
+    const recordDate =
+        [
+            now.getUTCFullYear(),
+            String(now.getUTCMonth() + 1).padStart(2, "0"),
+            String(now.getUTCDate()).padStart(2, "0")
+        ].join("-");
+
+    const eventAt =
+        recordDate +
+        " " +
+        [
+            String(now.getUTCHours()).padStart(2, "0"),
+            String(now.getUTCMinutes()).padStart(2, "0"),
+            String(now.getUTCSeconds()).padStart(2, "0")
+        ].join(":");
+
+    return db.transaction(() => {
+        let dailyRecord =
+            req.models.dailyRecord
+                .getDailyRecordByDate(recordDate);
+
+        if (!dailyRecord) {
+            dailyRecord =
+                req.models.dailyRecord
+                    .openDailyRecord(recordDate);
+        }
+
+        const event =
+            req.models.operationalEvent
+                .createOperationalEvent({
+                    event_type: "LOGOUT",
+                    event_at: eventAt,
+                    daily_record_id:
+                        dailyRecord.id,
+                    user_id:
+                        authenticatedUser.id
+                });
+
+        return {
+            dailyRecord,
+            event
+        };
+    })();
+}
+
 // =========================================================
 // Login with username/password
 // =========================================================
@@ -215,6 +269,30 @@ router.post("/logout", (req, res) => {
     if (!req.session) {
         return res.json({
             success: true
+        });
+    }
+
+    try {
+        if (req.session.userId) {
+            const authenticatedUser =
+                user.findById(
+                    req.session.userId
+                );
+
+            recordLogout(
+                req,
+                authenticatedUser
+            );
+        }
+    } catch (error) {
+        console.error(
+            "POST /api/auth/logout history error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            error: "Logout failed."
         });
     }
 
