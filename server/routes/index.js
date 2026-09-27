@@ -183,6 +183,16 @@ router.post(
                         );
                     }
 
+                    const productionDayClosed =
+                        req.models.operationalEvent
+                            .isProductionDayClosed(recordDate);
+
+                    if (!productionDayClosed) {
+                        throw new Error(
+                            `Production day for ${recordDate} must be closed before the business day can be closed.`
+                        );
+                    }
+
                     const closedRecord =
                         req.models.dailyRecord
                             .closeDailyRecord(recordDate);

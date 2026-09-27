@@ -759,7 +759,7 @@ router.get("/overview", (req, res) => {
 
         const dailyRecord =
             req.models.dailyRecord
-                .findDailyRecordByDate(date);
+                .getDailyRecordByDate(date);
 
         const businessDayClosed =
             Boolean(
