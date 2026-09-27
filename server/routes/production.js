@@ -75,7 +75,9 @@ router.post(
                         productionRecord.id,
                     event_at: eventAt,
                     user_id:
-                        req.user.id
+                        req.mode === "TRAINING"
+                            ? 1
+                            : req.user.id
                 });
 
             res.json({
