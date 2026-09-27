@@ -80,6 +80,78 @@ router.get("/mode", (req, res) => {
 });
 
 // =========================================================
+// Business Day Status
+// =========================================================
+
+router.get(
+    "/business-day/status",
+    (req, res) => {
+        try {
+            const recordDate =
+                getCurrentRecordDate();
+
+            const dailyRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(recordDate);
+
+            if (!dailyRecord) {
+                return res.json({
+                    success: true,
+                    data: {
+                        record_date: recordDate,
+                        daily_record_id: null,
+                        business_day_open: false,
+                        production_day_closed: false,
+                        business_day_closed: false
+                    }
+                });
+            }
+
+            const businessDayOpeningEvent =
+                req.models.operationalEvent
+                    .getBusinessDayOpeningEvent(
+                        dailyRecord.id
+                    );
+
+            const productionDayClosed =
+                req.models.operationalEvent
+                    .isProductionDayClosed(recordDate);
+
+            res.json({
+                success: true,
+                data: {
+                    record_date: recordDate,
+                    daily_record_id:
+                        dailyRecord.id,
+                    business_day_open:
+                        Boolean(
+                            businessDayOpeningEvent
+                        ),
+                    production_day_closed:
+                        productionDayClosed,
+                    business_day_closed:
+                        Boolean(
+                            dailyRecord.closed_at
+                        )
+                }
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/business-day/status error:",
+                error
+            );
+
+            res.status(500).json({
+                success: false,
+                error:
+                    "Failed to retrieve business day status."
+            });
+        }
+    }
+);
+
+// =========================================================
 // Business Day
 // =========================================================
 
