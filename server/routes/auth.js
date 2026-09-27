@@ -39,7 +39,7 @@ function recordLogin(req, authenticatedUser) {
         if (!dailyRecord) {
             dailyRecord =
                 req.models.dailyRecord
-                    .openDailyRecord(recordDate);
+                    .createDailyRecord(recordDate);
         }
 
         const event =
@@ -95,7 +95,7 @@ function recordLogout(req, authenticatedUser) {
         if (!dailyRecord) {
             dailyRecord =
                 req.models.dailyRecord
-                    .openDailyRecord(recordDate);
+                    .createDailyRecord(recordDate);
         }
 
         const event =
