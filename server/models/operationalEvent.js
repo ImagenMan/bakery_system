@@ -96,6 +96,17 @@ function createOperationalEventModel(db) {
         }
     }
 
+    function validateDailyRecordId(daily_record_id) {
+        if (
+            !Number.isInteger(daily_record_id) ||
+            daily_record_id <= 0
+        ) {
+            throw new Error(
+                "Daily record ID must be a positive integer."
+            );
+        }
+    }
+
     function getOperationalEventById(id) {
         if (
             !Number.isInteger(id) ||
@@ -111,6 +122,7 @@ function createOperationalEventModel(db) {
                 id,
                 event_type,
                 event_at,
+                daily_record_id,
                 user_id,
                 notes,
                 created_at
@@ -135,24 +147,76 @@ function createOperationalEventModel(db) {
     function createOperationalEvent({
         event_type,
         event_at,
+        daily_record_id,
         user_id = null,
         notes = null
     }) {
         validateEventType(event_type);
         validateEventAt(event_at);
+        validateDailyRecordId(daily_record_id);
         validateUserId(user_id);
 
         const result = db.prepare(`
             INSERT INTO operational_events (
                 event_type,
                 event_at,
+                daily_record_id,
                 user_id,
                 notes
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
         `).run(
             event_type,
             event_at,
+            daily_record_id,
+            user_id,
+            notes
+        );
+
+        return findOperationalEventById(result.lastInsertRowid);
+    }
+
+    function closeProductionDay({
+        daily_record_id,
+        event_at,
+        user_id = null,
+        notes = null
+    }) {
+        validateDailyRecordId(daily_record_id);
+        validateEventAt(event_at);
+        validateUserId(user_id);
+
+        const existingEvent = db.prepare(`
+            SELECT
+                id,
+                event_type,
+                event_at,
+                daily_record_id,
+                user_id,
+                notes,
+                created_at
+            FROM operational_events
+            WHERE daily_record_id = ?
+              AND event_type = 'PRODUCTION_DAY_CLOSED'
+        `).get(daily_record_id);
+
+        if (existingEvent) {
+            return existingEvent;
+        }
+
+        const result = db.prepare(`
+            INSERT INTO operational_events (
+                event_type,
+                event_at,
+                daily_record_id,
+                user_id,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `).run(
+            "PRODUCTION_DAY_CLOSED",
+            event_at,
+            daily_record_id,
             user_id,
             notes
         );
@@ -167,9 +231,11 @@ function createOperationalEventModel(db) {
         isValidEventAt,
         validateEventAt,
         validateUserId,
+        validateDailyRecordId,
         getOperationalEventById,
         findOperationalEventById,
-        createOperationalEvent
+        createOperationalEvent,
+        closeProductionDay
     };
 }
 

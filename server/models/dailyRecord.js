@@ -89,11 +89,75 @@ function createDailyRecordModel(db) {
         }
     }
 
+    function openDailyRecord(record_date) {
+        validateRecordDate(record_date);
+
+        const existingRecord =
+            getDailyRecordByDate(record_date);
+
+        if (existingRecord) {
+            if (existingRecord.closed_at !== null) {
+                throw new Error(
+                    `Daily record for ${record_date} is already closed.`
+                );
+            }
+
+            if (existingRecord.opened_at !== null) {
+                return existingRecord;
+            }
+        }
+
+        if (!existingRecord) {
+            createDailyRecord(record_date);
+        }
+
+        db.prepare(`
+            UPDATE daily_records
+            SET
+                opened_at = COALESCE(opened_at, CURRENT_TIMESTAMP),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE record_date = ?
+        `).run(record_date);
+
+        return findDailyRecordByDate(record_date);
+    }
+
+    function closeDailyRecord(record_date) {
+        validateRecordDate(record_date);
+
+        const record =
+            findDailyRecordByDate(record_date);
+
+        if (record.closed_at !== null) {
+            throw new Error(
+                `Daily record for ${record_date} is already closed.`
+            );
+        }
+
+        if (record.opened_at === null) {
+            throw new Error(
+                `Daily record for ${record_date} has not been opened.`
+            );
+        }
+
+        db.prepare(`
+            UPDATE daily_records
+            SET
+                closed_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE record_date = ?
+        `).run(record_date);
+
+        return findDailyRecordByDate(record_date);
+    }
+
     return {
         isValidRecordDate,
         getDailyRecordByDate,
         findDailyRecordByDate,
-        createDailyRecord
+        createDailyRecord,
+        openDailyRecord,
+        closeDailyRecord
     };
 }
 
