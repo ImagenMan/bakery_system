@@ -1,4 +1,8 @@
-function createProductionAvailableModel(db, inventoryModel) {
+function createProductionAvailableModel(
+    db,
+    inventoryModel,
+    operationalEventModel
+) {
 
     function validatePositiveInteger(value, fieldName) {
         if (!Number.isInteger(value) || value <= 0) {
@@ -140,13 +144,24 @@ function createProductionAvailableModel(db, inventoryModel) {
             const plan = db.prepare(`
                 SELECT
                     id,
-                    production_item_id
+                    production_item_id,
+                    production_date
                 FROM production_plans
                 WHERE id = ?
             `).get(production_plan_id);
 
             if (!plan) {
                 throw new Error("Production plan not found.");
+            }
+
+            if (
+                operationalEventModel.isProductionDayClosed(
+                    plan.production_date
+                )
+            ) {
+                throw new Error(
+                    `Production day ${plan.production_date} is already closed.`
+                );
             }
 
             const totalProduced = db.prepare(`

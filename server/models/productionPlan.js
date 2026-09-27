@@ -1,4 +1,4 @@
-function createProductionPlanModel(db) {
+function createProductionPlanModel(db, operationalEventModel) {
 
 function isValidProductionDate(value) {
     if (typeof value !== "string") {
@@ -206,6 +206,16 @@ function createProductionPlan({
     validateProductionDate(production_date);
     validatePlannedQuantity(planned_quantity);
 
+    if (
+        operationalEventModel.isProductionDayClosed(
+            production_date
+        )
+    ) {
+        throw new Error(
+            `Production day ${production_date} is already closed.`
+        );
+    }
+
     const productionItem = db.prepare(`
         SELECT
             pi.id,
@@ -295,6 +305,28 @@ function updateProductionPlan({
 
     validateProductionDate(newProductionDate);
     validatePlannedQuantity(newPlannedQuantity);
+
+    const existingDateClosed =
+        operationalEventModel.isProductionDayClosed(
+            existingPlan.production_date
+        );
+
+    const newDateClosed =
+        newProductionDate !== existingPlan.production_date &&
+        operationalEventModel.isProductionDayClosed(
+            newProductionDate
+        );
+
+    if (existingDateClosed || newDateClosed) {
+        const closedDate =
+            existingDateClosed
+                ? existingPlan.production_date
+                : newProductionDate;
+
+        throw new Error(
+            `Production day ${closedDate} is already closed.`
+        );
+    }
 
     const totalProduced = getTotalProduced(existingPlan.id);
 

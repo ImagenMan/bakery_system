@@ -36,6 +36,9 @@ const trainingDb = openDatabase(trainingDbPath);
 const authorizationUser = userModel.createUserModel(productionDb);
 
 function createModels(db, authorizationUser) {
+    const operationalEvent =
+        operationalEventModel.createOperationalEventModel(db);
+
     return {
         user: userModel.createUserModel(db),
         customer: customerModel.createCustomerModel(db),
@@ -54,22 +57,28 @@ function createModels(db, authorizationUser) {
         productionAvailable:
             productionAvailableModel.createProductionAvailableModel(
                 db,
-                inventoryModel.createInventoryModel(db)
+                inventoryModel.createInventoryModel(db),
+                operationalEvent
             ),
         productionPlan:
-            productionPlanModel.createProductionPlanModel(db),
+            productionPlanModel.createProductionPlanModel(
+                db,
+                operationalEvent
+            ),
         productionSupply:
             productionSupplyModel.createProductionSupplyModel(db),
         productionOutput:
-            productionOutputModel.createProductionOutputModel(db),
+            productionOutputModel.createProductionOutputModel(
+                db,
+                operationalEvent
+            ),
         inventory:
             inventoryModel.createInventoryModel(db),
         frozenInventory:
             frozenInventoryModel.createFrozenInventoryModel(db),
         dailyRecord:
             dailyRecordModel.createDailyRecordModel(db),
-        operationalEvent:
-            operationalEventModel.createOperationalEventModel(db)
+        operationalEvent
     };
 }
 

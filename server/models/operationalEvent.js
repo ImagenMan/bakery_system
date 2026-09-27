@@ -292,6 +292,27 @@ function createOperationalEventModel(db) {
         return findOperationalEventById(result.lastInsertRowid);
     }
 
+    function isProductionDayClosed(production_date) {
+        if (
+            typeof production_date !== "string" ||
+            !/^\d{4}-\d{2}-\d{2}$/.test(production_date)
+        ) {
+            throw new Error(
+                "Production date must be a valid date in YYYY-MM-DD format."
+            );
+        }
+
+        return Boolean(db.prepare(`
+            SELECT oe.id
+            FROM operational_events oe
+            JOIN daily_records dr
+                ON oe.daily_record_id = dr.id
+            WHERE dr.record_date = ?
+              AND oe.event_type = 'PRODUCTION_DAY_CLOSED'
+            LIMIT 1
+        `).get(production_date));
+    }
+
     function closeProductionDay({
         daily_record_id,
         event_at,
@@ -354,6 +375,7 @@ function createOperationalEventModel(db) {
         getBusinessDayOpeningEvent,
         openBusinessDay,
         closeBusinessDay,
+        isProductionDayClosed,
         closeProductionDay
     };
 }

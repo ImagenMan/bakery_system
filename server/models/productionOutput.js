@@ -1,4 +1,4 @@
-function createProductionOutputModel(db) {
+function createProductionOutputModel(db, operationalEventModel) {
 
 function validatePositiveInteger(value, fieldName) {
     if (!Number.isInteger(value) || value <= 0) {
@@ -152,6 +152,16 @@ function createProductionOutput({
 
     if (!plan) {
         throw new Error("Production plan not found.");
+    }
+
+    if (
+        operationalEventModel.isProductionDayClosed(
+            plan.production_date
+        )
+    ) {
+        throw new Error(
+            `Production day ${plan.production_date} is already closed.`
+        );
     }
 
     /*
