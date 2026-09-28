@@ -83,6 +83,8 @@ const trainingProductionItemDetail = document.getElementById(
 );
 
 const modeIndicator = document.getElementById("mode-indicator");
+const businessDayStatus =
+    document.getElementById("business-day-status");
 
 const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
@@ -494,6 +496,8 @@ async function setNormalMode() {
 
     document.getElementById("training-mode").textContent =
         "Training / Playground";
+
+    await loadBusinessDayStatus();
 }
 
 
@@ -522,6 +526,8 @@ async function setTrainingMode() {
 
     document.getElementById("training-mode").textContent =
         "Return to Normal";
+
+    await loadBusinessDayStatus();
 }
 
 document
@@ -1658,6 +1664,83 @@ document
             renderTrainingCounterSaleCart();
         }
     );
+
+async function loadBusinessDayStatus() {
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/business-day/status"
+            );
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+
+            throw new Error(
+                result.error ||
+                "Failed to load business day status."
+            );
+        }
+
+        const status =
+            result.data;
+
+        if (status.business_day_closed) {
+
+            businessDayStatus.textContent =
+                "Business Day: Closed";
+
+            businessDayStatus.className =
+                "business-day-status closed";
+
+            return;
+        }
+
+        if (status.production_day_closed) {
+
+            businessDayStatus.textContent =
+                "Business Day: Open · Production: Closed";
+
+            businessDayStatus.className =
+                "business-day-status production-closed";
+
+            return;
+        }
+
+        if (status.business_day_open) {
+
+            businessDayStatus.textContent =
+                "Business Day: Open · Production: Open";
+
+            businessDayStatus.className =
+                "business-day-status open";
+
+            return;
+        }
+
+        businessDayStatus.textContent =
+            "Business Day: Not Open";
+
+        businessDayStatus.className =
+            "business-day-status not-open";
+
+    } catch (error) {
+
+        console.error(
+            "loadBusinessDayStatus error:",
+            error
+        );
+
+        businessDayStatus.textContent =
+            "Business Day: Unavailable";
+
+        businessDayStatus.className =
+            "business-day-status unavailable";
+    }
+}
 
 function showLogin() {
     loginView.classList.remove("hidden");

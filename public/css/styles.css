@@ -93,6 +93,29 @@ body {
     color: var(--danger);
 }
 
+.business-day-status {
+    margin-top: 3px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.business-day-status.open {
+    color: var(--text);
+}
+
+.business-day-status.production-closed {
+    color: var(--text-muted);
+}
+
+.business-day-status.closed,
+.business-day-status.not-open {
+    color: var(--text-muted);
+}
+
+.business-day-status.unavailable {
+    color: var(--danger);
+}
+
 /* =========================================================
    Layout
    ========================================================= */
