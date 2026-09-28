@@ -7774,8 +7774,8 @@ async function loadTrainingProduction(date) {
         * returned by the production overview.
         */
         trainingProductionDemand =
-            Array.isArray(overviewResult.data)
-                ? overviewResult.data
+            Array.isArray(overviewResult.data?.items)
+                ? overviewResult.data.items
                     .filter(item =>
                         Number(item.demand_quantity) > 0 ||
                         Number(item.planned_quantity) > 0
@@ -7792,8 +7792,8 @@ async function loadTrainingProduction(date) {
          * the data comes from training.db.
          */
         trainingProductionOverview =
-            Array.isArray(overviewResult.data)
-                ? overviewResult.data
+            Array.isArray(overviewResult.data?.items)
+                ? overviewResult.data.items
                 : [];
 
         renderTrainingProductionOverview();
