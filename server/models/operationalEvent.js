@@ -5,6 +5,7 @@ function createOperationalEventModel(db) {
         "LOGOUT",
         "BUSINESS_DAY_OPENED",
         "BUSINESS_DAY_CLOSED",
+        "BUSINESS_DAY_REOPENED",
         "PRODUCTION_DAY_CLOSED",
         "POWER_OUTAGE",
         "EQUIPMENT_ISSUE",
