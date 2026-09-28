@@ -7,11 +7,16 @@ const {
     trainingDb
 } = require("../models/context");
 
+const {
+    getHistory
+} = require("../models/history");
+
 const { requireAdmin } = require("../middleware/auth");
 
 const {
     getBusinessDate,
-    getCurrentEventAt
+    getCurrentEventAt,
+    getBusinessDateUtcRange
 } = require("../utils/businessTime");
 
 // =========================================================
@@ -57,6 +62,64 @@ router.get("/mode", (req, res) => {
         mode
     });
 });
+
+// =========================================================
+// History
+// =========================================================
+
+router.get(
+    "/history",
+    (req, res) => {
+        try {
+            const { date } = req.query;
+
+            if (
+                typeof date !== "string" ||
+                !date.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Date is required in YYYY-MM-DD format."
+                });
+            }
+
+            const {
+                startDate,
+                endDate
+            } =
+                getBusinessDateUtcRange(
+                    date
+                );
+
+            const events =
+                getHistory({
+                    mode:
+                        req.mode === "TRAINING"
+                            ? "training"
+                            : "normal",
+                    startDate,
+                    endDate
+                });
+
+            res.json({
+                success: true,
+                data: events
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/history error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
 
 // =========================================================
 // Business Day Status
