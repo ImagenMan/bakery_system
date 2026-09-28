@@ -9,31 +9,10 @@ const {
 
 const { requireAdmin } = require("../middleware/auth");
 
-function getCurrentRecordDate() {
-    const now =
-        new Date();
-
-    return [
-        now.getUTCFullYear(),
-        String(now.getUTCMonth() + 1).padStart(2, "0"),
-        String(now.getUTCDate()).padStart(2, "0")
-    ].join("-");
-}
-
-function getCurrentEventAt() {
-    const now =
-        new Date();
-
-    return (
-        getCurrentRecordDate() +
-        " " +
-        [
-            String(now.getUTCHours()).padStart(2, "0"),
-            String(now.getUTCMinutes()).padStart(2, "0"),
-            String(now.getUTCSeconds()).padStart(2, "0")
-        ].join(":")
-    );
-}
+const {
+    getBusinessDate,
+    getCurrentEventAt
+} = require("../utils/businessTime");
 
 // =========================================================
 // Application Mode
@@ -88,7 +67,7 @@ router.get(
     (req, res) => {
         try {
             const recordDate =
-                getCurrentRecordDate();
+                getBusinessDate();
 
             const dailyRecord =
                 req.models.dailyRecord
@@ -161,7 +140,7 @@ router.post(
     (req, res) => {
         try {
             const recordDate =
-                getCurrentRecordDate();
+                getBusinessDate();
 
             const eventAt =
                 getCurrentEventAt();
@@ -221,7 +200,7 @@ router.post(
     (req, res) => {
         try {
             const recordDate =
-                getCurrentRecordDate();
+                getBusinessDate();
 
             const eventAt =
                 getCurrentEventAt();

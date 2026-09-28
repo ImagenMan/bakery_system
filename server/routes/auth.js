@@ -6,30 +6,22 @@ const { requireAuth } = require("../middleware/auth");
 const { productionDb, trainingDb } =
     require("../models/context");
 
+const {
+    getBusinessDate,
+    getCurrentEventAt
+} = require("../utils/businessTime");
+
 function recordLogin(req, authenticatedUser) {
     const db =
         req.mode === "TRAINING"
             ? trainingDb
             : productionDb;
 
-    const now =
-        new Date();
-
     const recordDate =
-        [
-            now.getUTCFullYear(),
-            String(now.getUTCMonth() + 1).padStart(2, "0"),
-            String(now.getUTCDate()).padStart(2, "0")
-        ].join("-");
+        getBusinessDate();
 
     const eventAt =
-        recordDate +
-        " " +
-        [
-            String(now.getUTCHours()).padStart(2, "0"),
-            String(now.getUTCMinutes()).padStart(2, "0"),
-            String(now.getUTCSeconds()).padStart(2, "0")
-        ].join(":");
+        getCurrentEventAt();
 
     return db.transaction(() => {
         let dailyRecord =
@@ -68,24 +60,11 @@ function recordLogout(req, authenticatedUser) {
             ? trainingDb
             : productionDb;
 
-    const now =
-        new Date();
-
     const recordDate =
-        [
-            now.getUTCFullYear(),
-            String(now.getUTCMonth() + 1).padStart(2, "0"),
-            String(now.getUTCDate()).padStart(2, "0")
-        ].join("-");
+        getBusinessDate();
 
     const eventAt =
-        recordDate +
-        " " +
-        [
-            String(now.getUTCHours()).padStart(2, "0"),
-            String(now.getUTCMinutes()).padStart(2, "0"),
-            String(now.getUTCSeconds()).padStart(2, "0")
-        ].join(":");
+        getCurrentEventAt();
 
     return db.transaction(() => {
         let dailyRecord =

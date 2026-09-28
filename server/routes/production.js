@@ -3,6 +3,11 @@ const router = express.Router();
 
 const { requireAdmin } = require("../middleware/auth");
 
+const {
+    getBusinessDate,
+    getCurrentEventAt
+} = require("../utils/businessTime");
+
 router.post(
     "/days/:productionDate/close",
     requireAdmin,
@@ -39,15 +44,8 @@ router.post(
                 });
             }
 
-            const today =
-                new Date();
-
             const todayDate =
-                [
-                    today.getUTCFullYear(),
-                    String(today.getUTCMonth() + 1).padStart(2, "0"),
-                    String(today.getUTCDate()).padStart(2, "0")
-                ].join("-");
+                getBusinessDate();
 
             if (productionDate > todayDate) {
                 return res.status(400).json({
@@ -57,17 +55,7 @@ router.post(
             }
 
             const eventAt =
-                [
-                    today.getUTCFullYear(),
-                    String(today.getUTCMonth() + 1).padStart(2, "0"),
-                    String(today.getUTCDate()).padStart(2, "0")
-                ].join("-") +
-                " " +
-                [
-                    String(today.getUTCHours()).padStart(2, "0"),
-                    String(today.getUTCMinutes()).padStart(2, "0"),
-                    String(today.getUTCSeconds()).padStart(2, "0")
-                ].join(":");
+                getCurrentEventAt();
 
             const event =
                 req.models.operationalEvent.closeProductionDay({
@@ -879,15 +867,8 @@ router.post(
             const productionPlan =
                 req.models.productionPlan.findProductionPlanById(planId);
 
-            const today =
-                new Date();
-
             const todayDate =
-                [
-                    today.getUTCFullYear(),
-                    String(today.getUTCMonth() + 1).padStart(2, "0"),
-                    String(today.getUTCDate()).padStart(2, "0")
-                ].join("-");
+                getBusinessDate();
 
             if (productionPlan.production_date > todayDate) {
                 return res.status(400).json({
