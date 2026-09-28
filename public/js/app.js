@@ -86,10 +86,34 @@ const modeIndicator = document.getElementById("mode-indicator");
 const businessDayStatus =
     document.getElementById("business-day-status");
 
+const businessDayAction =
+    document.getElementById("business-day-action");
+
 const loginForm = document.getElementById("login-form");
 const loginUsername = document.getElementById("login-username");
 const loginPassword = document.getElementById("login-password");
 const loginError = document.getElementById("login-error");
+
+const loginAdminTab =
+    document.getElementById("login-admin-tab");
+
+const loginCounterTab =
+    document.getElementById("login-counter-tab");
+
+const adminLoginFields =
+    document.getElementById("admin-login-fields");
+
+const counterLoginFields =
+    document.getElementById("counter-login-fields");
+
+const counterUser =
+    document.getElementById("counter-user");
+
+const counterPin =
+    document.getElementById("counter-pin");
+
+const logoutButton =
+    document.getElementById("logout-button");
 
 const ordersList = document.getElementById("orders-list");
 const orderDetail = document.getElementById("order-detail");
@@ -1688,6 +1712,13 @@ async function loadBusinessDayStatus() {
         const status =
             result.data;
 
+        businessDayAction.classList.add(
+            "hidden"
+        );
+
+        businessDayAction.dataset.action =
+            "";
+
         if (status.business_day_closed) {
 
             businessDayStatus.textContent =
@@ -1695,6 +1726,21 @@ async function loadBusinessDayStatus() {
 
             businessDayStatus.className =
                 "business-day-status closed";
+
+            if (
+                currentUser &&
+                currentUser.role === "ADMIN"
+            ) {
+                businessDayAction.textContent =
+                    "Reopen Business Day";
+
+                businessDayAction.dataset.action =
+                    "reopen";
+
+                businessDayAction.classList.remove(
+                    "hidden"
+                );
+            }
 
             return;
         }
@@ -1706,6 +1752,21 @@ async function loadBusinessDayStatus() {
 
             businessDayStatus.className =
                 "business-day-status production-closed";
+
+            if (
+                currentUser &&
+                currentUser.role === "ADMIN"
+            ) {
+                businessDayAction.textContent =
+                    "Close Business Day";
+
+                businessDayAction.dataset.action =
+                    "close";
+
+                businessDayAction.classList.remove(
+                    "hidden"
+                );
+            }
 
             return;
         }
@@ -1727,6 +1788,21 @@ async function loadBusinessDayStatus() {
         businessDayStatus.className =
             "business-day-status not-open";
 
+        if (
+            currentUser &&
+            currentUser.role === "ADMIN"
+        ) {
+            businessDayAction.textContent =
+                "Open Business Day";
+
+            businessDayAction.dataset.action =
+                "open";
+
+            businessDayAction.classList.remove(
+                "hidden"
+            );
+        }
+
     } catch (error) {
 
         console.error(
@@ -1739,8 +1815,103 @@ async function loadBusinessDayStatus() {
 
         businessDayStatus.className =
             "business-day-status unavailable";
+
+        businessDayAction.classList.add(
+            "hidden"
+        );
+
+        businessDayAction.dataset.action =
+            "";
     }
 }
+
+businessDayAction.addEventListener(
+    "click",
+    async () => {
+
+        const action =
+            businessDayAction.dataset.action;
+
+        if (!action) {
+            return;
+        }
+
+        if (action === "close") {
+
+            const confirmed =
+                window.confirm(
+                    "Close the Business Day?"
+                );
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        if (action === "reopen") {
+
+            const confirmed =
+                window.confirm(
+                    "Reopen the Business Day?\n\n" +
+                    "This is an admin recovery action."
+                );
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        businessDayAction.disabled = true;
+
+        try {
+
+            const response =
+                await fetch(
+                    `/api/business-day/${action}`,
+                    {
+                        method: "POST"
+                    }
+                );
+
+            const result =
+                await response.json();
+
+            if (
+                !response.ok ||
+                !result.success
+            ) {
+                throw new Error(
+                    result.error ||
+                    (
+                        action === "open"
+                            ? "Failed to open Business Day."
+                            : action === "close"
+                                ? "Failed to close Business Day."
+                                : "Failed to reopen Business Day."
+                    )
+                );
+            }
+
+            await loadBusinessDayStatus();
+
+        } catch (error) {
+
+            console.error(
+                "Business Day action error:",
+                error
+            );
+
+            alert(error.message);
+
+            await loadBusinessDayStatus();
+
+        } finally {
+
+            businessDayAction.disabled =
+                false;
+        }
+    }
+);
 
 function showLogin() {
     loginView.classList.remove("hidden");
@@ -1750,12 +1921,30 @@ function showLogin() {
     newOrderView.classList.add("hidden");
     counterSaleView.classList.add("hidden");
 
+    logoutButton.classList.add("hidden");
+
+    loginAdminTab.classList.add("active");
+    loginCounterTab.classList.remove("active");
+
+    adminLoginFields.classList.remove("hidden");
+    counterLoginFields.classList.add("hidden");
+
+    loginUsername.required = true;
+    loginPassword.required = true;
+    counterUser.required = false;
+    counterPin.required = false;
+
+    loginPassword.value = "";
+    counterPin.value = "";
+
     loginUsername.focus();
 }
 
 async function showApplication() {
 
     loginView.classList.add("hidden");
+
+    logoutButton.classList.remove("hidden");
 
     const savedMode =
         sessionStorage.getItem(
@@ -1864,6 +2053,233 @@ async function checkAuthentication() {
 }
 
 
+async function loadCounterUsers() {
+
+    counterUser.innerHTML = `
+        <option value="">
+            Loading Counter users...
+        </option>
+    `;
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/auth/counter-users"
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to load Counter users."
+            );
+        }
+
+        if (
+            !Array.isArray(result.data) ||
+            result.data.length === 0
+        ) {
+            counterUser.innerHTML = `
+                <option value="">
+                    No active Counter users
+                </option>
+            `;
+
+            return;
+        }
+
+        counterUser.innerHTML = `
+            <option value="">
+                Select Counter user
+            </option>
+
+            ${result.data
+                .map(user => `
+                    <option value="${Number(user.id)}">
+                        ${escapeHTML(user.name)}
+                    </option>
+                `)
+                .join("")}
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "Counter user loading error:",
+            error
+        );
+
+        counterUser.innerHTML = `
+            <option value="">
+                Unable to load Counter users
+            </option>
+        `;
+    }
+}
+
+
+function setLoginMethod(method) {
+
+    const isCounter =
+        method === "counter";
+
+    loginAdminTab.classList.toggle(
+        "active",
+        !isCounter
+    );
+
+    loginCounterTab.classList.toggle(
+        "active",
+        isCounter
+    );
+
+    adminLoginFields.classList.toggle(
+        "hidden",
+        isCounter
+    );
+
+    counterLoginFields.classList.toggle(
+        "hidden",
+        !isCounter
+    );
+
+    loginUsername.required =
+        !isCounter;
+
+    loginPassword.required =
+        !isCounter;
+
+    counterUser.required =
+        isCounter;
+
+    counterPin.required =
+        isCounter;
+
+    loginError.textContent = "";
+
+    loginError.classList.add(
+        "hidden"
+    );
+
+    if (isCounter) {
+
+        loadCounterUsers();
+
+        counterUser.focus();
+
+    } else {
+
+        loginUsername.focus();
+    }
+}
+
+
+loginAdminTab.addEventListener(
+    "click",
+    () => {
+        setLoginMethod("admin");
+    }
+);
+
+
+loginCounterTab.addEventListener(
+    "click",
+    () => {
+        setLoginMethod("counter");
+    }
+);
+
+
+counterPin.addEventListener(
+    "input",
+    () => {
+        counterPin.value =
+            counterPin.value
+                .replace(/\D/g, "")
+                .slice(0, 4);
+    }
+);
+
+
+logoutButton.addEventListener(
+    "click",
+    async () => {
+
+        logoutButton.disabled = true;
+
+        try {
+
+            const response =
+                await fetch(
+                    "/api/auth/logout",
+                    {
+                        method: "POST"
+                    }
+                );
+
+            const result =
+                await response.json();
+
+            if (
+                !response.ok ||
+                !result.success
+            ) {
+                throw new Error(
+                    result.error ||
+                    "Logout failed."
+                );
+            }
+
+            currentUser = null;
+
+            sessionStorage.removeItem(
+                "bakery-app-mode"
+            );
+
+            sessionStorage.removeItem(
+                "bakery-app-view"
+            );
+
+            appMode = "NORMAL";
+            appView = "orders";
+
+            modeIndicator.textContent =
+                "NORMAL MODE";
+
+            modeIndicator.className =
+                "mode-indicator normal";
+
+            document.getElementById(
+                "training-mode"
+            ).textContent =
+                "Training / Playground";
+
+            showLogin();
+
+        } catch (error) {
+
+            console.error(
+                "Logout error:",
+                error
+            );
+
+            alert(error.message);
+
+        } finally {
+
+            logoutButton.disabled =
+                false;
+        }
+    }
+);
+
+
 loginForm.addEventListener(
     "submit",
     async event => {
@@ -1873,21 +2289,6 @@ loginForm.addEventListener(
         loginError.textContent = "";
         loginError.classList.add("hidden");
 
-        const username =
-            loginUsername.value.trim();
-
-        const password =
-            loginPassword.value;
-
-        if (!username || !password) {
-            loginError.textContent =
-                "Username and password are required.";
-
-            loginError.classList.remove("hidden");
-
-            return;
-        }
-
         const submitButton =
             document.getElementById("login-submit");
 
@@ -1896,25 +2297,90 @@ loginForm.addEventListener(
 
         try {
 
-            const response = await fetch(
-                "/api/auth/login/password",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type":
-                            "application/json"
-                    },
-                    body: JSON.stringify({
-                        username,
-                        password
-                    })
+            const isCounter =
+                loginCounterTab.classList.contains(
+                    "active"
+                );
+
+            let response;
+
+            if (isCounter) {
+
+                const userId =
+                    Number(counterUser.value);
+
+                const pin =
+                    counterPin.value;
+
+                if (
+                    !Number.isInteger(userId) ||
+                    userId <= 0
+                ) {
+                    throw new Error(
+                        "Select a Counter user."
+                    );
                 }
-            );
+
+                if (!/^\d{4}$/.test(pin)) {
+                    throw new Error(
+                        "Enter a 4-digit PIN."
+                    );
+                }
+
+                response =
+                    await fetch(
+                        "/api/auth/login/pin",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                user_id: userId,
+                                pin
+                            })
+                        }
+                    );
+
+            } else {
+
+                const username =
+                    loginUsername.value.trim();
+
+                const password =
+                    loginPassword.value;
+
+                if (!username || !password) {
+                    throw new Error(
+                        "Username and password are required."
+                    );
+                }
+
+                response =
+                    await fetch(
+                        "/api/auth/login/password",
+                        {
+                            method: "POST",
+                            headers: {
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            body: JSON.stringify({
+                                username,
+                                password
+                            })
+                        }
+                    );
+            }
 
             const result =
                 await response.json();
 
-            if (!response.ok || !result.success) {
+            if (
+                !response.ok ||
+                !result.success
+            ) {
                 throw new Error(
                     result.error ||
                     "Login failed."
@@ -1922,6 +2388,7 @@ loginForm.addEventListener(
             }
 
             loginPassword.value = "";
+            counterPin.value = "";
 
             await checkAuthentication();
 
@@ -1935,7 +2402,9 @@ loginForm.addEventListener(
             loginError.textContent =
                 error.message;
 
-            loginError.classList.remove("hidden");
+            loginError.classList.remove(
+                "hidden"
+            );
 
         } finally {
 
@@ -1944,6 +2413,7 @@ loginForm.addEventListener(
         }
     }
 );
+
 
 // =========================================================
 // Utility Functions

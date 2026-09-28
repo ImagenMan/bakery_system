@@ -29,9 +29,24 @@
         <div class="header-actions">
             <button
                 type="button"
+                id="business-day-action"
+                class="hidden"
+            >
+                Open Business Day
+            </button>
+
+            <button
+                type="button"
                 id="training-mode"
             >
                 Training / Playground
+            </button>
+
+            <button
+                type="button"
+                id="logout-button"
+            >
+                Logout
             </button>
 
             <div id="connection-status">
@@ -648,37 +663,105 @@
             <h2>Login</h2>
         </div>
 
+        <div class="login-methods">
+
+            <button
+                type="button"
+                id="login-admin-tab"
+                class="login-method active"
+            >
+                Admin
+            </button>
+
+            <button
+                type="button"
+                id="login-counter-tab"
+                class="login-method"
+            >
+                Counter
+            </button>
+
+        </div>
+
         <form id="login-form">
 
-            <div class="form-group">
+            <div
+                id="admin-login-fields"
+            >
 
-                <label for="login-username">
-                    Username
-                </label>
+                <div class="form-group">
 
-                <input
-                    type="text"
-                    id="login-username"
-                    name="username"
-                    autocomplete="username"
-                    required
-                >
+                    <label for="login-username">
+                        Username
+                    </label>
+
+                    <input
+                        type="text"
+                        id="login-username"
+                        name="username"
+                        autocomplete="username"
+                        required
+                    >
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="login-password">
+                        Password
+                    </label>
+
+                    <input
+                        type="password"
+                        id="login-password"
+                        name="password"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                </div>
 
             </div>
 
-            <div class="form-group">
+            <div
+                id="counter-login-fields"
+                class="hidden"
+            >
 
-                <label for="login-password">
-                    Password
-                </label>
+                <div class="form-group">
 
-                <input
-                    type="password"
-                    id="login-password"
-                    name="password"
-                    autocomplete="current-password"
-                    required
-                >
+                    <label for="counter-user">
+                        Counter User
+                    </label>
+
+                    <select
+                        id="counter-user"
+                        name="counter-user"
+                    >
+                        <option value="">
+                            Loading Counter users...
+                        </option>
+                    </select>
+
+                </div>
+
+                <div class="form-group">
+
+                    <label for="counter-pin">
+                        PIN
+                    </label>
+
+                    <input
+                        type="password"
+                        id="counter-pin"
+                        name="counter-pin"
+                        inputmode="numeric"
+                        autocomplete="off"
+                        maxlength="4"
+                        pattern="[0-9]{4}"
+                    >
+
+                </div>
 
             </div>
 
