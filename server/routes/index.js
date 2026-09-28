@@ -287,6 +287,113 @@ router.post(
     }
 );
 
+router.post(
+    "/business-day/reopen",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const recordDate =
+                getBusinessDate();
+
+            const eventAt =
+                getCurrentEventAt();
+
+            const db =
+                req.mode === "TRAINING"
+                    ? trainingDb
+                    : productionDb;
+
+            const result =
+                db.transaction(() => {
+                    const dailyRecord =
+                        req.models.dailyRecord
+                            .findDailyRecordByDate(
+                                recordDate
+                            );
+
+                    if (!dailyRecord) {
+                        throw new Error(
+                            `No daily record exists for ${recordDate}.`
+                        );
+                    }
+
+                    if (
+                        dailyRecord.closed_at === null
+                    ) {
+                        throw new Error(
+                            `Business day for ${recordDate} is not closed.`
+                        );
+                    }
+
+                    const openingEvent =
+                        req.models.operationalEvent
+                            .getBusinessDayOpeningEvent(
+                                dailyRecord.id
+                            );
+
+                    if (!openingEvent) {
+                        throw new Error(
+                            `Business day for ${recordDate} has not been opened.`
+                        );
+                    }
+
+                    const productionDayClosed =
+                        req.models.operationalEvent
+                            .isProductionDayClosed(
+                                recordDate
+                            );
+
+                    if (!productionDayClosed) {
+                        throw new Error(
+                            `Production day for ${recordDate} must be closed before the business day can be reopened.`
+                        );
+                    }
+
+                    const reopenedRecord =
+                        req.models.dailyRecord
+                            .reopenDailyRecord(
+                                recordDate
+                            );
+
+                    const event =
+                        req.models.operationalEvent
+                            .reopenBusinessDay({
+                                daily_record_id:
+                                    reopenedRecord.id,
+                                event_at:
+                                    eventAt,
+                                user_id:
+                                    req.mode === "TRAINING"
+                                        ? 1
+                                        : req.user.id
+                            });
+
+                    return {
+                        dailyRecord:
+                            reopenedRecord,
+                        event
+                    };
+                })();
+
+            res.json({
+                success: true,
+                data: result
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/business-day/reopen error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
 // =========================================================
 // Customers
 // =========================================================

@@ -151,13 +151,43 @@ function createDailyRecordModel(db) {
         return findDailyRecordByDate(record_date);
     }
 
+    function reopenDailyRecord(record_date) {
+        validateRecordDate(record_date);
+
+        const record =
+            findDailyRecordByDate(record_date);
+
+        if (!record) {
+            throw new Error(
+                `No daily record exists for ${record_date}.`
+            );
+        }
+
+        if (record.closed_at === null) {
+            throw new Error(
+                `Daily record for ${record_date} is not closed.`
+            );
+        }
+
+        db.prepare(`
+            UPDATE daily_records
+            SET
+                closed_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE record_date = ?
+        `).run(record_date);
+
+        return findDailyRecordByDate(record_date);
+    }
+
     return {
         isValidRecordDate,
         getDailyRecordByDate,
         findDailyRecordByDate,
         createDailyRecord,
         openDailyRecord,
-        closeDailyRecord
+        closeDailyRecord,
+        reopenDailyRecord
     };
 }
 

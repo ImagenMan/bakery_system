@@ -255,7 +255,7 @@ function createOperationalEventModel(db) {
         validateEventAt(event_at);
         validateUserId(user_id);
 
-        const existingEvent = db.prepare(`
+        const latestEvent = db.prepare(`
             SELECT
                 id,
                 event_type,
@@ -266,11 +266,22 @@ function createOperationalEventModel(db) {
                 created_at
             FROM operational_events
             WHERE daily_record_id = ?
-              AND event_type = 'BUSINESS_DAY_CLOSED'
+              AND event_type IN (
+                  'BUSINESS_DAY_CLOSED',
+                  'BUSINESS_DAY_REOPENED'
+              )
+            ORDER BY
+                event_at DESC,
+                id DESC
+            LIMIT 1
         `).get(daily_record_id);
 
-        if (existingEvent) {
-            return existingEvent;
+        if (
+            latestEvent &&
+            latestEvent.event_type ===
+                "BUSINESS_DAY_CLOSED"
+        ) {
+            return latestEvent;
         }
 
         const result = db.prepare(`
@@ -290,7 +301,72 @@ function createOperationalEventModel(db) {
             notes
         );
 
-        return findOperationalEventById(result.lastInsertRowid);
+        return findOperationalEventById(
+            result.lastInsertRowid
+        );
+    }
+
+    function reopenBusinessDay({
+        daily_record_id,
+        event_at,
+        user_id = null,
+        notes = null
+    }) {
+        validateDailyRecordId(daily_record_id);
+        validateEventAt(event_at);
+        validateUserId(user_id);
+
+        const latestEvent = db.prepare(`
+            SELECT
+                id,
+                event_type,
+                event_at,
+                daily_record_id,
+                user_id,
+                notes,
+                created_at
+            FROM operational_events
+            WHERE daily_record_id = ?
+              AND event_type IN (
+                  'BUSINESS_DAY_CLOSED',
+                  'BUSINESS_DAY_REOPENED'
+              )
+            ORDER BY
+                event_at DESC,
+                id DESC
+            LIMIT 1
+        `).get(daily_record_id);
+
+        if (
+            !latestEvent ||
+            latestEvent.event_type !==
+                "BUSINESS_DAY_CLOSED"
+        ) {
+            throw new Error(
+                "Business day is not currently closed."
+            );
+        }
+
+        const result = db.prepare(`
+            INSERT INTO operational_events (
+                event_type,
+                event_at,
+                daily_record_id,
+                user_id,
+                notes
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `).run(
+            "BUSINESS_DAY_REOPENED",
+            event_at,
+            daily_record_id,
+            user_id,
+            notes
+        );
+
+        return findOperationalEventById(
+            result.lastInsertRowid
+        );
     }
 
     function isProductionDayClosed(production_date) {
@@ -376,6 +452,7 @@ function createOperationalEventModel(db) {
         getBusinessDayOpeningEvent,
         openBusinessDay,
         closeBusinessDay,
+        reopenBusinessDay,
         isProductionDayClosed,
         closeProductionDay
     };
