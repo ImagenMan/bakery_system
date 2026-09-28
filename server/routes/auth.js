@@ -98,6 +98,38 @@ function recordLogout(req, authenticatedUser) {
 }
 
 // =========================================================
+// Available Counter users for PIN login
+// =========================================================
+
+router.get("/counter-users", (req, res) => {
+    try {
+
+        const counterUsers =
+            user.findActiveByRole("COUNTER");
+
+        res.json({
+            success: true,
+            data: counterUsers.map(counterUser => ({
+                id: counterUser.id,
+                name: counterUser.name
+            }))
+        });
+
+    } catch (error) {
+
+        console.error(
+            "GET /api/auth/counter-users error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Unable to load Counter users."
+        });
+    }
+});
+
+// =========================================================
 // Login with username/password
 // =========================================================
 

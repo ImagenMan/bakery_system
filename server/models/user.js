@@ -52,6 +52,33 @@ function createUserModel(db) {
         `).get(username.trim());
     }
 
+    function findActiveByRole(role) {
+        if (
+            typeof role !== "string" ||
+            !role.trim()
+        ) {
+            throw new Error(
+                "A valid user role is required."
+            );
+        }
+
+        return db.prepare(`
+            SELECT
+                id,
+                name,
+                username,
+                role,
+                language,
+                active,
+                created_at,
+                updated_at
+            FROM users
+            WHERE role = ?
+                AND active = 1
+            ORDER BY name ASC, id ASC
+        `).all(role.trim());
+    }
+
     function verifyPassword(username, password) {
         const user = findByUsername(username);
 
@@ -129,6 +156,7 @@ function createUserModel(db) {
     return {
         findById,
         findByUsername,
+        findActiveByRole,
         verifyPassword,
         verifyPin,
         requireAdmin
