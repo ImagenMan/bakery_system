@@ -670,7 +670,164 @@ function getHistory({
     return events;
 }
 
+function calculateHistoryDashboard(events) {
+    if (!Array.isArray(events)) {
+        throw new Error("events must be an array");
+    }
+
+    const validOrders = events.filter(
+        (event) =>
+            event.event_type === "ORDER_CREATED" &&
+            event.details?.status !== "CANCELLED"
+    );
+
+    const counterSales = validOrders.filter(
+        (event) =>
+            event.details?.order_type === "COUNTER_SALE" &&
+            event.details?.status === "COMPLETED"
+    );
+
+    const payments = events.filter(
+        (event) =>
+            event.event_type === "PAYMENT_RECEIVED"
+    );
+
+    const production = events.filter(
+        (event) =>
+            event.event_type === "PRODUCTION_OUTPUT"
+    );
+
+    const pickups = events.filter(
+        (event) =>
+            event.event_type === "PICKUP_RECORDED"
+    );
+
+    const waste = events.filter(
+        (event) =>
+            event.event_type === "INVENTORY_WASTE"
+    );
+
+    const orderValue = validOrders.reduce(
+        (total, event) =>
+            total + (Number(event.amount) || 0),
+        0
+    );
+
+    const paymentTotal = payments.reduce(
+        (total, event) =>
+            total + (Number(event.amount) || 0),
+        0
+    );
+
+    const productionQuantity = production.reduce(
+        (total, event) =>
+            total + (Number(event.quantity) || 0),
+        0
+    );
+
+    const wasteQuantity = waste.reduce(
+        (total, event) =>
+            total + Math.abs(Number(event.quantity) || 0),
+        0
+    );
+
+    const paymentByMethod = {};
+
+    for (const event of payments) {
+        const method = event.payment_method || "UNKNOWN";
+
+        paymentByMethod[method] =
+            (paymentByMethod[method] || 0) +
+            (Number(event.amount) || 0);
+    }
+
+    const businessDayEvents = events
+        .filter(
+            (event) =>
+                event.event_type === "BUSINESS_DAY_OPENED" ||
+                event.event_type === "BUSINESS_DAY_CLOSED" ||
+                event.event_type === "BUSINESS_DAY_REOPENED"
+        )
+        .sort((a, b) => {
+            if (a.event_at < b.event_at) {
+                return -1;
+            }
+
+            if (a.event_at > b.event_at) {
+                return 1;
+            }
+
+            return Number(a.source_id) - Number(b.source_id);
+        });
+
+    const latestBusinessDayEvent =
+        businessDayEvents.length > 0
+            ? businessDayEvents[businessDayEvents.length - 1]
+            : null;
+
+    let businessDayStatus = "NOT_OPENED";
+    let openedAt = null;
+    let closedAt = null;
+
+    for (const event of businessDayEvents) {
+        if (
+            event.event_type === "BUSINESS_DAY_OPENED" ||
+            event.event_type === "BUSINESS_DAY_REOPENED"
+        ) {
+            businessDayStatus = "OPEN";
+            openedAt = event.event_at;
+            closedAt = null;
+        } else if (
+            event.event_type === "BUSINESS_DAY_CLOSED"
+        ) {
+            businessDayStatus = "CLOSED";
+            closedAt = event.event_at;
+        }
+    }
+
+    return {
+        orders: {
+            count: validOrders.length,
+            order_value: orderValue,
+        },
+
+        counter_sales: {
+            count: counterSales.length,
+            order_value: counterSales.reduce(
+                (total, event) =>
+                    total + (Number(event.amount) || 0),
+                0
+            ),
+        },
+
+        pickups: {
+            count: pickups.length,
+        },
+
+        production: {
+            quantity: productionQuantity,
+        },
+
+        waste: {
+            quantity: wasteQuantity,
+        },
+
+        payments: {
+            total_amount: paymentTotal,
+            transaction_count: payments.length,
+            by_method: paymentByMethod,
+        },
+
+        business_day: {
+            status: businessDayStatus,
+            opened_at: openedAt,
+            closed_at: closedAt,
+        },
+    };
+}
+
 module.exports = {
     HISTORY_EVENT_TYPES,
     getHistory,
+    calculateHistoryDashboard,
 };
