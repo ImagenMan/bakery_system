@@ -5091,6 +5091,8 @@ function attachCloseProductionDayHandler(
                     productionDate
                 );
 
+                await loadBusinessDayStatus();
+
             } catch (error) {
 
                 console.error(
