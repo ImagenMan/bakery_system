@@ -725,6 +725,28 @@ function calculateHistoryDashboard(events) {
         0
     );
 
+    const productionByItem = {};
+
+    for (const event of production) {
+        const itemId =
+            event.production_item_id;
+
+        const itemName =
+            event.production_item_name ||
+            "Unknown";
+
+        if (!productionByItem[itemId]) {
+            productionByItem[itemId] = {
+                production_item_id: itemId,
+                production_item_name: itemName,
+                quantity: 0,
+            };
+        }
+
+        productionByItem[itemId].quantity +=
+            Number(event.quantity) || 0;
+    }
+
     const wasteQuantity = waste.reduce(
         (total, event) =>
             total + Math.abs(Number(event.quantity) || 0),
@@ -825,6 +847,9 @@ function calculateHistoryDashboard(events) {
 
         production: {
             quantity: productionQuantity,
+            by_item: Object.values(
+                productionByItem
+            ),
         },
 
         waste: {
