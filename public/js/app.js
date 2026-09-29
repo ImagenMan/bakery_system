@@ -11279,6 +11279,33 @@ function renderHistoryDashboard(
                 </strong>
             </div>
 
+        <div class="history-production-breakdown">
+            <h3>Production by Item</h3>
+
+            ${
+                dashboard.production.by_item &&
+                dashboard.production.by_item.length
+                    ? dashboard.production.by_item
+                        .map(
+                            (item) => `
+                                <div class="history-production-item">
+                                    <span>
+                                        ${item.production_item_name}
+                                    </span>
+
+                                    <strong>
+                                        ${item.quantity}
+                                    </strong>
+                                </div>
+                            `
+                        )
+                        .join("")
+                    : `
+                        <p class="history-empty">
+                            No production recorded.
+                        </p>
+                    `
+            }
         </div>
 
         <div class="history-payment-methods">
