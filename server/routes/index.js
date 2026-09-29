@@ -8,7 +8,8 @@ const {
 } = require("../models/context");
 
 const {
-    getHistory
+    getHistory,
+    calculateHistoryDashboard
 } = require("../models/history");
 
 const { requireAdmin } = require("../middleware/auth");
@@ -102,9 +103,17 @@ router.get(
                     endDate
                 });
 
+            const dashboard =
+                calculateHistoryDashboard(
+                    events
+                );
+
             res.json({
                 success: true,
-                data: events
+                data: {
+                    dashboard,
+                    events
+                }
             });
 
         } catch (error) {
