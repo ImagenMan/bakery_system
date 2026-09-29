@@ -203,6 +203,113 @@ router.get(
 );
 
 // =========================================================
+// Operational Events
+// =========================================================
+
+router.post(
+    "/operational-events",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const {
+                event_type,
+                record_date,
+                event_at,
+                notes
+            } = req.body;
+
+            const allowedEventTypes = [
+                "POWER_OUTAGE",
+                "EQUIPMENT_ISSUE",
+                "OTHER"
+            ];
+
+            if (
+                !allowedEventTypes.includes(
+                    event_type
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Event type must be POWER_OUTAGE, EQUIPMENT_ISSUE, or OTHER."
+                });
+            }
+
+            if (
+                typeof record_date !== "string" ||
+                !record_date.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Record date is required."
+                });
+            }
+
+            const dailyRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(
+                        record_date
+                    );
+
+            if (!dailyRecord) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        `Daily record for ${record_date} not found.`
+                });
+            }
+
+            if (
+                typeof event_at !== "string" ||
+                !event_at.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Event time is required."
+                });
+            }
+
+            const event =
+                req.models.operationalEvent
+                    .createOperationalEvent({
+                        event_type,
+                        event_at,
+                        daily_record_id:
+                            dailyRecord.id,
+                        user_id:
+                            req.mode === "TRAINING"
+                                ? 1
+                                : req.user.id,
+                        notes:
+                            typeof notes === "string" &&
+                            notes.trim()
+                                ? notes.trim()
+                                : null
+                    });
+
+            res.json({
+                success: true,
+                data: event
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/operational-events error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+// =========================================================
 // Business Day
 // =========================================================
 
