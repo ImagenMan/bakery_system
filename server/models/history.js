@@ -765,6 +765,25 @@ function calculateHistoryDashboard(events) {
             ? businessDayEvents[businessDayEvents.length - 1]
             : null;
 
+    const productionDayClosedEvent =
+        events
+            .filter(
+                (event) =>
+                    event.event_type === "PRODUCTION_DAY_CLOSED"
+            )
+            .sort((a, b) => {
+                if (a.event_at < b.event_at) {
+                    return -1;
+                }
+
+                if (a.event_at > b.event_at) {
+                    return 1;
+                }
+
+                return Number(a.source_id) - Number(b.source_id);
+            })
+            .at(-1) || null;
+
     let businessDayStatus = "NOT_OPENED";
     let openedAt = null;
     let closedAt = null;
@@ -821,6 +840,10 @@ function calculateHistoryDashboard(events) {
         business_day: {
             status: businessDayStatus,
             opened_at: openedAt,
+            production_day_closed_at:
+                productionDayClosedEvent
+                    ? productionDayClosedEvent.event_at
+                    : null,
             closed_at: closedAt,
         },
     };

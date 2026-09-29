@@ -11141,16 +11141,51 @@ function renderHistoryDashboard(
     const businessDay =
         dashboard.business_day || {};
 
+    const formatLifecycleTime =
+        (eventAt) =>
+            eventAt
+                ? formatHistoryEventTime(eventAt)
+                : "—";
+
     const payments =
         dashboard.payments || {};
 
     const byMethod =
         payments.by_method || {};
 
-    historyBusinessDayStatus.textContent =
-        `Business Day: ${
-            businessDay.status || "NOT_OPENED"
-        }`;
+    historyBusinessDayStatus.innerHTML = `
+        <strong>
+            Business Day:
+            ${businessDay.status || "NOT_OPENED"}
+        </strong>
+
+        <div class="history-business-day-details">
+
+            <span>
+                <small>Opened</small>
+                ${formatLifecycleTime(
+                    businessDay.opened_at
+                )}
+            </span>
+
+            <span>
+                <small>Production</small>
+                ${
+                    businessDay.production_day_closed_at
+                        ? "CLOSED"
+                        : "OPEN"
+                }
+            </span>
+
+            <span>
+                <small>Closed</small>
+                ${formatLifecycleTime(
+                    businessDay.closed_at
+                )}
+            </span>
+
+        </div>
+    `;
 
     const paymentMethods =
         Object.entries(
