@@ -876,3 +876,122 @@ textarea {
         min-height: 44px;
     }
 }
+
+/* =========================================================
+   History
+   ========================================================= */
+
+.history-date-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+}
+
+.history-date-controls label {
+    font-weight: 600;
+}
+
+.history-date-controls input {
+    min-height: 40px;
+}
+
+.history-business-day-status {
+    margin-bottom: 18px;
+    font-weight: 600;
+}
+
+.history-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(160px, 1fr)
+    );
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.history-summary-card {
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.history-summary-card span,
+.history-summary-card small {
+    display: block;
+    color: var(--text-muted);
+}
+
+.history-summary-card strong {
+    display: block;
+    margin: 6px 0;
+    font-size: 24px;
+}
+
+.history-payment-methods {
+    margin-bottom: 24px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.history-payment-methods h3 {
+    margin-top: 0;
+}
+
+.history-payment-method {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-payment-method:last-child {
+    border-bottom: 0;
+}
+
+.history-events-section h3 {
+    margin-bottom: 12px;
+}
+
+.history-event {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.history-event-time {
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.history-event-content strong {
+    display: block;
+    margin-bottom: 5px;
+}
+
+.history-event-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.history-event-content small,
+.history-event-content p {
+    display: block;
+    margin: 6px 0 0;
+    color: var(--text-muted);
+}
+
+.history-empty {
+    color: var(--text-muted);
+}

@@ -22,6 +22,17 @@ function saveNavigationState() {
     );
 }
 
+function saveHistoryDateState() {
+
+    if (historyDate && historyDate.value) {
+        sessionStorage.setItem(
+            "bakery-history-date",
+            historyDate.value
+        );
+    }
+
+}
+
 function savePickupListState() {
 
     if (pickupListDate) {
@@ -49,6 +60,39 @@ const newOrderView = document.getElementById("new-order-view");
 const counterSaleView = document.getElementById("counter-sale-view");
 const productionView = document.getElementById("production-view");
 const trainingView = document.getElementById("training-view");
+
+const historyView =
+    document.getElementById("history-view");
+
+const historyButton =
+    document.getElementById("open-history");
+
+const historyBackButton =
+    document.getElementById("history-back");
+
+const historyDate =
+    document.getElementById("history-date");
+
+const historyPreviousDate =
+    document.getElementById("history-previous-date");
+
+const historyNextDate =
+    document.getElementById("history-next-date");
+
+const historyTodayButton =
+    document.getElementById("history-today");
+
+const historyBusinessDayStatus =
+    document.getElementById(
+        "history-business-day-status"
+    );
+
+const historyDashboard =
+    document.getElementById("history-dashboard");
+
+const historyEvents =
+    document.getElementById("history-events");
+
 const trainingCounterSaleView = document.getElementById(
     "training-counter-sale-view"
 );
@@ -1920,6 +1964,7 @@ function showLogin() {
     orderDetailView.classList.add("hidden");
     newOrderView.classList.add("hidden");
     counterSaleView.classList.add("hidden");
+    historyView.classList.add("hidden");
 
     logoutButton.classList.add("hidden");
 
@@ -1986,6 +2031,27 @@ async function showApplication() {
     productionView.classList.add("hidden");
     trainingView.classList.add("hidden");
     pickupListView.classList.add("hidden");
+    historyView.classList.add("hidden");
+
+    if (
+        savedMode !== "TRAINING" &&
+        savedView === "history"
+    ) {
+
+        historyView.classList.remove("hidden");
+
+        historyDate.value =
+            sessionStorage.getItem(
+                "bakery-history-date"
+            ) ||
+            getHistoryTodayDate();
+
+        loadHistory();
+
+        loadHistory();
+
+        return;
+    }
 
     if (savedView === "pickup") {
 
@@ -10648,6 +10714,89 @@ document
         }
     );
 
+// Open History view
+
+historyButton.addEventListener(
+    "click",
+    () => {
+        openHistory();
+    }
+);
+
+// History date navigation
+
+historyDate.addEventListener(
+    "change",
+    () => {
+
+        saveHistoryDateState();
+
+        loadHistory();
+    }
+);
+
+historyPreviousDate.addEventListener(
+    "click",
+    () => {
+
+        historyDate.value =
+            shiftHistoryDate(
+                historyDate.value,
+                -1
+            );
+
+        saveHistoryDateState();
+
+        loadHistory();
+    }
+);
+
+historyNextDate.addEventListener(
+    "click",
+    () => {
+
+        historyDate.value =
+            shiftHistoryDate(
+                historyDate.value,
+                1
+            );
+
+        saveHistoryDateState();
+
+        loadHistory();
+    }
+);
+
+historyTodayButton.addEventListener(
+    "click",
+    () => {
+
+        historyDate.value =
+            getHistoryTodayDate();
+
+        saveHistoryDateState();
+
+        loadHistory();
+    }
+);
+
+// Back from History to Orders
+
+historyBackButton.addEventListener(
+    "click",
+    () => {
+
+        historyView.classList.add("hidden");
+
+        appView = "orders";
+        saveNavigationState();
+
+        ordersView.classList.remove("hidden");
+
+        loadOrders();
+    }
+);
+
 // Open Counter Today view
 
 counterTodayButton.addEventListener(
@@ -10843,7 +10992,471 @@ document
             loadOrders();
         }
     );
+function getHistoryTodayDate() {
 
+    const now = new Date();
+
+    const year =
+        now.getFullYear();
+
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(2, "0");
+
+    const day =
+        String(
+            now.getDate()
+        ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+function shiftHistoryDate(
+    dateValue,
+    days
+) {
+
+    const parts =
+        dateValue.split("-");
+
+    const date =
+        new Date(
+            Date.UTC(
+                Number(parts[0]),
+                Number(parts[1]) - 1,
+                Number(parts[2])
+            )
+        );
+
+    date.setUTCDate(
+        date.getUTCDate() + days
+    );
+
+    const year =
+        date.getUTCFullYear();
+
+    const month =
+        String(
+            date.getUTCMonth() + 1
+        ).padStart(2, "0");
+
+    const day =
+        String(
+            date.getUTCDate()
+        ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+function formatHistoryAmount(
+    amount
+) {
+
+    return new Intl.NumberFormat(
+        undefined,
+        {
+            style: "currency",
+            currency: "USD"
+        }
+    ).format(
+        Number(amount) || 0
+    );
+}
+
+function formatHistoryEventTime(
+    eventAt
+) {
+
+    if (!eventAt) {
+        return "";
+    }
+
+    const normalized =
+        eventAt.replace(
+            " ",
+            "T"
+        );
+
+    const date =
+        new Date(normalized);
+
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
+        return eventAt;
+    }
+
+    return date.toLocaleTimeString(
+        undefined,
+        {
+            hour: "numeric",
+            minute: "2-digit"
+        }
+    );
+}
+
+function formatHistoryEventType(
+    eventType
+) {
+
+    return String(
+        eventType || ""
+    )
+        .toLowerCase()
+        .split("_")
+        .map(
+            (word) =>
+                word.charAt(0).toUpperCase() +
+                word.slice(1)
+        )
+        .join(" ");
+}
+
+function formatHistoryPaymentMethod(
+    method
+) {
+
+    return String(
+        method || ""
+    )
+        .toLowerCase()
+        .split("_")
+        .map(
+            (word) =>
+                word.charAt(0).toUpperCase() +
+                word.slice(1)
+        )
+        .join(" ");
+}
+
+function renderHistoryDashboard(
+    dashboard
+) {
+
+    const businessDay =
+        dashboard.business_day || {};
+
+    const payments =
+        dashboard.payments || {};
+
+    const byMethod =
+        payments.by_method || {};
+
+    historyBusinessDayStatus.textContent =
+        `Business Day: ${
+            businessDay.status || "NOT_OPENED"
+        }`;
+
+    const paymentMethods =
+        Object.entries(
+            byMethod
+        );
+
+    const paymentMethodHtml =
+        paymentMethods.length
+            ? paymentMethods
+                .map(
+                    ([method, amount]) =>
+                        `
+                        <div class="history-payment-method">
+                            <span>
+                                ${formatHistoryPaymentMethod(method)}
+                            </span>
+                            <strong>
+                                ${formatHistoryAmount(amount)}
+                            </strong>
+                        </div>
+                        `
+                )
+                .join("")
+            : `
+                <p class="history-empty">
+                    No payments recorded.
+                </p>
+            `;
+
+    historyDashboard.innerHTML = `
+        <div class="history-summary-grid">
+
+            <div class="history-summary-card">
+                <span>Orders</span>
+                <strong>
+                    ${dashboard.orders.count}
+                </strong>
+                <small>
+                    ${formatHistoryAmount(
+                        dashboard.orders.order_value
+                    )}
+                </small>
+            </div>
+
+            <div class="history-summary-card">
+                <span>Counter Sales</span>
+                <strong>
+                    ${dashboard.counter_sales.count}
+                </strong>
+                <small>
+                    ${formatHistoryAmount(
+                        dashboard.counter_sales.order_value
+                    )}
+                </small>
+            </div>
+
+            <div class="history-summary-card">
+                <span>Payments Received</span>
+                <strong>
+                    ${formatHistoryAmount(
+                        payments.total_amount
+                    )}
+                </strong>
+                <small>
+                    ${payments.transaction_count} transaction${
+                        payments.transaction_count === 1
+                            ? ""
+                            : "s"
+                    }
+                </small>
+            </div>
+
+            <div class="history-summary-card">
+                <span>Pickups</span>
+                <strong>
+                    ${dashboard.pickups.count}
+                </strong>
+            </div>
+
+            <div class="history-summary-card">
+                <span>Production</span>
+                <strong>
+                    ${dashboard.production.quantity}
+                </strong>
+            </div>
+
+            <div class="history-summary-card">
+                <span>Waste</span>
+                <strong>
+                    ${dashboard.waste.quantity}
+                </strong>
+            </div>
+
+        </div>
+
+        <div class="history-payment-methods">
+            <h3>Payment Methods</h3>
+
+            ${paymentMethodHtml}
+        </div>
+    `;
+}
+
+function renderHistoryEvents(
+    events
+) {
+
+    if (!events.length) {
+
+        historyEvents.innerHTML = `
+            <p class="history-empty">
+                No history recorded for this business date.
+            </p>
+        `;
+
+        return;
+    }
+
+    historyEvents.innerHTML =
+        events
+            .map(
+                (event) => {
+
+                    const details =
+                        event.details || {};
+
+                    const quantity =
+                        event.quantity !== null &&
+                        event.quantity !== undefined
+                            ? `<span>Qty: ${event.quantity}</span>`
+                            : "";
+
+                    const amount =
+                        event.amount !== null &&
+                        event.amount !== undefined
+                            ? `<span>${formatHistoryAmount(
+                                event.amount
+                            )}</span>`
+                            : "";
+
+                    const user =
+                        event.user_name
+                            ? `<span>${event.user_name}</span>`
+                            : "";
+
+                    return `
+                        <article class="history-event">
+
+                            <div class="history-event-time">
+                                ${formatHistoryEventTime(
+                                    event.event_at
+                                )}
+                            </div>
+
+                            <div class="history-event-content">
+
+                                <strong>
+                                    ${
+                                        event.summary ||
+                                        formatHistoryEventType(
+                                            event.event_type
+                                        )
+                                    }
+                                </strong>
+
+                                <div class="history-event-meta">
+                                    <span>
+                                        ${formatHistoryEventType(
+                                            event.event_type
+                                        )}
+                                    </span>
+
+                                    ${quantity}
+                                    ${amount}
+                                    ${user}
+                                </div>
+
+                                ${
+                                    details.order_type
+                                        ? `
+                                            <small>
+                                                ${details.order_type}
+                                            </small>
+                                        `
+                                        : ""
+                                }
+
+                                ${
+                                    event.notes
+                                        ? `
+                                            <p>
+                                                ${event.notes}
+                                            </p>
+                                        `
+                                        : ""
+                                }
+
+                            </div>
+
+                        </article>
+                    `;
+                }
+            )
+            .join("");
+}
+
+async function loadHistory() {
+
+    const date =
+        historyDate.value;
+
+    if (!date) {
+        return;
+    }
+
+    historyDashboard.innerHTML = `
+        <p class="history-empty">
+            Loading history...
+        </p>
+    `;
+
+    historyEvents.innerHTML = "";
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/history?date=${encodeURIComponent(
+                    date
+                )}`
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+
+            throw new Error(
+                result.error ||
+                "Failed to load history."
+            );
+        }
+
+        const data =
+            result.data;
+
+        renderHistoryDashboard(
+            data.dashboard
+        );
+
+        renderHistoryEvents(
+            data.events
+        );
+
+    } catch (error) {
+
+        console.error(
+            "loadHistory error:",
+            error
+        );
+
+        historyBusinessDayStatus.textContent =
+            "Business Day: Unavailable";
+
+        historyDashboard.innerHTML = `
+            <p class="history-empty">
+                Unable to load history.
+            </p>
+        `;
+
+        historyEvents.innerHTML = `
+            <p class="history-empty">
+                ${error.message}
+            </p>
+        `;
+    }
+}
+
+function openHistory() {
+
+    ordersView.classList.add("hidden");
+    newOrderView.classList.add("hidden");
+    orderDetailView.classList.add("hidden");
+    pickupListView.classList.add("hidden");
+    counterSaleView.classList.add("hidden");
+    productionView.classList.add("hidden");
+
+    appView = "history";
+    saveNavigationState();
+
+    historyView.classList.remove("hidden");
+
+    if (!historyDate.value) {
+
+        historyDate.value =
+            sessionStorage.getItem(
+                "bakery-history-date"
+            ) ||
+            getHistoryTodayDate();
+    }
+
+    saveHistoryDateState();
+
+    loadHistory();
+}
 
 // =========================================================
 // Initial Load

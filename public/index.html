@@ -804,6 +804,10 @@
                 Production
             </button>
 
+            <button id="open-history">
+                History
+            </button>
+
             <button id="new-order" class="primary-action">
                 + New Order
             </button>
@@ -828,6 +832,55 @@
 
     </div>
 
+</section>
+
+<section
+    id="history-view"
+    class="view hidden"
+>
+    <div class="section-header">
+        <button id="history-back">← Orders</button>
+
+        <h2>History</h2>
+    </div>
+
+    <div class="history-date-controls">
+        <button id="history-previous-date">←</button>
+
+        <label for="history-date">
+            Business date
+        </label>
+
+        <input
+            type="date"
+            id="history-date"
+        >
+
+        <button id="history-next-date">→</button>
+
+        <button id="history-today">Today</button>
+    </div>
+
+    <div
+        id="history-business-day-status"
+        class="history-business-day-status"
+    >
+        Business Day: Loading...
+    </div>
+
+    <div
+        id="history-dashboard"
+        class="history-dashboard"
+    ></div>
+
+    <div class="history-events-section">
+        <h3>Events</h3>
+
+        <div
+            id="history-events"
+            class="history-events"
+        ></div>
+    </div>
 </section>
 
 <!-- Counter Today -->
