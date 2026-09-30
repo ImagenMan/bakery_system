@@ -82,6 +82,21 @@ const historyNextDate =
 const historyTodayButton =
     document.getElementById("history-today");
 
+const historyWeatherImport =
+    document.getElementById(
+        "history-weather-import"
+    );
+
+const historyWeatherImportButton =
+    document.getElementById(
+        "history-weather-import-button"
+    );
+
+const historyWeatherImportStatus =
+    document.getElementById(
+        "history-weather-import-status"
+    );
+
 const historyBusinessDayStatus =
     document.getElementById(
         "history-business-day-status"
@@ -10819,6 +10834,14 @@ historyTodayButton.addEventListener(
     }
 );
 
+historyWeatherImportButton.addEventListener(
+    "click",
+    async () => {
+
+        await importHistoryWeather();
+    }
+);
+
 historyOperationalEventForm.addEventListener(
     "submit",
     async (event) => {
@@ -11416,6 +11439,16 @@ function renderHistoryDashboard(
             ${paymentMethodHtml}
         </div>
     `;
+
+    if (
+        currentUser &&
+        currentUser.role === "ADMIN"
+    ) {
+        historyWeatherImportButton.textContent =
+            dashboard.weather
+                ? "Refresh Weather"
+                : "Import Weather";
+    }
 }
 
 function renderHistoryEvents(
@@ -11538,6 +11571,97 @@ function renderHistoryOperationalEventForm() {
     historyOperationalEvent.classList.add(
         "hidden"
     );
+}
+
+function renderHistoryWeatherImport() {
+
+    if (
+        currentUser &&
+        currentUser.role === "ADMIN"
+    ) {
+
+        historyWeatherImport.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    historyWeatherImport.classList.add(
+        "hidden"
+    );
+}
+
+async function importHistoryWeather() {
+
+    const recordDate =
+        historyDate.value;
+
+    if (!recordDate) {
+        return;
+    }
+
+    historyWeatherImportButton.disabled =
+        true;
+
+    historyWeatherImportStatus.textContent =
+        "Importing weather...";
+
+    historyWeatherImportStatus.classList.remove(
+        "hidden"
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/weather/import",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        record_date:
+                            recordDate
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Failed to import weather."
+            );
+        }
+
+        historyWeatherImportStatus.textContent =
+            "Weather imported.";
+
+        await loadHistory();
+
+    } catch (error) {
+
+        console.error(
+            "importHistoryWeather error:",
+            error
+        );
+
+        historyWeatherImportStatus.textContent =
+            error.message;
+
+    } finally {
+
+        historyWeatherImportButton.disabled =
+            false;
+    }
 }
 
 function getHistoryOperationalEventTimestamp() {
@@ -11736,6 +11860,8 @@ async function loadHistory() {
     }
 
     renderHistoryOperationalEventForm();
+
+    renderHistoryWeatherImport();
 
     setHistoryOperationalEventDateTime();
 
