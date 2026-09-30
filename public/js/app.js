@@ -93,6 +93,41 @@ const historyDashboard =
 const historyEvents =
     document.getElementById("history-events");
 
+const historyOperationalEvent =
+    document.getElementById(
+        "history-operational-event"
+    );
+
+const historyOperationalEventForm =
+    document.getElementById(
+        "history-operational-event-form"
+    );
+
+const historyOperationalEventType =
+    document.getElementById(
+        "history-operational-event-type"
+    );
+
+const historyOperationalEventAt =
+    document.getElementById(
+        "history-operational-event-at"
+    );
+
+const historyOperationalEventNotes =
+    document.getElementById(
+        "history-operational-event-notes"
+    );
+
+const historyOperationalEventSave =
+    document.getElementById(
+        "history-operational-event-save"
+    );
+
+const historyOperationalEventError =
+    document.getElementById(
+        "history-operational-event-error"
+    );
+
 const trainingCounterSaleView = document.getElementById(
     "training-counter-sale-view"
 );
@@ -10731,6 +10766,8 @@ historyDate.addEventListener(
     "change",
     () => {
 
+        setHistoryOperationalEventDateTime();
+
         saveHistoryDateState();
 
         loadHistory();
@@ -10779,6 +10816,16 @@ historyTodayButton.addEventListener(
         saveHistoryDateState();
 
         loadHistory();
+    }
+);
+
+historyOperationalEventForm.addEventListener(
+    "submit",
+    async (event) => {
+
+        event.preventDefault();
+
+        await recordHistoryOperationalEvent();
     }
 );
 
@@ -11419,6 +11466,211 @@ function renderHistoryEvents(
             .join("");
 }
 
+function renderHistoryOperationalEventForm() {
+
+    if (
+        currentUser &&
+        currentUser.role === "ADMIN"
+    ) {
+
+        historyOperationalEvent.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    historyOperationalEvent.classList.add(
+        "hidden"
+    );
+}
+
+function getHistoryOperationalEventTimestamp() {
+
+    const value =
+        historyOperationalEventAt.value;
+
+    if (!value) {
+        return null;
+    }
+
+    const date =
+        new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return null;
+    }
+
+    const pad =
+        (number) =>
+            String(number).padStart(2, "0");
+
+    return [
+        date.getUTCFullYear(),
+        pad(date.getUTCMonth() + 1),
+        pad(date.getUTCDate())
+    ].join("-") +
+    " " +
+    [
+        pad(date.getUTCHours()),
+        pad(date.getUTCMinutes()),
+        pad(date.getUTCSeconds())
+    ].join(":");
+}
+
+function setHistoryOperationalEventDateTime() {
+
+    const recordDate =
+        historyDate.value;
+
+    if (!recordDate) {
+        historyOperationalEventAt.value = "";
+
+        return;
+    }
+
+    const now =
+        new Date();
+
+    const pad =
+        (value) =>
+            String(value).padStart(2, "0");
+
+    const today =
+        [
+            now.getFullYear(),
+            pad(now.getMonth() + 1),
+            pad(now.getDate())
+        ].join("-");
+
+    if (recordDate === today) {
+
+        historyOperationalEventAt.value =
+            [
+                today,
+                "T",
+                pad(now.getHours()),
+                ":",
+                pad(now.getMinutes())
+            ].join("");
+
+        return;
+    }
+
+    historyOperationalEventAt.value =
+        `${recordDate}T12:00`;
+}
+
+async function recordHistoryOperationalEvent() {
+
+    const recordDate =
+        historyDate.value;
+
+    const eventType =
+        historyOperationalEventType.value;
+
+    const notes =
+        historyOperationalEventNotes.value.trim();
+
+    if (!recordDate) {
+        return;
+    }
+
+    if (!eventType) {
+        historyOperationalEventError.textContent =
+            "Select an event type.";
+
+        historyOperationalEventError.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    if (!historyOperationalEventAt.value) {
+        historyOperationalEventError.textContent =
+            "Event date/time is required.";
+
+        historyOperationalEventError.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    historyOperationalEventSave.disabled = true;
+
+    historyOperationalEventError.textContent = "";
+
+    historyOperationalEventError.classList.add(
+        "hidden"
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/operational-events",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        event_type:
+                            eventType,
+
+                        record_date:
+                            recordDate,
+
+                        event_at:
+                            getHistoryOperationalEventTimestamp(),
+
+                        notes:
+                            notes || null
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Failed to record operational event."
+            );
+        }
+
+        historyOperationalEventForm.reset();
+
+        await loadHistory();
+
+    } catch (error) {
+
+        console.error(
+            "recordHistoryOperationalEvent error:",
+            error
+        );
+
+        historyOperationalEventError.textContent =
+            error.message;
+
+        historyOperationalEventError.classList.remove(
+            "hidden"
+        );
+
+    } finally {
+
+        historyOperationalEventSave.disabled =
+            false;
+    }
+}
+
 async function loadHistory() {
 
     const date =
@@ -11427,6 +11679,10 @@ async function loadHistory() {
     if (!date) {
         return;
     }
+
+    renderHistoryOperationalEventForm();
+
+    setHistoryOperationalEventDateTime();
 
     historyDashboard.innerHTML = `
         <p class="history-empty">

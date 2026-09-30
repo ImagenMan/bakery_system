@@ -873,6 +873,75 @@
         class="history-dashboard"
     ></div>
 
+    <div
+        id="history-operational-event"
+        class="history-operational-event hidden"
+    >
+        <h3>Record Operational Event</h3>
+
+        <form id="history-operational-event-form">
+
+            <label for="history-operational-event-type">
+                Event type
+            </label>
+
+            <select
+                id="history-operational-event-type"
+                required
+            >
+                <option value="">
+                    Select event type
+                </option>
+
+                <option value="POWER_OUTAGE">
+                    Power outage
+                </option>
+
+                <option value="EQUIPMENT_ISSUE">
+                    Equipment issue
+                </option>
+
+                <option value="OTHER">
+                    Other
+                </option>
+            </select>
+
+            <label for="history-operational-event-at">
+                Event date/time
+            </label>
+
+            <input
+                type="datetime-local"
+                id="history-operational-event-at"
+                required
+            >
+
+            <label for="history-operational-event-notes">
+                Notes
+            </label>
+
+            <textarea
+                id="history-operational-event-notes"
+                rows="3"
+                placeholder="Optional notes"
+            ></textarea>
+
+            <button
+                type="submit"
+                class="primary-action"
+                id="history-operational-event-save"
+            >
+                Save Event
+            </button>
+
+            <p
+                id="history-operational-event-error"
+                class="hidden"
+            ></p>
+
+        </form>
+    </div>
+
     <div class="history-events-section">
         <h3>Events</h3>
 
