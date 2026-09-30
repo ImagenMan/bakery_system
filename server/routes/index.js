@@ -20,6 +20,10 @@ const {
     getBusinessDateUtcRange
 } = require("../utils/businessTime");
 
+const {
+    importWeatherForDailyRecord
+} = require("../services/weather/importWeather");
+
 // =========================================================
 // Application Mode
 // =========================================================
@@ -119,6 +123,76 @@ router.get(
         } catch (error) {
             console.error(
                 "GET /api/history error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+// =========================================================
+// Weather
+// =========================================================
+
+router.post(
+    "/weather/import",
+    requireAdmin,
+    async (req, res) => {
+        try {
+            const {
+                record_date
+            } = req.body;
+
+            if (
+                typeof record_date !== "string" ||
+                !record_date.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Record date is required."
+                });
+            }
+
+            const dailyRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(
+                        record_date
+                    );
+
+            if (!dailyRecord) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        `Daily record for ${record_date} not found.`
+                });
+            }
+
+            const weather =
+                await importWeatherForDailyRecord({
+                    dailyRecordId:
+                        dailyRecord.id,
+                    recordDate:
+                        dailyRecord.record_date,
+                    dailyWeather:
+                        req.models.dailyWeather
+                });
+
+            res.json({
+                success: true,
+                data: {
+                    dailyRecord,
+                    weather
+                }
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/weather/import error:",
                 error
             );
 
