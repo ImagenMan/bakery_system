@@ -11197,6 +11197,9 @@ function renderHistoryDashboard(
     const payments =
         dashboard.payments || {};
 
+    const weather =
+        dashboard.weather || null;
+
     const byMethod =
         payments.by_method || {};
 
@@ -11324,6 +11327,58 @@ function renderHistoryDashboard(
                 <strong>
                     ${dashboard.waste.quantity}
                 </strong>
+            </div>
+
+            <div class="history-weather">
+                <h3>Weather</h3>
+
+                ${
+                    weather
+                        ? `
+                            <div class="history-weather-details">
+                                <span>
+                                    <small>High</small>
+                                    ${weather.temperature_high ?? "—"}
+                                </span>
+
+                                <span>
+                                    <small>Low</small>
+                                    ${weather.temperature_low ?? "—"}
+                                </span>
+
+                                <span>
+                                    <small>Rain</small>
+                                    ${
+                                        weather.rain !== null &&
+                                        weather.rain !== undefined
+                                            ? `${weather.rain}`
+                                            : "—"
+                                    }
+                                </span>
+
+                                <span>
+                                    <small>Source</small>
+                                    ${weather.source || "—"}
+                                </span>
+
+                                <span>
+                                    <small>Retrieved</small>
+                                    ${
+                                        weather.retrieved_at
+                                            ? formatHistoryEventTime(
+                                                weather.retrieved_at
+                                            )
+                                            : "—"
+                                    }
+                                </span>
+                            </div>
+                        `
+                        : `
+                            <p class="history-empty">
+                                Weather not imported.
+                            </p>
+                        `
+                }
             </div>
 
         <div class="history-production-breakdown">
