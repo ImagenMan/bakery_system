@@ -112,6 +112,30 @@ router.get(
                     events
                 );
 
+            const weatherRecord =
+                req.models.dailyWeather
+                    .getWeatherByDate(
+                        date
+                    );
+
+            dashboard.weather =
+                weatherRecord
+                    ? {
+                        temperature_high:
+                            weatherRecord.temperature_high,
+                        temperature_low:
+                            weatherRecord.temperature_low,
+                        precipitation:
+                            weatherRecord.precipitation,
+                        rain:
+                            weatherRecord.rain,
+                        source:
+                            weatherRecord.source,
+                        retrieved_at:
+                            weatherRecord.retrieved_at
+                    }
+                    : null;
+
             res.json({
                 success: true,
                 data: {
