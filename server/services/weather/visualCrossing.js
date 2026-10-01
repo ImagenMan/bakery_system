@@ -2,6 +2,9 @@ const {
     getWeatherConfig
 } = require("../../config/weather");
 
+const WEATHER_REQUEST_TIMEOUT_MS =
+    10000;
+
 function validateRecordDate(record_date) {
     if (
         typeof record_date !== "string" ||
@@ -98,7 +101,15 @@ async function getHistoricalWeather(
     );
 
     const response =
-        await fetch(url);
+        await fetch(
+            url,
+            {
+                signal:
+                    AbortSignal.timeout(
+                        WEATHER_REQUEST_TIMEOUT_MS
+                    )
+            }
+        );
 
     if (!response.ok) {
         const body =
