@@ -887,6 +887,64 @@
     </div>
 
     <div
+        id="history-daily-record"
+        class="history-daily-record hidden"
+    >
+        <h3>Daily Record</h3>
+
+        <form id="history-daily-record-form">
+
+            <label for="history-electricity-reading">
+                Electricity reading
+            </label>
+
+            <input
+                type="number"
+                id="history-electricity-reading"
+                step="any"
+                inputmode="decimal"
+                placeholder="Optional"
+            >
+
+            <label for="history-gas-reading">
+                Gas reading
+            </label>
+
+            <input
+                type="number"
+                id="history-gas-reading"
+                step="any"
+                inputmode="decimal"
+                placeholder="Optional"
+            >
+
+            <label for="history-daily-notes">
+                Daily notes
+            </label>
+
+            <textarea
+                id="history-daily-notes"
+                rows="3"
+                placeholder="Optional notes"
+            ></textarea>
+
+            <button
+                type="submit"
+                class="primary-action"
+                id="history-daily-record-save"
+            >
+                Save Daily Record
+            </button>
+
+            <p
+                id="history-daily-record-error"
+                class="hidden"
+            ></p>
+
+        </form>
+    </div>
+
+    <div
         id="history-dashboard"
         class="history-dashboard"
     ></div>

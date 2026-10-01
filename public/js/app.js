@@ -102,6 +102,41 @@ const historyBusinessDayStatus =
         "history-business-day-status"
     );
 
+const historyDailyRecord =
+    document.getElementById(
+        "history-daily-record"
+    );
+
+const historyDailyRecordForm =
+    document.getElementById(
+        "history-daily-record-form"
+    );
+
+const historyElectricityReading =
+    document.getElementById(
+        "history-electricity-reading"
+    );
+
+const historyGasReading =
+    document.getElementById(
+        "history-gas-reading"
+    );
+
+const historyDailyNotes =
+    document.getElementById(
+        "history-daily-notes"
+    );
+
+const historyDailyRecordSave =
+    document.getElementById(
+        "history-daily-record-save"
+    );
+
+const historyDailyRecordError =
+    document.getElementById(
+        "history-daily-record-error"
+    );
+
 const historyDashboard =
     document.getElementById("history-dashboard");
 
@@ -10852,6 +10887,14 @@ historyOperationalEventForm.addEventListener(
     }
 );
 
+historyDailyRecordForm.addEventListener(
+    "submit",
+    async (event) => {
+        event.preventDefault();
+        await saveHistoryDailyRecord();
+    }
+);
+
 // Back from History to Orders
 
 historyBackButton.addEventListener(
@@ -11554,6 +11597,141 @@ function renderHistoryEvents(
             .join("");
 }
 
+async function saveHistoryDailyRecord() {
+
+    const recordDate =
+        historyDate.value;
+
+    if (!recordDate) {
+        return;
+    }
+
+    historyDailyRecordSave.disabled =
+        true;
+
+    historyDailyRecordError.textContent =
+        "";
+
+    historyDailyRecordError.classList.add(
+        "hidden"
+    );
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/daily-record",
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify({
+                        record_date:
+                            recordDate,
+                        electricity_reading:
+                            historyElectricityReading
+                                .value === ""
+                                ? null
+                                : historyElectricityReading
+                                    .value,
+                        gas_reading:
+                            historyGasReading
+                                .value === ""
+                                ? null
+                                : historyGasReading
+                                    .value,
+                        notes:
+                            historyDailyNotes
+                                .value
+                                .trim() || null
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Failed to save daily record."
+            );
+        }
+
+        await loadHistory();
+
+    } catch (error) {
+
+        console.error(
+            "saveHistoryDailyRecord error:",
+            error
+        );
+
+        historyDailyRecordError.textContent =
+            error.message;
+
+        historyDailyRecordError.classList.remove(
+            "hidden"
+        );
+
+    } finally {
+
+        historyDailyRecordSave.disabled =
+            false;
+    }
+}
+
+function renderHistoryDailyRecord(
+    dailyRecord
+) {
+
+    if (
+        !currentUser ||
+        currentUser.role !== "ADMIN"
+    ) {
+
+        historyDailyRecord.classList.add(
+            "hidden"
+        );
+
+        return;
+    }
+
+    historyDailyRecord.classList.remove(
+        "hidden"
+    );
+
+    historyElectricityReading.value =
+        dailyRecord &&
+        dailyRecord.electricity_reading !== null
+            ? dailyRecord.electricity_reading
+            : "";
+
+    historyGasReading.value =
+        dailyRecord &&
+        dailyRecord.gas_reading !== null
+            ? dailyRecord.gas_reading
+            : "";
+
+    historyDailyNotes.value =
+        dailyRecord &&
+        dailyRecord.notes
+            ? dailyRecord.notes
+            : "";
+
+    historyDailyRecordError.textContent =
+        "";
+
+    historyDailyRecordError.classList.add(
+        "hidden"
+    );
+}
+
 function renderHistoryOperationalEventForm() {
 
     if (
@@ -11898,6 +12076,10 @@ async function loadHistory() {
 
         const data =
             result.data;
+
+        renderHistoryDailyRecord(
+            data.dailyRecord
+        );
 
         renderHistoryDashboard(
             data.dashboard
