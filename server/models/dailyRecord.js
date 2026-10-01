@@ -180,6 +180,45 @@ function createDailyRecordModel(db) {
         return findDailyRecordByDate(record_date);
     }
 
+    function updateDailyRecord({
+        record_date,
+        electricity_reading,
+        gas_reading,
+        notes
+    }) {
+        validateRecordDate(record_date);
+
+        const record =
+            findDailyRecordByDate(
+                record_date
+            );
+
+        if (!record) {
+            throw new Error(
+                `No daily record exists for ${record_date}.`
+            );
+        }
+
+        db.prepare(`
+            UPDATE daily_records
+            SET
+                electricity_reading = ?,
+                gas_reading = ?,
+                notes = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE record_date = ?
+        `).run(
+            electricity_reading,
+            gas_reading,
+            notes,
+            record_date
+        );
+
+        return findDailyRecordByDate(
+            record_date
+        );
+    }
+
     return {
         isValidRecordDate,
         getDailyRecordByDate,
@@ -187,7 +226,8 @@ function createDailyRecordModel(db) {
         createDailyRecord,
         openDailyRecord,
         closeDailyRecord,
-        reopenDailyRecord
+        reopenDailyRecord,
+        updateDailyRecord
     };
 }
 

@@ -158,6 +158,136 @@ router.get(
     }
 );
 
+router.put(
+    "/daily-record",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const {
+                record_date,
+                electricity_reading,
+                gas_reading,
+                notes
+            } = req.body;
+
+            if (
+                typeof record_date !== "string" ||
+                !record_date.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Record date is required."
+                });
+            }
+
+            const dailyRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(
+                        record_date
+                    );
+
+            if (!dailyRecord) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        `Daily record for ${record_date} not found.`
+                });
+            }
+
+            const normalizedElectricity =
+                electricity_reading === null ||
+                electricity_reading === undefined ||
+                electricity_reading === "" ||
+                typeof electricity_reading === "boolean"
+                    ? null
+                    : Number(
+                        electricity_reading
+                    );
+
+            if (
+                normalizedElectricity !== null &&
+                !Number.isFinite(
+                    normalizedElectricity
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Electricity reading must be a valid number."
+                });
+            }
+
+            const normalizedGas =
+                gas_reading === null ||
+                gas_reading === undefined ||
+                gas_reading === "" ||
+                typeof gas_reading === "boolean"
+                    ? null
+                    : Number(
+                        gas_reading
+                    );
+
+            if (
+                normalizedGas !== null &&
+                !Number.isFinite(
+                    normalizedGas
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Gas reading must be a valid number."
+                });
+            }
+
+            if (
+                notes !== null &&
+                notes !== undefined &&
+                typeof notes !== "string"
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Notes must be text."
+                });
+            }
+
+            const updatedDailyRecord =
+                req.models.dailyRecord
+                    .updateDailyRecord({
+                        record_date:
+                            record_date.trim(),
+                        electricity_reading:
+                            normalizedElectricity,
+                        gas_reading:
+                            normalizedGas,
+                        notes:
+                            typeof notes === "string" &&
+                            notes.trim()
+                                ? notes.trim()
+                                : null
+                    });
+
+            res.json({
+                success: true,
+                data: updatedDailyRecord
+            });
+
+        } catch (error) {
+            console.error(
+                "PUT /api/daily-record error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
 // =========================================================
 // Weather
 // =========================================================
