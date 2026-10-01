@@ -112,6 +112,12 @@ router.get(
                     events
                 );
 
+            const dailyRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(
+                        date
+                    );
+
             const weatherRecord =
                 req.models.dailyWeather
                     .getWeatherByDate(
@@ -140,6 +146,7 @@ router.get(
                 success: true,
                 data: {
                     dashboard,
+                    dailyRecord,
                     events
                 }
             });
