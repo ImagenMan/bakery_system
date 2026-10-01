@@ -474,7 +474,7 @@ router.post(
 router.post(
     "/business-day/close",
     requireAdmin,
-    (req, res) => {
+    async (req, res) => {
         try {
             const recordDate =
                 getBusinessDate();
@@ -544,6 +544,31 @@ router.post(
                         event
                     };
                 })();
+
+            if (req.mode !== "TRAINING") {
+                const existingWeather =
+                    req.models.dailyWeather
+                        .getWeatherByDailyRecordId(
+                            result.dailyRecord.id
+                        );
+
+                if (!existingWeather) {
+                    try {
+                        await importWeatherForDailyRecord({
+                            dailyRecordId:
+                                result.dailyRecord.id,
+                            recordDate,
+                            dailyWeather:
+                                req.models.dailyWeather
+                        });
+                    } catch (error) {
+                        console.error(
+                            "Automatic weather import failed:",
+                            error
+                        );
+                    }
+                }
+            }
 
             res.json({
                 success: true,
