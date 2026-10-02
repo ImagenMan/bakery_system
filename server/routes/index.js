@@ -142,11 +142,20 @@ router.get(
                     }
                     : null;
 
+            const dailyContexts =
+                dailyRecord
+                    ? req.models.dailyContext
+                        .getDailyContextsByDailyRecordId(
+                            dailyRecord.id
+                        )
+                    : [];
+
             res.json({
                 success: true,
                 data: {
                     dashboard,
                     dailyRecord,
+                    dailyContexts,
                     events
                 }
             });
@@ -284,6 +293,181 @@ router.put(
         } catch (error) {
             console.error(
                 "PUT /api/daily-record error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+// =========================================================
+// Daily Context
+// =========================================================
+
+router.post(
+    "/daily-context",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const {
+                record_date,
+                context_type,
+                title,
+                notes
+            } = req.body;
+
+            if (
+                typeof record_date !== "string" ||
+                !record_date.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Record date is required."
+                });
+            }
+
+            const dailyRecord =
+                req.models.dailyRecord
+                    .getDailyRecordByDate(
+                        record_date
+                    );
+
+            if (!dailyRecord) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        `Daily record for ${record_date} not found.`
+                });
+            }
+
+            const dailyContext =
+                req.models.dailyContext
+                    .createDailyContext({
+                        daily_record_id:
+                            dailyRecord.id,
+                        context_type,
+                        title,
+                        notes:
+                            typeof notes === "string" &&
+                            notes.trim()
+                                ? notes.trim()
+                                : null
+                    });
+
+            res.json({
+                success: true,
+                data: dailyContext
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/daily-context error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+router.put(
+    "/daily-context/:id",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const id = Number(
+                req.params.id
+            );
+
+            if (
+                !Number.isInteger(id) ||
+                id <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Daily context ID must be a positive integer."
+                });
+            }
+
+            const {
+                context_type,
+                title,
+                notes
+            } = req.body;
+
+            const dailyContext =
+                req.models.dailyContext
+                    .updateDailyContext({
+                        id,
+                        context_type,
+                        title,
+                        notes:
+                            typeof notes === "string" &&
+                            notes.trim()
+                                ? notes.trim()
+                                : null
+                    });
+
+            res.json({
+                success: true,
+                data: dailyContext
+            });
+
+        } catch (error) {
+            console.error(
+                "PUT /api/daily-context/:id error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+router.delete(
+    "/daily-context/:id",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const id = Number(
+                req.params.id
+            );
+
+            if (
+                !Number.isInteger(id) ||
+                id <= 0
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Daily context ID must be a positive integer."
+                });
+            }
+
+            const deletedContext =
+                req.models.dailyContext
+                    .deleteDailyContext(id);
+
+            res.json({
+                success: true,
+                data: deletedContext
+            });
+
+        } catch (error) {
+            console.error(
+                "DELETE /api/daily-context/:id error:",
                 error
             );
 
