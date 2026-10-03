@@ -942,6 +942,105 @@
             ></p>
 
         </form>
+        </div>
+
+        <div
+            id="history-daily-context"
+            class="history-daily-context"
+        >
+        <h3>Daily Context</h3>
+
+        <div
+            id="history-daily-context-list"
+            class="history-daily-context-list"
+        ></div>
+
+        <div
+            id="history-daily-context-form"
+            class="history-daily-context-form hidden"
+        >
+            <form>
+
+                <label for="history-daily-context-type">
+                    Type
+                </label>
+
+                <select
+                    id="history-daily-context-type"
+                    required
+                >
+                    <option value="HOLIDAY">
+                        Holiday
+                    </option>
+
+                    <option value="SCHOOL_VACATION">
+                        School Vacation
+                    </option>
+
+                    <option value="LOCAL_EVENT">
+                        Local Event
+                    </option>
+
+                    <option value="PROMOTION">
+                        Promotion
+                    </option>
+
+                    <option value="OTHER">
+                        Other
+                    </option>
+                </select>
+
+                <label for="history-daily-context-title">
+                    Title
+                </label>
+
+                <input
+                    type="text"
+                    id="history-daily-context-title"
+                    maxlength="200"
+                    required
+                >
+
+                <label for="history-daily-context-notes">
+                    Notes
+                </label>
+
+                <textarea
+                    id="history-daily-context-notes"
+                    rows="3"
+                    placeholder="Optional notes"
+                ></textarea>
+
+                <button
+                    type="submit"
+                    class="primary-action"
+                    id="history-daily-context-save"
+                >
+                    Add Context
+                </button>
+
+                <button
+                    type="button"
+                    id="history-daily-context-cancel"
+                >
+                    Cancel
+                </button>
+
+                <p
+                    id="history-daily-context-error"
+                    class="hidden"
+                ></p>
+
+            </form>
+        </div>
+
+        <button
+            type="button"
+            id="history-daily-context-add"
+            class="primary-action hidden"
+        >
+            Add Daily Context
+        </button>
     </div>
 
     <div

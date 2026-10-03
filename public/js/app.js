@@ -137,6 +137,60 @@ const historyDailyRecordError =
         "history-daily-record-error"
     );
 
+const historyDailyContext =
+    document.getElementById(
+        "history-daily-context"
+    );
+
+const historyDailyContextList =
+    document.getElementById(
+        "history-daily-context-list"
+    );
+
+const historyDailyContextForm =
+    document.getElementById(
+        "history-daily-context-form"
+    );
+
+const historyDailyContextAdd =
+    document.getElementById(
+        "history-daily-context-add"
+    );
+
+const historyDailyContextType =
+    document.getElementById(
+        "history-daily-context-type"
+    );
+
+const historyDailyContextTitle =
+    document.getElementById(
+        "history-daily-context-title"
+    );
+
+const historyDailyContextNotes =
+    document.getElementById(
+        "history-daily-context-notes"
+    );
+
+const historyDailyContextSave =
+    document.getElementById(
+        "history-daily-context-save"
+    );
+
+const historyDailyContextCancel =
+    document.getElementById(
+        "history-daily-context-cancel"
+    );
+
+const historyDailyContextError =
+    document.getElementById(
+        "history-daily-context-error"
+    );
+
+let editingDailyContextId = null;
+
+let historyDailyContexts = [];
+
 const historyDashboard =
     document.getElementById("history-dashboard");
 
@@ -10895,6 +10949,331 @@ historyDailyRecordForm.addEventListener(
     }
 );
 
+historyDailyContextAdd.addEventListener(
+    "click",
+    () => {
+        editingDailyContextId = null;
+
+        historyDailyContextSave.textContent =
+            "Add Context";
+
+        historyDailyContextForm.classList.remove(
+            "hidden"
+        );
+
+        historyDailyContextAdd.classList.add(
+            "hidden"
+        );
+
+        historyDailyContextType.value =
+            "HOLIDAY";
+
+        historyDailyContextTitle.value =
+            "";
+
+        historyDailyContextNotes.value =
+            "";
+
+        historyDailyContextError.textContent =
+            "";
+
+        historyDailyContextError.classList.add(
+            "hidden"
+        );
+
+        historyDailyContextTitle.focus();
+    }
+);
+
+historyDailyContextCancel.addEventListener(
+    "click",
+    () => {
+        editingDailyContextId = null;
+
+        historyDailyContextSave.textContent =
+            "Add Context";
+
+        historyDailyContextForm.classList.add(
+            "hidden"
+        );
+
+        historyDailyContextAdd.classList.remove(
+            "hidden"
+        );
+
+        historyDailyContextError.textContent =
+            "";
+
+        historyDailyContextError.classList.add(
+            "hidden"
+        );
+    }
+);
+
+historyDailyContextList.addEventListener(
+    "click",
+    async (event) => {
+
+        const editButton =
+            event.target.closest(
+                ".history-daily-context-edit"
+            );
+
+        const deleteButton =
+            event.target.closest(
+                ".history-daily-context-delete"
+            );
+
+        if (!editButton && !deleteButton) {
+            return;
+        }
+
+        const button =
+            editButton ||
+            deleteButton;
+
+        const contextId =
+            Number(
+                button.dataset.contextId
+            );
+
+        const context =
+            historyDailyContexts.find(
+                (item) =>
+                    Number(item.id) ===
+                    contextId
+            );
+
+        if (!context) {
+            return;
+        }
+
+        if (deleteButton) {
+
+            const confirmed =
+                confirm(
+                    `Delete "${context.title}"?`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+
+            deleteButton.disabled =
+                true;
+
+            try {
+
+                const response =
+                    await fetch(
+                        `/api/daily-context/${contextId}`,
+                        {
+                            method: "DELETE"
+                        }
+                    );
+
+                const result =
+                    await response.json();
+
+                if (
+                    !response.ok ||
+                    !result.success
+                ) {
+                    throw new Error(
+                        result.error ||
+                        "Failed to delete daily context."
+                    );
+                }
+
+                if (
+                    editingDailyContextId ===
+                    contextId
+                ) {
+                    editingDailyContextId =
+                        null;
+
+                    historyDailyContextForm.classList.add(
+                        "hidden"
+                    );
+
+                    historyDailyContextAdd.classList.remove(
+                        "hidden"
+                    );
+                }
+
+                await loadHistory();
+
+            } catch (error) {
+
+                historyDailyContextError.textContent =
+                    error.message;
+
+                historyDailyContextError.classList.remove(
+                    "hidden"
+                );
+
+            } finally {
+
+                deleteButton.disabled =
+                    false;
+            }
+
+            return;
+        }
+
+        editingDailyContextId =
+            contextId;
+
+        historyDailyContextType.value =
+            context.context_type;
+
+        historyDailyContextTitle.value =
+            context.title;
+
+        historyDailyContextNotes.value =
+            context.notes || "";
+
+        historyDailyContextSave.textContent =
+            "Save Changes";
+
+        historyDailyContextForm.classList.remove(
+            "hidden"
+        );
+
+        historyDailyContextAdd.classList.add(
+            "hidden"
+        );
+
+        historyDailyContextError.textContent =
+            "";
+
+        historyDailyContextError.classList.add(
+            "hidden"
+        );
+
+        historyDailyContextTitle.focus();
+    }
+);
+
+historyDailyContextForm
+    .querySelector("form")
+    .addEventListener(
+        "submit",
+        async (event) => {
+            event.preventDefault();
+
+            await saveHistoryDailyContext();
+        }
+    );
+
+async function saveHistoryDailyContext() {
+
+    const recordDate =
+        historyDate.value;
+
+    const contextType =
+        historyDailyContextType.value;
+
+    const title =
+        historyDailyContextTitle.value.trim();
+
+    const notes =
+        historyDailyContextNotes.value.trim();
+
+    historyDailyContextSave.disabled =
+        true;
+
+    historyDailyContextError.textContent =
+        "";
+
+    historyDailyContextError.classList.add(
+        "hidden"
+    );
+
+    try {
+
+        const isEditing =
+            editingDailyContextId !== null;
+
+        const response =
+            await fetch(
+                isEditing
+                    ? `/api/daily-context/${editingDailyContextId}`
+                    : "/api/daily-context",
+                {
+                    method:
+                        isEditing
+                            ? "PUT"
+                            : "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body: JSON.stringify(
+                        isEditing
+                            ? {
+                                context_type:
+                                    contextType,
+                                title,
+                                notes
+                            }
+                            : {
+                                record_date:
+                                    recordDate,
+                                context_type:
+                                    contextType,
+                                title,
+                                notes
+                            }
+                    )
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Failed to save daily context."
+            );
+        }
+
+        editingDailyContextId =
+            null;
+
+        historyDailyContextSave.textContent =
+            "Add Context";
+
+        historyDailyContextForm.classList.add(
+            "hidden"
+        );
+
+        historyDailyContextAdd.classList.remove(
+            "hidden"
+        );
+
+        await loadHistory();
+
+    } catch (error) {
+
+        historyDailyContextError.textContent =
+            error.message;
+
+        historyDailyContextError.classList.remove(
+            "hidden"
+        );
+
+    } finally {
+
+        historyDailyContextSave.disabled =
+            false;
+    }
+}
+
 // Back from History to Orders
 
 historyBackButton.addEventListener(
@@ -11245,6 +11624,106 @@ function formatHistoryPaymentMethod(
                 word.slice(1)
         )
         .join(" ");
+}
+
+function renderHistoryDailyContexts(
+    dailyContexts
+) {
+
+    historyDailyContexts =
+        Array.isArray(dailyContexts)
+            ? dailyContexts
+            : [];
+
+    const contexts =
+        historyDailyContexts;
+
+    if (!contexts.length) {
+
+        historyDailyContextList.innerHTML = `
+            <p class="history-empty">
+                No daily context recorded.
+            </p>
+        `;
+
+    } else {
+
+        historyDailyContextList.innerHTML =
+            contexts
+                .map(
+                    (context) => `
+                        <article
+                            class="history-daily-context-item"
+                        >
+
+                            <div>
+
+                                <span class="history-context-type">
+                                    ${formatHistoryEventType(
+                                        context.context_type
+                                    )}
+                                </span>
+
+                                <strong>
+                                    ${escapeHTML(context.title)}
+                                </strong>
+
+                                ${
+                                    context.notes
+                                        ? `
+                                            <p>
+                                                ${escapeHTML(
+                                                    context.notes
+                                                )}
+                                            </p>
+                                        `
+                                        : ""
+                                }
+
+                            </div>
+
+                            ${
+                                currentUser &&
+                                currentUser.role === "ADMIN"
+                                    ? `
+                                        <div
+                                            class="history-daily-context-actions"
+                                        >
+
+                                            <button
+                                                type="button"
+                                                class="history-daily-context-edit"
+                                                data-context-id="${context.id}"
+                                            >
+                                                Edit
+                                            </button>
+
+                                            <button
+                                                type="button"
+                                                class="history-daily-context-delete"
+                                                data-context-id="${context.id}"
+                                            >
+                                                Delete
+                                            </button>
+
+                                        </div>
+                                    `
+                                    : ""
+                            }
+
+                        </article>
+                    `
+                )
+                .join("");
+    }
+
+    historyDailyContextAdd.classList.toggle(
+        "hidden",
+        !(
+            currentUser &&
+            currentUser.role === "ADMIN"
+        )
+    );
 }
 
 function renderHistoryDashboard(
@@ -12079,6 +12558,10 @@ async function loadHistory() {
 
         renderHistoryDailyRecord(
             data.dailyRecord
+        );
+
+        renderHistoryDailyContexts(
+            data.dailyContexts
         );
 
         renderHistoryDashboard(
