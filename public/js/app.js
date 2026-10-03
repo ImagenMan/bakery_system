@@ -2187,8 +2187,6 @@ async function showApplication() {
 
         loadHistory();
 
-        loadHistory();
-
         return;
     }
 
