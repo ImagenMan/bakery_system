@@ -1098,6 +1098,56 @@ textarea {
     margin-bottom: 28px;
 }
 
+.history-period-comparison {
+    margin-bottom: 28px;
+}
+
+.history-period-comparison-range {
+    margin-top: -4px;
+    margin-bottom: 14px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.history-period-comparison-grid {
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.history-period-comparison-header,
+.history-period-comparison-row {
+    display: grid;
+    grid-template-columns:
+        minmax(190px, 2fr)
+        repeat(4, minmax(110px, 1fr));
+    gap: 12px;
+    align-items: center;
+    padding: 11px 14px;
+    min-width: 700px;
+}
+
+.history-period-comparison-header {
+    border-bottom: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.history-period-comparison-row {
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+}
+
+.history-period-comparison-row:last-child {
+    border-bottom: 0;
+}
+
+.history-period-comparison-row strong {
+    font-weight: 600;
+}
+
 .history-period-day {
     margin-bottom: 12px;
     padding: 16px;

@@ -12798,6 +12798,264 @@ function renderHistoryPeriod(
 
             </div>
 
+            ${
+                data.comparison
+                    ? (() => {
+
+                        const comparison =
+                            data.comparison;
+
+                        const previous =
+                            comparison.data || {};
+
+                        const previousTotals =
+                            previous.totals || {};
+
+                        const previousAverages =
+                            previous.averages || {};
+
+                        const currentMetrics = [
+                            {
+                                label:
+                                    "Operating Days",
+                                current:
+                                    data.operating_days ?? 0,
+                                previous:
+                                    previous.operating_days ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Orders",
+                                current:
+                                    totals.orders ?? 0,
+                                previous:
+                                    previousTotals.orders ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Order Value",
+                                current:
+                                    totals.order_value ?? 0,
+                                previous:
+                                    previousTotals.order_value ?? 0,
+                                format:
+                                    formatHistoryAmount
+                            },
+                            {
+                                label:
+                                    "Counter Sales",
+                                current:
+                                    totals.counter_sales ?? 0,
+                                previous:
+                                    previousTotals.counter_sales ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Counter Sales Value",
+                                current:
+                                    totals.counter_sales_value ?? 0,
+                                previous:
+                                    previousTotals.counter_sales_value ?? 0,
+                                format:
+                                    formatHistoryAmount
+                            },
+                            {
+                                label:
+                                    "Payments",
+                                current:
+                                    totals.payments_received ?? 0,
+                                previous:
+                                    previousTotals.payments_received ?? 0,
+                                format:
+                                    formatHistoryAmount
+                            },
+                            {
+                                label:
+                                    "Payment Transactions",
+                                current:
+                                    totals.payment_transactions ?? 0,
+                                previous:
+                                    previousTotals.payment_transactions ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Pickups",
+                                current:
+                                    totals.pickups ?? 0,
+                                previous:
+                                    previousTotals.pickups ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Production",
+                                current:
+                                    totals.production_quantity ?? 0,
+                                previous:
+                                    previousTotals.production_quantity ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Waste",
+                                current:
+                                    totals.waste_quantity ?? 0,
+                                previous:
+                                    previousTotals.waste_quantity ?? 0,
+                                format:
+                                    value =>
+                                        String(value)
+                            },
+                            {
+                                label:
+                                    "Orders / Operating Day",
+                                current:
+                                    averages.orders_per_day ?? 0,
+                                previous:
+                                    previousAverages.orders_per_day ?? 0,
+                                format:
+                                    value =>
+                                        Number(value).toFixed(2)
+                            },
+                            {
+                                label:
+                                    "Order Value / Operating Day",
+                                current:
+                                    averages.order_value_per_day ?? 0,
+                                previous:
+                                    previousAverages.order_value_per_day ?? 0,
+                                format:
+                                    formatHistoryAmount
+                            },
+                            {
+                                label:
+                                    "Payments / Operating Day",
+                                current:
+                                    averages.payments_per_day ?? 0,
+                                previous:
+                                    previousAverages.payments_per_day ?? 0,
+                                format:
+                                    formatHistoryAmount
+                            },
+                            {
+                                label:
+                                    "Production / Operating Day",
+                                current:
+                                    averages.production_per_day ?? 0,
+                                previous:
+                                    previousAverages.production_per_day ?? 0,
+                                format:
+                                    value =>
+                                        Number(value).toFixed(2)
+                            },
+                            {
+                                label:
+                                    "Waste / Operating Day",
+                                current:
+                                    averages.waste_per_day ?? 0,
+                                previous:
+                                    previousAverages.waste_per_day ?? 0,
+                                format:
+                                    value =>
+                                        Number(value).toFixed(2)
+                            }
+                        ];
+
+                        return `
+                            <div class="history-period-comparison">
+
+                                <h3>Period Comparison</h3>
+
+                                <p class="history-period-comparison-range">
+                                    Current:
+                                    ${data.start_date}
+                                    to
+                                    ${data.end_date}
+                                    <br>
+                                    Previous:
+                                    ${comparison.previous_start_date}
+                                    to
+                                    ${comparison.previous_end_date}
+                                </p>
+
+                                <div class="history-period-comparison-grid">
+
+                                    <div class="history-period-comparison-header">
+                                        <span>Metric</span>
+                                        <span>Current</span>
+                                        <span>Previous</span>
+                                        <span>Change</span>
+                                        <span>% Change</span>
+                                    </div>
+
+                                    ${
+                                        currentMetrics
+                                            .map(
+                                                metric => `
+                                                    <div class="history-period-comparison-row">
+
+                                                        <strong>
+                                                            ${metric.label}
+                                                        </strong>
+
+                                                        <span>
+                                                            ${metric.format(
+                                                                metric.current
+                                                            )}
+                                                        </span>
+
+                                                        <span>
+                                                            ${metric.format(
+                                                                metric.previous
+                                                            )}
+                                                        </span>
+
+                                                        <span>
+                                                            ${formatHistoryComparisonChange(
+                                                                metric.current,
+                                                                metric.previous,
+                                                                metric.format
+                                                            )}
+                                                        </span>
+
+                                                        <span>
+                                                            ${formatHistoryComparisonPercent(
+                                                                metric.current,
+                                                                metric.previous
+                                                            )}
+                                                        </span>
+
+                                                    </div>
+                                                `
+                                            )
+                                            .join("")
+                                    }
+
+                                </div>
+
+                            </div>
+                        `;
+
+                    })()
+                    : ""
+            }
+
             <div class="history-period-days">
 
                 <h3>Daily Breakdown</h3>
@@ -12963,6 +13221,101 @@ function renderHistoryPeriod(
     `;
 }
 
+function formatHistoryComparisonPercent(
+    current,
+    previous
+) {
+
+    if (previous === 0) {
+        return "—";
+    }
+
+    return (
+        (
+            (current - previous) /
+            Math.abs(previous)
+        ) *
+        100
+    ).toFixed(1) + "%";
+}
+
+function formatHistoryComparisonChange(
+    current,
+    previous,
+    formatter
+) {
+
+    const change =
+        current - previous;
+
+    if (change === 0) {
+        return "0";
+    }
+
+    return (
+        change > 0
+            ? "+"
+            : ""
+    ) +
+        formatter(change);
+}
+
+function getPreviousHistoryPeriod(
+    startDate,
+    endDate
+) {
+
+    const start =
+        new Date(
+            `${startDate}T00:00:00Z`
+        );
+
+    const end =
+        new Date(
+            `${endDate}T00:00:00Z`
+        );
+
+    const calendarDayCount =
+        Math.round(
+            (
+                end.getTime() -
+                start.getTime()
+            ) /
+            86400000
+        ) + 1;
+
+    const previousEnd =
+        new Date(
+            start.getTime()
+        );
+
+    previousEnd.setUTCDate(
+        previousEnd.getUTCDate() - 1
+    );
+
+    const previousStart =
+        new Date(
+            previousEnd.getTime()
+        );
+
+    previousStart.setUTCDate(
+        previousStart.getUTCDate() -
+        (calendarDayCount - 1)
+    );
+
+    return {
+        startDate:
+            previousStart
+                .toISOString()
+                .slice(0, 10),
+
+        endDate:
+            previousEnd
+                .toISOString()
+                .slice(0, 10)
+    };
+}
+
 async function loadHistoryPeriod() {
 
     const startDate =
@@ -13023,7 +13376,13 @@ async function loadHistoryPeriod() {
 
     try {
 
-        const response =
+        const previousPeriod =
+            getPreviousHistoryPeriod(
+                startDate,
+                endDate
+            );
+
+        const currentResponse =
             await fetch(
                 `/api/history/period?start_date=${encodeURIComponent(
                     startDate
@@ -13032,23 +13391,56 @@ async function loadHistoryPeriod() {
                 )}`
             );
 
-        const result =
-            await response.json();
+        const currentResult =
+            await currentResponse.json();
 
         if (
-            !response.ok ||
-            !result.success
+            !currentResponse.ok ||
+            !currentResult.success
         ) {
 
             throw new Error(
-                result.error ||
+                currentResult.error ||
                 "Failed to load period history."
             );
         }
 
-        renderHistoryPeriod(
-            result.data
-        );
+        const previousResponse =
+            await fetch(
+                `/api/history/period?start_date=${encodeURIComponent(
+                    previousPeriod.startDate
+                )}&end_date=${encodeURIComponent(
+                    previousPeriod.endDate
+                )}`
+            );
+
+        const previousResult =
+            await previousResponse.json();
+
+        if (
+            !previousResponse.ok ||
+            !previousResult.success
+        ) {
+
+            throw new Error(
+                previousResult.error ||
+                "Failed to load previous period history."
+            );
+        }
+
+        renderHistoryPeriod({
+            ...currentResult.data,
+            comparison: {
+                previous_start_date:
+                    previousPeriod.startDate,
+
+                previous_end_date:
+                    previousPeriod.endDate,
+
+                data:
+                    previousResult.data
+            }
+        });
 
     } catch (error) {
 
