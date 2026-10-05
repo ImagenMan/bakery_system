@@ -893,6 +893,10 @@ textarea {
     flex-wrap: wrap;
 }
 
+.history-date-controls.hidden {
+    display: none;
+}
+
 .history-date-controls button,
 .history-date-controls input {
     min-height: 44px;
@@ -1082,4 +1086,72 @@ textarea {
         gap: 5px 10px;
         font-size: 13px;
     }
+}
+
+.history-period-summary h3,
+.history-period-days h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+
+.history-period-averages {
+    margin-bottom: 28px;
+}
+
+.history-period-day {
+    margin-bottom: 12px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+}
+
+.history-period-day-header {
+    margin-bottom: 14px;
+    font-size: 17px;
+}
+
+.history-period-day-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(130px, 1fr)
+    );
+    gap: 12px;
+}
+
+.history-period-day-grid div {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+.history-period-day-grid small {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-muted);
+}
+
+.history-period-day-grid strong {
+    font-size: 18px;
+}
+
+.history-period-day-context {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 14px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+@media (max-width: 600px) {
+
+    .history-period-day-grid {
+        grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+        );
+    }
+
 }

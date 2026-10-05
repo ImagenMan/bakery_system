@@ -82,6 +82,36 @@ const historyNextDate =
 const historyTodayButton =
     document.getElementById("history-today");
 
+const historyDailyDateControls =
+    document.getElementById("history-daily-date-controls");
+
+const historyDailyModeButton =
+    document.getElementById("history-daily-mode");
+
+const historyPeriodModeButton =
+    document.getElementById("history-period-mode");
+
+const historyPeriodControls =
+    document.getElementById(
+        "history-period-controls"
+    );
+
+const historyPeriodStartDate =
+    document.getElementById(
+        "history-period-start-date"
+    );
+
+const historyPeriodEndDate =
+    document.getElementById(
+        "history-period-end-date"
+    );
+
+const historyPeriodLoadButton =
+    document.getElementById("history-period-load");
+
+const historyPeriodError =
+    document.getElementById("history-period-error");
+
 const historyWeatherImport =
     document.getElementById(
         "history-weather-import"
@@ -10876,6 +10906,116 @@ historyDate.addEventListener(
     }
 );
 
+function setHistoryMode(mode) {
+
+    const isPeriod =
+        mode === "period";
+
+    historyDailyModeButton.classList.toggle(
+        "primary-action",
+        !isPeriod
+    );
+
+    historyPeriodModeButton.classList.toggle(
+        "primary-action",
+        isPeriod
+    );
+
+    historyPeriodControls.classList.toggle(
+        "hidden",
+        !isPeriod
+    );
+
+    historyDailyDateControls.classList.toggle(
+        "hidden",
+        isPeriod
+    );
+
+    if (isPeriod) {
+        historyWeatherImport.classList.add(
+            "hidden"
+        );
+    } else {
+        renderHistoryWeatherImport();
+    }
+
+    if (
+        !historyPeriodStartDate.value &&
+        historyDate.value
+    ) {
+        historyPeriodStartDate.value =
+            historyDate.value;
+    }
+
+    if (
+        !historyPeriodEndDate.value &&
+        historyDate.value
+    ) {
+        historyPeriodEndDate.value =
+            historyDate.value;
+    }
+
+    historyBusinessDayStatus.classList.toggle(
+        "hidden",
+        isPeriod
+    );
+
+    historyDailyRecord.classList.toggle(
+        "hidden",
+        isPeriod
+    );
+
+    historyDailyContext.classList.toggle(
+        "hidden",
+        isPeriod
+    );
+
+    historyOperationalEvent.classList.toggle(
+        "hidden",
+        isPeriod
+    );
+
+    document
+        .querySelector(
+            ".history-events-section"
+        )
+        .classList.toggle(
+            "hidden",
+            isPeriod
+        );
+
+    if (isPeriod) {
+
+        historyDashboard.innerHTML = `
+            <p class="history-empty">
+                Select a date range and load the period.
+            </p>
+        `;
+    }
+}
+
+historyDailyModeButton.addEventListener(
+    "click",
+    () => {
+        setHistoryMode("daily");
+        loadHistory();
+    }
+);
+
+historyPeriodModeButton.addEventListener(
+    "click",
+    () => {
+        setHistoryMode("period");
+    }
+);
+
+historyPeriodLoadButton.addEventListener(
+    "click",
+    () => {
+        loadHistoryPeriod();
+    }
+);
+
 historyPreviousDate.addEventListener(
     "click",
     () => {
@@ -12505,6 +12645,377 @@ async function recordHistoryOperationalEvent() {
     }
 }
 
+function renderHistoryPeriod(
+    data
+) {
+
+    const totals =
+        data.totals || {};
+
+    const averages =
+        data.averages || {};
+
+    const days =
+        data.days || [];
+
+    historyDashboard.innerHTML = `
+        <div class="history-period-summary">
+
+            <h3>Period Summary</h3>
+
+            <div class="history-summary-grid">
+
+                <div class="history-summary-card">
+                    <span>Orders</span>
+                    <strong>
+                        ${totals.orders ?? 0}
+                    </strong>
+                    <small>
+                        ${formatHistoryAmount(
+                            totals.order_value ?? 0
+                        )}
+                    </small>
+                </div>
+
+                <div class="history-summary-card">
+                    <span>Counter Sales</span>
+                    <strong>
+                        ${totals.counter_sales ?? 0}
+                    </strong>
+                    <small>
+                        ${formatHistoryAmount(
+                            totals.counter_sales_value ?? 0
+                        )}
+                    </small>
+                </div>
+
+                <div class="history-summary-card">
+                    <span>Payments Received</span>
+                    <strong>
+                        ${formatHistoryAmount(
+                            totals.payments_received ?? 0
+                        )}
+                    </strong>
+                    <small>
+                        ${totals.payment_transactions ?? 0}
+                        transaction${
+                            totals.payment_transactions === 1
+                                ? ""
+                                : "s"
+                        }
+                    </small>
+                </div>
+
+                <div class="history-summary-card">
+                    <span>Pickups</span>
+                    <strong>
+                        ${totals.pickups ?? 0}
+                    </strong>
+                </div>
+
+                <div class="history-summary-card">
+                    <span>Production</span>
+                    <strong>
+                        ${totals.production_quantity ?? 0}
+                    </strong>
+                </div>
+
+                <div class="history-summary-card">
+                    <span>Waste</span>
+                    <strong>
+                        ${totals.waste_quantity ?? 0}
+                    </strong>
+                </div>
+
+            </div>
+
+            <div class="history-period-averages">
+
+                <h3>Daily Averages</h3>
+
+                <div class="history-summary-grid">
+
+                    <div class="history-summary-card">
+                        <span>Orders / Day</span>
+                        <strong>
+                            ${Number(averages.orders_per_day ?? 0).toFixed(2)}
+                        </strong>
+                    </div>
+
+                    <div class="history-summary-card">
+                        <span>Order Value / Day</span>
+                        <strong>
+                            ${formatHistoryAmount(
+                                averages.order_value_per_day ?? 0
+                            )}
+                        </strong>
+                    </div>
+
+                    <div class="history-summary-card">
+                        <span>Payments / Day</span>
+                        <strong>
+                            ${formatHistoryAmount(
+                                averages.payments_per_day ?? 0
+                            )}
+                        </strong>
+                    </div>
+
+                    <div class="history-summary-card">
+                        <span>Production / Day</span>
+                        <strong>
+                            ${Number(averages.production_per_day ?? 0).toFixed(2)}
+                        </strong>
+                    </div>
+
+                    <div class="history-summary-card">
+                        <span>Waste / Day</span>
+                        <strong>
+                            ${Number(averages.waste_per_day ?? 0).toFixed(2)}
+                        </strong>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="history-period-days">
+
+                <h3>Daily Breakdown</h3>
+
+                ${
+                    days.length
+                        ? days
+                            .map(
+                                (day) => {
+
+                                    const dashboard =
+                                        day.dashboard || {};
+
+                                    const orders =
+                                        dashboard.orders || {};
+
+                                    const counterSales =
+                                        dashboard.counter_sales || {};
+
+                                    const payments =
+                                        dashboard.payments || {};
+
+                                    const production =
+                                        dashboard.production || {};
+
+                                    const waste =
+                                        dashboard.waste || {};
+
+                                    const weather =
+                                        dashboard.weather || null;
+
+                                    const contexts =
+                                        day.dailyContexts || [];
+
+                                    return `
+                                        <div class="history-period-day">
+
+                                            <div class="history-period-day-header">
+                                                <strong>
+                                                    ${day.date}
+                                                </strong>
+                                            </div>
+
+                                            <div class="history-period-day-grid">
+
+                                                <div>
+                                                    <small>Orders</small>
+                                                    <strong>
+                                                        ${orders.count ?? 0}
+                                                    </strong>
+                                                </div>
+
+                                                <div>
+                                                    <small>Order Value</small>
+                                                    <strong>
+                                                        ${formatHistoryAmount(
+                                                            orders.order_value ?? 0
+                                                        )}
+                                                    </strong>
+                                                </div>
+
+                                                <div>
+                                                    <small>Counter Sales</small>
+                                                    <strong>
+                                                        ${counterSales.count ?? 0}
+                                                    </strong>
+                                                </div>
+
+                                                <div>
+                                                    <small>Payments</small>
+                                                    <strong>
+                                                        ${formatHistoryAmount(
+                                                            payments.total_amount ?? 0
+                                                        )}
+                                                    </strong>
+                                                </div>
+
+                                                <div>
+                                                    <small>Production</small>
+                                                    <strong>
+                                                        ${production.quantity ?? 0}
+                                                    </strong>
+                                                </div>
+
+                                                <div>
+                                                    <small>Waste</small>
+                                                    <strong>
+                                                        ${waste.quantity ?? 0}
+                                                    </strong>
+                                                </div>
+
+                                            </div>
+
+                                            <div class="history-period-day-context">
+
+                                                <span>
+                                                    Weather:
+                                                    ${
+                                                        weather
+                                                            ? `High ${weather.temperature_high ?? "—"}, Low ${weather.temperature_low ?? "—"}, Rain ${weather.rain ?? "—"}`
+                                                            : "Not imported"
+                                                    }
+                                                </span>
+
+                                                <span>
+                                                    Contexts:
+                                                    ${contexts.length}
+                                                </span>
+
+                                            </div>
+
+                                        </div>
+                                    `;
+                                }
+                            )
+                            .join("")
+                        : `
+                            <p class="history-empty">
+                                No dates in this period.
+                            </p>
+                        `
+                }
+
+            </div>
+
+        </div>
+    `;
+}
+
+async function loadHistoryPeriod() {
+
+    const startDate =
+        historyPeriodStartDate.value;
+
+    const endDate =
+        historyPeriodEndDate.value;
+
+    historyPeriodError.textContent = "";
+    historyPeriodError.classList.add(
+        "hidden"
+    );
+
+    if (!startDate || !endDate) {
+
+        historyPeriodError.textContent =
+            "Start date and end date are required.";
+
+        historyPeriodError.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(startDate) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(endDate)
+    ) {
+
+        historyPeriodError.textContent =
+            "Enter valid dates.";
+
+        historyPeriodError.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    if (startDate > endDate) {
+
+        historyPeriodError.textContent =
+            "Start date must be on or before end date.";
+
+        historyPeriodError.classList.remove(
+            "hidden"
+        );
+
+        return;
+    }
+
+    historyDashboard.innerHTML = `
+        <p class="history-empty">
+            Loading period history...
+        </p>
+    `;
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/history/period?start_date=${encodeURIComponent(
+                    startDate
+                )}&end_date=${encodeURIComponent(
+                    endDate
+                )}`
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+
+            throw new Error(
+                result.error ||
+                "Failed to load period history."
+            );
+        }
+
+        renderHistoryPeriod(
+            result.data
+        );
+
+    } catch (error) {
+
+        console.error(
+            "loadHistoryPeriod error:",
+            error
+        );
+
+        historyDashboard.innerHTML = `
+            <p class="history-empty">
+                Unable to load period history.
+            </p>
+        `;
+
+        historyPeriodError.textContent =
+            error.message;
+
+        historyPeriodError.classList.remove(
+            "hidden"
+        );
+    }
+}
+
 async function loadHistory() {
 
     const date =
@@ -12516,7 +13027,17 @@ async function loadHistory() {
 
     renderHistoryOperationalEventForm();
 
-    renderHistoryWeatherImport();
+    if (
+        !historyPeriodControls.classList.contains(
+            "hidden"
+        )
+    ) {
+        historyWeatherImport.classList.add(
+            "hidden"
+        );
+    } else {
+        renderHistoryWeatherImport();
+    }
 
     setHistoryOperationalEventDateTime();
 
@@ -12607,6 +13128,8 @@ function openHistory() {
     saveNavigationState();
 
     historyView.classList.remove("hidden");
+
+    setHistoryMode("daily");
 
     if (!historyDate.value) {
 

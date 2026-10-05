@@ -844,7 +844,63 @@
         <h2>History</h2>
     </div>
 
-    <div class="history-date-controls">
+    <div class="history-mode-controls">
+        <button
+            type="button"
+            id="history-daily-mode"
+            class="primary-action"
+        >
+            Daily
+        </button>
+
+        <button
+            type="button"
+            id="history-period-mode"
+        >
+            Period
+        </button>
+    </div>
+
+    <div
+        id="history-period-controls"
+        class="history-period-controls hidden"
+    >
+        <label for="history-period-start-date">
+            Start date
+        </label>
+
+        <input
+            type="date"
+            id="history-period-start-date"
+        >
+
+        <label for="history-period-end-date">
+            End date
+        </label>
+
+        <input
+            type="date"
+            id="history-period-end-date"
+        >
+
+        <button
+            type="button"
+            id="history-period-load"
+            class="primary-action"
+        >
+            Load Period
+        </button>
+
+        <p
+            id="history-period-error"
+            class="hidden"
+        ></p>
+    </div>
+
+    <div
+        id="history-daily-date-controls"
+        class="history-date-controls"
+    >
         <button id="history-previous-date">←</button>
 
         <label for="history-date">
