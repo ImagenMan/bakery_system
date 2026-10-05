@@ -338,7 +338,7 @@ function getSetAsideEvents(db, startDate, endDate) {
     );
 }
 
-function getProductionPlanEvents(db, startDate, endDate) {
+function getProductionPlanEvents(db, productionDate) {
     const rows = db.prepare(`
         SELECT
             pp.id,
@@ -353,12 +353,11 @@ function getProductionPlanEvents(db, startDate, endDate) {
         JOIN products p
             ON p.id = pi.product_id
         WHERE
-            pp.created_at >= ?
-            AND pp.created_at < ?
+            pp.production_date = ?
         ORDER BY
             pp.created_at ASC,
             pp.id ASC
-    `).all(startDate, endDate);
+    `).all(productionDate);
 
     return rows.map((row) =>
         createHistoryEvent({
@@ -378,7 +377,7 @@ function getProductionPlanEvents(db, startDate, endDate) {
     );
 }
 
-function getProductionOutputEvents(db, startDate, endDate) {
+function getProductionOutputEvents(db, productionDate) {
     const rows = db.prepare(`
         SELECT
             po.id,
@@ -396,12 +395,11 @@ function getProductionOutputEvents(db, startDate, endDate) {
         JOIN products p
             ON p.id = pi.product_id
         WHERE
-            po.created_at >= ?
-            AND po.created_at < ?
+            pp.production_date = ?
         ORDER BY
             po.created_at ASC,
             po.id ASC
-    `).all(startDate, endDate);
+    `).all(productionDate);
 
     return rows.map((row) =>
         createHistoryEvent({
@@ -421,7 +419,7 @@ function getProductionOutputEvents(db, startDate, endDate) {
     );
 }
 
-function getProductionAvailableEvents(db, startDate, endDate) {
+function getProductionAvailableEvents(db, productionDate) {
     const rows = db.prepare(`
         SELECT
             pa.id,
@@ -439,12 +437,11 @@ function getProductionAvailableEvents(db, startDate, endDate) {
         JOIN products p
             ON p.id = pi.product_id
         WHERE
-            pa.created_at >= ?
-            AND pa.created_at < ?
+            pp.production_date = ?
         ORDER BY
             pa.created_at ASC,
             pa.id ASC
-    `).all(startDate, endDate);
+    `).all(productionDate);
 
     return rows.map((row) =>
         createHistoryEvent({
@@ -464,7 +461,7 @@ function getProductionAvailableEvents(db, startDate, endDate) {
     );
 }
 
-function getProductionSupplyEvents(db, startDate, endDate) {
+function getProductionSupplyEvents(db, supplyDate) {
     const rows = db.prepare(`
         SELECT
             ps.id,
@@ -479,12 +476,11 @@ function getProductionSupplyEvents(db, startDate, endDate) {
         JOIN products p
             ON p.id = pi.product_id
         WHERE
-            ps.created_at >= ?
-            AND ps.created_at < ?
+            ps.supply_date = ?
         ORDER BY
             ps.created_at ASC,
             ps.id ASC
-    `).all(startDate, endDate);
+    `).all(supplyDate);
 
     return rows.map((row) =>
         createHistoryEvent({
@@ -619,9 +615,12 @@ function getHistory({
     mode = "normal",
     startDate,
     endDate,
+    productionDate,
 }) {
-    if (!startDate || !endDate) {
-        throw new Error("startDate and endDate are required");
+    if (!startDate || !endDate || !productionDate) {
+        throw new Error(
+            "startDate, endDate, and productionDate are required"
+        );
     }
 
     if (startDate >= endDate) {
@@ -639,10 +638,10 @@ function getHistory({
         ...getPaymentEvents(db, startDate, endDate),
         ...getPickupEvents(db, startDate, endDate),
         ...getSetAsideEvents(db, startDate, endDate),
-        ...getProductionPlanEvents(db, startDate, endDate),
-        ...getProductionOutputEvents(db, startDate, endDate),
-        ...getProductionAvailableEvents(db, startDate, endDate),
-        ...getProductionSupplyEvents(db, startDate, endDate),
+        ...getProductionPlanEvents(db, productionDate),
+        ...getProductionOutputEvents(db, productionDate),
+        ...getProductionAvailableEvents(db, productionDate),
+        ...getProductionSupplyEvents(db, productionDate),
         ...getInventoryEvents(db, startDate, endDate),
         ...getFrozenInventoryEvents(db, startDate, endDate),
     ];

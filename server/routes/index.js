@@ -104,7 +104,8 @@ router.get(
                             ? "training"
                             : "normal",
                     startDate,
-                    endDate
+                    endDate,
+                    productionDate: date
                 });
 
             const dashboard =
