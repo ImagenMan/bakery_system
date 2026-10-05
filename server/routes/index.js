@@ -175,6 +175,263 @@ router.get(
     }
 );
 
+router.get(
+    "/history/period",
+    (req, res) => {
+        try {
+            const {
+                start_date,
+                end_date
+            } = req.query;
+
+            if (
+                typeof start_date !== "string" ||
+                !start_date.trim() ||
+                typeof end_date !== "string" ||
+                !end_date.trim()
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Start date and end date are required in YYYY-MM-DD format."
+                });
+            }
+
+            const startParts =
+                start_date.split("-").map(Number);
+
+            const endParts =
+                end_date.split("-").map(Number);
+
+            if (
+                startParts.length !== 3 ||
+                endParts.length !== 3 ||
+                startParts.some(
+                    value => !Number.isInteger(value)
+                ) ||
+                endParts.some(
+                    value => !Number.isInteger(value)
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Start date and end date must use YYYY-MM-DD format."
+                });
+            }
+
+            const startDate =
+                new Date(
+                    Date.UTC(
+                        startParts[0],
+                        startParts[1] - 1,
+                        startParts[2]
+                    )
+                );
+
+            const endDate =
+                new Date(
+                    Date.UTC(
+                        endParts[0],
+                        endParts[1] - 1,
+                        endParts[2]
+                    )
+                );
+
+            if (
+                startDate.getUTCFullYear() !== startParts[0] ||
+                startDate.getUTCMonth() !== startParts[1] - 1 ||
+                startDate.getUTCDate() !== startParts[2] ||
+                endDate.getUTCFullYear() !== endParts[0] ||
+                endDate.getUTCMonth() !== endParts[1] - 1 ||
+                endDate.getUTCDate() !== endParts[2]
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Start date and end date must be valid calendar dates."
+                });
+            }
+
+            if (startDate > endDate) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Start date must be before or equal to end date."
+                });
+            }
+
+            const days = [];
+
+            const totals = {
+                orders: 0,
+                order_value: 0,
+                counter_sales: 0,
+                counter_sales_value: 0,
+                payments_received: 0,
+                payment_transactions: 0,
+                pickups: 0,
+                production_quantity: 0,
+                waste_quantity: 0
+            };
+
+            let currentDate =
+                new Date(startDate.getTime());
+
+            while (currentDate <= endDate) {
+                const date =
+                    currentDate
+                        .toISOString()
+                        .slice(0, 10);
+
+                const {
+                    startDate: businessStartDate,
+                    endDate: businessEndDate
+                } =
+                    getBusinessDateUtcRange(
+                        date
+                    );
+
+                const events =
+                    getHistory({
+                        mode:
+                            req.mode === "TRAINING"
+                                ? "training"
+                                : "normal",
+                        startDate:
+                            businessStartDate,
+                        endDate:
+                            businessEndDate,
+                        productionDate: date
+                    });
+
+                const dashboard =
+                    calculateHistoryDashboard(
+                        events
+                    );
+
+                const dailyRecord =
+                    req.models.dailyRecord
+                        .getDailyRecordByDate(
+                            date
+                        );
+
+                const weatherRecord =
+                    req.models.dailyWeather
+                        .getWeatherByDate(
+                            date
+                        );
+
+                dashboard.weather =
+                    weatherRecord
+                        ? {
+                            temperature_high:
+                                weatherRecord.temperature_high,
+                            temperature_low:
+                                weatherRecord.temperature_low,
+                            precipitation:
+                                weatherRecord.precipitation,
+                            rain:
+                                weatherRecord.rain,
+                            source:
+                                weatherRecord.source,
+                            retrieved_at:
+                                weatherRecord.retrieved_at
+                        }
+                        : null;
+
+                const dailyContexts =
+                    dailyRecord
+                        ? req.models.dailyContext
+                            .getDailyContextsByDailyRecordId(
+                                dailyRecord.id
+                            )
+                        : [];
+
+                days.push({
+                    date,
+                    dashboard,
+                    dailyRecord,
+                    dailyContexts
+                });
+
+                totals.orders +=
+                    dashboard.orders.count;
+
+                totals.order_value +=
+                    dashboard.orders.order_value;
+
+                totals.counter_sales +=
+                    dashboard.counter_sales.count;
+
+                totals.counter_sales_value +=
+                    dashboard.counter_sales.order_value;
+
+                totals.payments_received +=
+                    dashboard.payments.total_amount;
+
+                totals.payment_transactions +=
+                    dashboard.payments.transaction_count;
+
+                totals.pickups +=
+                    dashboard.pickups.count;
+
+                totals.production_quantity +=
+                    dashboard.production.quantity;
+
+                totals.waste_quantity +=
+                    dashboard.waste.quantity;
+
+                currentDate.setUTCDate(
+                    currentDate.getUTCDate() + 1
+                );
+            }
+
+            const dayCount =
+                days.length;
+
+            res.json({
+                success: true,
+                data: {
+                    start_date,
+                    end_date,
+                    days,
+                    totals,
+                    averages: {
+                        orders_per_day:
+                            totals.orders / dayCount,
+
+                        order_value_per_day:
+                            totals.order_value / dayCount,
+
+                        payments_per_day:
+                            totals.payments_received / dayCount,
+
+                        production_per_day:
+                            totals.production_quantity /
+                            dayCount,
+
+                        waste_per_day:
+                            totals.waste_quantity /
+                            dayCount
+                    }
+                }
+            });
+
+        } catch (error) {
+            console.error(
+                "GET /api/history/period error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
 router.put(
     "/daily-record",
     requireAdmin,
