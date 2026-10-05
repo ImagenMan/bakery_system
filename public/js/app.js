@@ -12882,10 +12882,46 @@ function renderHistoryPeriod(
                                                     }
                                                 </span>
 
-                                                <span>
-                                                    Contexts:
-                                                    ${contexts.length}
-                                                </span>
+                                                <div>
+                                                    <span>
+                                                        Contexts:
+                                                        ${contexts.length}
+                                                    </span>
+
+                                                    ${
+                                                        contexts.length
+                                                            ? `
+                                                                <div class="history-period-context-list">
+                                                                    ${contexts
+                                                                        .map(
+                                                                            (context) => `
+                                                                                <div class="history-period-context-item">
+                                                                                    <strong>
+                                                                                        ${formatHistoryEventType(
+                                                                                            context.context_type
+                                                                                        )}
+                                                                                        — ${context.title}
+                                                                                    </strong>
+
+                                                                                    ${
+                                                                                        context.notes
+                                                                                            ? `
+                                                                                                <div>
+                                                                                                    ${context.notes}
+                                                                                                </div>
+                                                                                            `
+                                                                                            : ""
+                                                                                    }
+                                                                                </div>
+                                                                            `
+                                                                        )
+                                                                        .join("")
+                                                                    }
+                                                                </div>
+                                                            `
+                                                            : ""
+                                                    }
+                                                </div>
 
                                             </div>
 
