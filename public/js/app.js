@@ -12731,19 +12731,39 @@ function renderHistoryPeriod(
 
             <div class="history-period-averages">
 
+                <h3>Period Days</h3>
+
+                <div class="history-summary-grid">
+
+                    <div class="history-summary-card">
+                        <span>Calendar Days</span>
+                        <strong>
+                            ${data.calendar_days ?? 0}
+                        </strong>
+                    </div>
+
+                    <div class="history-summary-card">
+                        <span>Operating Days</span>
+                        <strong>
+                            ${data.operating_days ?? 0}
+                        </strong>
+                    </div>
+
+                </div>
+
                 <h3>Daily Averages</h3>
 
                 <div class="history-summary-grid">
 
                     <div class="history-summary-card">
-                        <span>Orders / Day</span>
+                        <span>Orders / Operating Day</span>
                         <strong>
                             ${Number(averages.orders_per_day ?? 0).toFixed(2)}
                         </strong>
                     </div>
 
                     <div class="history-summary-card">
-                        <span>Order Value / Day</span>
+                        <span>Order Value / Operating Day</span>
                         <strong>
                             ${formatHistoryAmount(
                                 averages.order_value_per_day ?? 0
@@ -12752,7 +12772,7 @@ function renderHistoryPeriod(
                     </div>
 
                     <div class="history-summary-card">
-                        <span>Payments / Day</span>
+                        <span>Payments / Operating Day</span>
                         <strong>
                             ${formatHistoryAmount(
                                 averages.payments_per_day ?? 0
@@ -12761,14 +12781,14 @@ function renderHistoryPeriod(
                     </div>
 
                     <div class="history-summary-card">
-                        <span>Production / Day</span>
+                        <span>Production / Operating Day</span>
                         <strong>
                             ${Number(averages.production_per_day ?? 0).toFixed(2)}
                         </strong>
                     </div>
 
                     <div class="history-summary-card">
-                        <span>Waste / Day</span>
+                        <span>Waste / Operating Day</span>
                         <strong>
                             ${Number(averages.waste_per_day ?? 0).toFixed(2)}
                         </strong>
