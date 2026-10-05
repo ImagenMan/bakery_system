@@ -387,8 +387,20 @@ router.get(
                 );
             }
 
-            const dayCount =
+            const calendarDayCount =
                 days.length;
+
+            const operatingDayCount =
+                days.filter(
+                    day =>
+                        day.dailyRecord &&
+                        day.dailyRecord.opened_at
+                ).length;
+
+            const averageDayCount =
+                operatingDayCount > 0
+                    ? operatingDayCount
+                    : 1;
 
             res.json({
                 success: true,
@@ -397,23 +409,30 @@ router.get(
                     end_date,
                     days,
                     totals,
+                    calendar_days:
+                        calendarDayCount,
+                    operating_days:
+                        operatingDayCount,
                     averages: {
                         orders_per_day:
-                            totals.orders / dayCount,
+                            totals.orders /
+                            averageDayCount,
 
                         order_value_per_day:
-                            totals.order_value / dayCount,
+                            totals.order_value /
+                            averageDayCount,
 
                         payments_per_day:
-                            totals.payments_received / dayCount,
+                            totals.payments_received /
+                            averageDayCount,
 
                         production_per_day:
                             totals.production_quantity /
-                            dayCount,
+                            averageDayCount,
 
                         waste_per_day:
                             totals.waste_quantity /
-                            dayCount
+                            averageDayCount
                     }
                 }
             });
