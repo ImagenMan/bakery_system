@@ -12516,7 +12516,6 @@ document
         "click",
         async () => {
             try {
-                await setNormalMode();
 
                 appView = "orders";
                 saveNavigationState();
