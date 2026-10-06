@@ -13090,6 +13090,14 @@ function renderHistoryPeriod(
                                     const contexts =
                                         day.dailyContexts || [];
 
+                                    const operationalEvents =
+                                        (day.operationalEvents || []).filter(
+                                            (event) =>
+                                                event.event_type === "POWER_OUTAGE" ||
+                                                event.event_type === "EQUIPMENT_ISSUE" ||
+                                                event.event_type === "OTHER"
+                                        );
+
                                     return `
                                         <div class="history-period-day">
 
@@ -13201,6 +13209,53 @@ function renderHistoryPeriod(
                                                     }
                                                 </div>
 
+                                            </div>
+
+                                            <div>
+                                                <span>
+                                                    Operational Events:
+                                                    ${operationalEvents.length}
+                                                </span>
+
+                                                ${
+                                                    operationalEvents.length
+                                                        ? `
+                                                            <div class="history-period-context-list">
+                                                                ${operationalEvents
+                                                                    .map(
+                                                                        (event) => `
+                                                                            <div class="history-period-context-item">
+                                                                                <strong>
+                                                                                    ${new Date(
+                                                                                        `${event.event_at.replace(" ", "T")}Z`
+                                                                                    ).toLocaleTimeString([], {
+                                                                                        hour: "2-digit",
+                                                                                        minute: "2-digit"
+                                                                                    })}
+                                                                                    —
+                                                                                    ${formatHistoryEventType(
+                                                                                        event.event_type
+                                                                                    )}
+                                                                                </strong>
+
+                                                                                ${
+                                                                                    event.notes
+                                                                                        ? `
+                                                                                            <div>
+                                                                                                ${event.notes}
+                                                                                            </div>
+                                                                                        `
+                                                                                        : ""
+                                                                                }
+                                                                            </div>
+                                                                        `
+                                                                    )
+                                                                    .join("")
+                                                                }
+                                                            </div>
+                                                        `
+                                                        : ""
+                                                }
                                             </div>
 
                                         </div>

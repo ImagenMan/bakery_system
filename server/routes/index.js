@@ -348,11 +348,20 @@ router.get(
                             )
                         : [];
 
+                const operationalEvents =
+                    events.filter(
+                        (event) =>
+                            event.event_type === "POWER_OUTAGE" ||
+                            event.event_type === "EQUIPMENT_ISSUE" ||
+                            event.event_type === "OTHER"
+                    );
+
                 days.push({
                     date,
                     dashboard,
                     dailyRecord,
-                    dailyContexts
+                    dailyContexts,
+                    operationalEvents
                 });
 
                 totals.orders +=
