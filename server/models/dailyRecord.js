@@ -45,6 +45,7 @@ function createDailyRecordModel(db) {
                 electricity_reading,
                 gas_reading,
                 notes,
+                staffing_notes,
                 created_at,
                 updated_at
             FROM daily_records
@@ -184,7 +185,8 @@ function createDailyRecordModel(db) {
         record_date,
         electricity_reading,
         gas_reading,
-        notes
+        notes,
+        staffing_notes
     }) {
         validateRecordDate(record_date);
 
@@ -205,12 +207,14 @@ function createDailyRecordModel(db) {
                 electricity_reading = ?,
                 gas_reading = ?,
                 notes = ?,
+                staffing_notes = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE record_date = ?
         `).run(
             electricity_reading,
             gas_reading,
             notes,
+            staffing_notes,
             record_date
         );
 

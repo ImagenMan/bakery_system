@@ -544,7 +544,8 @@ router.put(
                 record_date,
                 electricity_reading,
                 gas_reading,
-                notes
+                notes,
+                staffing_notes
             } = req.body;
 
             if (
@@ -630,6 +631,18 @@ router.put(
                 });
             }
 
+            if (
+                staffing_notes !== null &&
+                staffing_notes !== undefined &&
+                typeof staffing_notes !== "string"
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error:
+                        "Staffing notes must be text."
+                });
+            }
+
             const updatedDailyRecord =
                 req.models.dailyRecord
                     .updateDailyRecord({
@@ -643,6 +656,11 @@ router.put(
                             typeof notes === "string" &&
                             notes.trim()
                                 ? notes.trim()
+                                : null,
+                        staffing_notes:
+                            typeof staffing_notes === "string" &&
+                            staffing_notes.trim()
+                                ? staffing_notes.trim()
                                 : null
                     });
 

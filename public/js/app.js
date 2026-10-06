@@ -157,6 +157,11 @@ const historyDailyNotes =
         "history-daily-notes"
     );
 
+const historyStaffingNotes =
+    document.getElementById(
+        "history-staffing-notes"
+    );
+
 const historyDailyRecordSave =
     document.getElementById(
         "history-daily-record-save"
@@ -12262,6 +12267,10 @@ async function saveHistoryDailyRecord() {
                         notes:
                             historyDailyNotes
                                 .value
+                                .trim() || null,
+                        staffing_notes:
+                            historyStaffingNotes
+                                .value
                                 .trim() || null
                     })
                 }
@@ -12339,6 +12348,12 @@ function renderHistoryDailyRecord(
         dailyRecord &&
         dailyRecord.notes
             ? dailyRecord.notes
+            : "";
+
+    historyStaffingNotes.value =
+        dailyRecord &&
+        dailyRecord.staffing_notes
+            ? dailyRecord.staffing_notes
             : "";
 
     historyDailyRecordError.textContent =
@@ -13190,6 +13205,15 @@ function renderHistoryPeriod(
                                     const weather =
                                         dashboard.weather || null;
 
+                                    const dailyRecord =
+                                        day.dailyRecord || null;
+
+                                    const staffingNotes =
+                                        dailyRecord &&
+                                        dailyRecord.staffing_notes
+                                            ? dailyRecord.staffing_notes
+                                            : "";
+
                                     const contexts =
                                         day.dailyContexts || [];
 
@@ -13311,6 +13335,17 @@ function renderHistoryPeriod(
                                                             : ""
                                                     }
                                                 </div>
+
+                                                ${
+                                                    staffingNotes
+                                                        ? `
+                                                            <div class="history-period-staffing">
+                                                                <strong>Staffing:</strong>
+                                                                ${staffingNotes}
+                                                            </div>
+                                                        `
+                                                        : ""
+                                                }
 
                                             </div>
 
