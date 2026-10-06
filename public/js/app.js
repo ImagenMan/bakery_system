@@ -13225,6 +13225,36 @@ function renderHistoryPeriod(
                                                 event.event_type === "OTHER"
                                         );
 
+                                    const contextIndicators = new Set();
+
+                                    if (weather) {
+                                        contextIndicators.add("Weather");
+                                    }
+
+                                    if (staffingNotes) {
+                                        contextIndicators.add("Staffing");
+                                    }
+
+                                    contexts.forEach(
+                                        (context) => {
+                                            contextIndicators.add(
+                                                formatHistoryEventType(
+                                                    context.context_type
+                                                )
+                                            );
+                                        }
+                                    );
+
+                                    operationalEvents.forEach(
+                                        (event) => {
+                                            contextIndicators.add(
+                                                formatHistoryEventType(
+                                                    event.event_type
+                                                )
+                                            );
+                                        }
+                                    );
+
                                     return `
                                         <div class="history-period-day">
 
@@ -13286,41 +13316,120 @@ function renderHistoryPeriod(
 
                                             <div class="history-period-day-context">
 
-                                                <span>
-                                                    Weather:
-                                                    ${
-                                                        weather
-                                                            ? `High ${weather.temperature_high ?? "—"}, Low ${weather.temperature_low ?? "—"}, Rain ${weather.rain ?? "—"}`
-                                                            : "Not imported"
-                                                    }
-                                                </span>
+                                            <div class="history-period-context-summary">
+
+                                                <strong>Context</strong>
+
+                                                ${
+                                                    contextIndicators.size
+                                                        ? Array.from(contextIndicators)
+                                                            .map(
+                                                                (indicator) => `
+                                                                    <span class="history-period-context-badge">
+                                                                        ${indicator}
+                                                                    </span>
+                                                                `
+                                                            )
+                                                            .join("")
+                                                        : `
+                                                            <span class="history-period-context-none">
+                                                                No additional context
+                                                            </span>
+                                                        `
+                                                }
+
+                                            </div>
+
+                                            <div class="history-period-context-details">
 
                                                 <div>
                                                     <span>
-                                                        Contexts:
-                                                        ${contexts.length}
+                                                        Weather:
+                                                        ${
+                                                            weather
+                                                                ? `High ${weather.temperature_high ?? "—"}, Low ${weather.temperature_low ?? "—"}, Rain ${weather.rain ?? "—"}`
+                                                                : "Not imported"
+                                                        }
+                                                    </span>
+                                                </div>
+
+                                                ${
+                                                    contexts.length
+                                                        ? `
+                                                            <div class="history-period-context-list">
+                                                                ${contexts
+                                                                    .map(
+                                                                        (context) => `
+                                                                            <div class="history-period-context-item">
+                                                                                <strong>
+                                                                                    ${formatHistoryEventType(
+                                                                                        context.context_type
+                                                                                    )}
+                                                                                    — ${context.title}
+                                                                                </strong>
+
+                                                                                ${
+                                                                                    context.notes
+                                                                                        ? `
+                                                                                            <div>
+                                                                                                ${context.notes}
+                                                                                            </div>
+                                                                                        `
+                                                                                        : ""
+                                                                                }
+                                                                            </div>
+                                                                        `
+                                                                    )
+                                                                    .join("")
+                                                                }
+                                                            </div>
+                                                        `
+                                                        : ""
+                                                }
+
+                                                ${
+                                                    staffingNotes
+                                                        ? `
+                                                            <div class="history-period-staffing">
+                                                                <strong>Staffing:</strong>
+                                                                ${staffingNotes}
+                                                            </div>
+                                                        `
+                                                        : ""
+                                                }
+
+                                                <div>
+                                                    <span>
+                                                        Operational Events:
+                                                        ${operationalEvents.length}
                                                     </span>
 
                                                     ${
-                                                        contexts.length
+                                                        operationalEvents.length
                                                             ? `
                                                                 <div class="history-period-context-list">
-                                                                    ${contexts
+                                                                    ${operationalEvents
                                                                         .map(
-                                                                            (context) => `
+                                                                            (event) => `
                                                                                 <div class="history-period-context-item">
                                                                                     <strong>
+                                                                                        ${new Date(
+                                                                                            `${event.event_at.replace(" ", "T")}Z`
+                                                                                        ).toLocaleTimeString([], {
+                                                                                            hour: "2-digit",
+                                                                                            minute: "2-digit"
+                                                                                        })}
+                                                                                        —
                                                                                         ${formatHistoryEventType(
-                                                                                            context.context_type
+                                                                                            event.event_type
                                                                                         )}
-                                                                                        — ${context.title}
                                                                                     </strong>
 
                                                                                     ${
-                                                                                        context.notes
+                                                                                        event.notes
                                                                                             ? `
                                                                                                 <div>
-                                                                                                    ${context.notes}
+                                                                                                    ${event.notes}
                                                                                                 </div>
                                                                                             `
                                                                                             : ""
@@ -13336,64 +13445,6 @@ function renderHistoryPeriod(
                                                     }
                                                 </div>
 
-                                                ${
-                                                    staffingNotes
-                                                        ? `
-                                                            <div class="history-period-staffing">
-                                                                <strong>Staffing:</strong>
-                                                                ${staffingNotes}
-                                                            </div>
-                                                        `
-                                                        : ""
-                                                }
-
-                                            </div>
-
-                                            <div>
-                                                <span>
-                                                    Operational Events:
-                                                    ${operationalEvents.length}
-                                                </span>
-
-                                                ${
-                                                    operationalEvents.length
-                                                        ? `
-                                                            <div class="history-period-context-list">
-                                                                ${operationalEvents
-                                                                    .map(
-                                                                        (event) => `
-                                                                            <div class="history-period-context-item">
-                                                                                <strong>
-                                                                                    ${new Date(
-                                                                                        `${event.event_at.replace(" ", "T")}Z`
-                                                                                    ).toLocaleTimeString([], {
-                                                                                        hour: "2-digit",
-                                                                                        minute: "2-digit"
-                                                                                    })}
-                                                                                    —
-                                                                                    ${formatHistoryEventType(
-                                                                                        event.event_type
-                                                                                    )}
-                                                                                </strong>
-
-                                                                                ${
-                                                                                    event.notes
-                                                                                        ? `
-                                                                                            <div>
-                                                                                                ${event.notes}
-                                                                                            </div>
-                                                                                        `
-                                                                                        : ""
-                                                                                }
-                                                                            </div>
-                                                                        `
-                                                                    )
-                                                                    .join("")
-                                                                }
-                                                            </div>
-                                                        `
-                                                        : ""
-                                                }
                                             </div>
 
                                         </div>

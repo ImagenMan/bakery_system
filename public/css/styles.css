@@ -1246,6 +1246,51 @@ textarea {
     font-size: 14px;
 }
 
+.history-period-context-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.history-period-context-badge {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.history-period-context-none {
+    color: var(--text-muted);
+}
+
+.history-period-context-details {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.history-period-context-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.history-period-context-item {
+    padding: 8px 10px;
+    border-left: 3px solid var(--border);
+}
+
+.history-period-staffing {
+    padding: 8px 10px;
+    border-left: 3px solid var(--border);
+}
+
 @media (max-width: 600px) {
 
     .history-period-day-grid {
