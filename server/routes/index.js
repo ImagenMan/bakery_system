@@ -2899,11 +2899,16 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
             });
         }
 
+        const actorUserId =
+            req.mode === "TRAINING"
+                ? 1
+                : req.user.id;
+
         const order = req.models.order.recordItemPickup(
             orderId,
             itemId,
             quantity,
-            req.user.id,
+            actorUserId,
             notes
         );
 
@@ -3087,11 +3092,16 @@ router.post(
                 });
             }
 
+            const actorUserId =
+                req.mode === "TRAINING"
+                    ? 1
+                    : req.user.id;
+
             const order = req.models.order.recordItemSetAside(
                 orderId,
                 itemId,
                 quantity,
-                req.user.id,
+                actorUserId,
                 notes
             );
 
