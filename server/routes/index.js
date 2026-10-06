@@ -9,6 +9,7 @@ const {
 
 const {
     getHistory,
+    getProductSales,
     calculateHistoryDashboard
 } = require("../models/history");
 
@@ -275,6 +276,8 @@ router.get(
                 waste_quantity: 0
             };
 
+            const productSalesMap = new Map();
+
             let currentDate =
                 new Date(startDate.getTime());
 
@@ -309,6 +312,53 @@ router.get(
                     calculateHistoryDashboard(
                         events
                     );
+
+                const productSales =
+                    getProductSales(
+                        req.mode === "TRAINING"
+                            ? trainingDb
+                            : productionDb,
+                        businessStartDate,
+                        businessEndDate
+                    );
+
+                productSales.forEach(
+                    (product) => {
+                        const key =
+                            [
+                                product.product_id ?? "",
+                                product.custom_product_id ?? "",
+                                product.product_name ?? ""
+                            ].join("|");
+
+                        const existing =
+                            productSalesMap.get(key);
+
+                        if (existing) {
+                            existing.quantity +=
+                                product.quantity;
+
+                            existing.sales_value +=
+                                product.sales_value;
+                        } else {
+                            productSalesMap.set(
+                                key,
+                                {
+                                    product_id:
+                                        product.product_id,
+                                    custom_product_id:
+                                        product.custom_product_id,
+                                    product_name:
+                                        product.product_name,
+                                    quantity:
+                                        product.quantity,
+                                    sales_value:
+                                        product.sales_value
+                                }
+                            );
+                        }
+                    }
+                );
 
                 const dailyRecord =
                     req.models.dailyRecord
@@ -411,6 +461,27 @@ router.get(
                     ? operatingDayCount
                     : 1;
 
+            const productSales =
+                Array.from(
+                    productSalesMap.values()
+                ).sort(
+                    (a, b) => {
+                        if (
+                            b.sales_value !==
+                            a.sales_value
+                        ) {
+                            return (
+                                b.sales_value -
+                                a.sales_value
+                            );
+                        }
+
+                        return a.product_name.localeCompare(
+                            b.product_name
+                        );
+                    }
+                );
+
             res.json({
                 success: true,
                 data: {
@@ -418,6 +489,10 @@ router.get(
                     end_date,
                     days,
                     totals,
+                    sales_trends: {
+                        product_sales:
+                            productSales
+                    },
                     calendar_days:
                         calendarDayCount,
                     operating_days:

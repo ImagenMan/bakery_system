@@ -1102,6 +1102,57 @@ textarea {
     margin-bottom: 28px;
 }
 
+.history-period-sales {
+    margin-bottom: 28px;
+}
+
+.history-period-sales-section {
+    margin-top: 16px;
+}
+
+.history-period-sales-section h4 {
+    margin-bottom: 12px;
+}
+
+.history-period-sales-table {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.history-period-sales-row {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 2fr)
+        minmax(70px, 0.6fr)
+        minmax(100px, 0.8fr);
+    gap: 12px;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid #eee;
+}
+
+.history-period-sales-row:last-child {
+    border-bottom: none;
+}
+
+.history-period-sales-header {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.history-period-sales-row > span:nth-child(2),
+.history-period-sales-row > span:nth-child(3),
+.history-period-sales-row > strong:nth-child(2),
+.history-period-sales-row > strong:nth-child(3) {
+    text-align: right;
+}
+
+.history-period-sales-total {
+    font-weight: 600;
+}
+
+
 .history-period-comparison-range {
     margin-top: -4px;
     margin-bottom: 14px;

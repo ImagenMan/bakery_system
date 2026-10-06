@@ -13056,6 +13056,109 @@ function renderHistoryPeriod(
                     : ""
             }
 
+            ${
+                (() => {
+
+                    const productSales =
+                        data.sales_trends?.product_sales || [];
+
+                    const totalQuantity =
+                        productSales.reduce(
+                            (sum, product) =>
+                                sum +
+                                Number(product.quantity || 0),
+                            0
+                        );
+
+                    const totalSales =
+                        productSales.reduce(
+                            (sum, product) =>
+                                sum +
+                                Number(product.sales_value || 0),
+                            0
+                        );
+
+                    return `
+                        <div class="history-period-sales">
+
+                            <h3>Sales Trends</h3>
+
+                            <div class="history-period-sales-section">
+
+                                <h4>Product Sales</h4>
+
+                                ${
+                                    productSales.length
+                                        ? `
+                                            <div class="history-period-sales-table">
+
+                                                <div class="history-period-sales-row history-period-sales-header">
+                                                    <strong>Product</strong>
+                                                    <strong>Qty</strong>
+                                                    <strong>Sales</strong>
+                                                </div>
+
+                                                ${
+                                                    productSales
+                                                        .map(
+                                                            (product) => `
+                                                                <div class="history-period-sales-row">
+
+                                                                    <span>
+                                                                        ${product.product_name || "Unnamed Product"}
+                                                                    </span>
+
+                                                                    <span>
+                                                                        ${product.quantity ?? 0}
+                                                                    </span>
+
+                                                                    <span>
+                                                                        ${formatHistoryAmount(
+                                                                            product.sales_value ?? 0
+                                                                        )}
+                                                                    </span>
+
+                                                                </div>
+                                                            `
+                                                        )
+                                                        .join("")
+                                                }
+
+                                                <div class="history-period-sales-row history-period-sales-total">
+
+                                                    <strong>
+                                                        Total
+                                                    </strong>
+
+                                                    <strong>
+                                                        ${totalQuantity}
+                                                    </strong>
+
+                                                    <strong>
+                                                        ${formatHistoryAmount(
+                                                            totalSales
+                                                        )}
+                                                    </strong>
+
+                                                </div>
+
+                                            </div>
+                                        `
+                                        : `
+                                            <p class="history-empty">
+                                                No product sales in this period.
+                                            </p>
+                                        `
+                                }
+
+                            </div>
+
+                        </div>
+                    `;
+
+                })()
+            }
+
             <div class="history-period-days">
 
                 <h3>Daily Breakdown</h3>

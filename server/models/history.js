@@ -182,6 +182,60 @@ function getOrderEvents(db, startDate, endDate) {
     );
 }
 
+function getProductSales(db, startDate, endDate) {
+    const rows = db.prepare(`
+        SELECT
+            oi.product_id,
+            oi.custom_product_id,
+            oi.custom_name,
+            COALESCE(
+                pr.name,
+                cp.name,
+                oi.custom_name
+            ) AS product_name,
+            SUM(oi.quantity) AS quantity,
+            SUM(
+                oi.quantity * oi.unit_price
+            ) AS sales_value
+        FROM order_items oi
+        JOIN orders o
+            ON o.id = oi.order_id
+        LEFT JOIN products pr
+            ON pr.id = oi.product_id
+        LEFT JOIN custom_products cp
+            ON cp.id = oi.custom_product_id
+        WHERE
+            o.created_at >= ?
+            AND o.created_at < ?
+            AND o.status != 'CANCELLED'
+        GROUP BY
+            oi.product_id,
+            oi.custom_product_id,
+            oi.custom_name,
+            COALESCE(
+                pr.name,
+                cp.name,
+                oi.custom_name
+            )
+        ORDER BY
+            sales_value DESC,
+            product_name ASC
+    `).all(startDate, endDate);
+
+    return rows.map((row) => ({
+        product_id:
+            row.product_id,
+        custom_product_id:
+            row.custom_product_id,
+        product_name:
+            row.product_name,
+        quantity:
+            Number(row.quantity),
+        sales_value:
+            Number(row.sales_value),
+    }));
+}
+
 function getPaymentEvents(db, startDate, endDate) {
     const rows = db.prepare(`
         SELECT
@@ -876,5 +930,6 @@ function calculateHistoryDashboard(events) {
 module.exports = {
     HISTORY_EVENT_TYPES,
     getHistory,
+    getProductSales,
     calculateHistoryDashboard,
 };
