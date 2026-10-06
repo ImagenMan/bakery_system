@@ -1318,6 +1318,75 @@ textarea {
     padding-left: 20px;
 }
 
+.today-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.today-status span {
+    font-weight: 600;
+}
+
+.today-section {
+    margin-bottom: 1.5rem;
+}
+
+.today-summary-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(
+            auto-fit,
+            minmax(140px, 1fr)
+        );
+    gap: 1rem;
+}
+
+.today-summary-card {
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.today-summary-card span {
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.today-summary-card strong {
+    font-size: 1.5rem;
+}
+
+.today-attention {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.today-attention-item {
+    padding: 0.75rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.today-context-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.today-context-badge {
+    padding: 0.35rem 0.65rem;
+    border: 1px solid #ddd;
+    border-radius: 999px;
+}
+
+.today-empty {
+    margin: 0;
+}
+
 @media (max-width: 600px) {
 
     .history-period-day-grid {

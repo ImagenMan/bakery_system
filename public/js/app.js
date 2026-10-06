@@ -49,6 +49,8 @@ function savePickupListState() {
 const loginView = document.getElementById("login-view");
 const ordersView = document.getElementById("orders-view");
 const pickupListView = document.getElementById("pickup-list-view");
+const todayView = document.getElementById("today-view");
+const todayButton = document.getElementById("open-today");
 const counterTodayView = document.getElementById("counter-today-view");
 const counterTodayButton = document.getElementById("open-counter-today");
 const pickupListButton = document.getElementById("open-pickup-list");
@@ -2153,6 +2155,7 @@ function showLogin() {
     historyView.classList.add("hidden");
     accountView.classList.add("hidden");
     usersView.classList.add("hidden");
+    todayView.classList.add("hidden");
 
     logoutButton.classList.add("hidden");
     myAccountButton.classList.add("hidden");
@@ -2231,6 +2234,7 @@ async function showApplication() {
     historyView.classList.add("hidden");
     accountView.classList.add("hidden");
     usersView.classList.add("hidden");
+    todayView.classList.add("hidden");
 
     if (
         savedMode !== "TRAINING" &&
@@ -2254,6 +2258,15 @@ async function showApplication() {
         usersView.classList.remove("hidden");
 
         loadUsers();
+
+        return;
+    }
+
+    if (savedView === "today") {
+
+        todayView.classList.remove("hidden");
+
+        loadToday();
 
         return;
     }
@@ -10720,6 +10733,304 @@ async function loadTrainingCounterSale() {
     }
 }
 
+async function loadToday() {
+
+    const todayContent =
+        document.getElementById("today-content");
+
+    todayContent.innerHTML = `
+        <p class="loading">
+            Loading today...
+        </p>
+    `;
+
+    try {
+
+        const response =
+            await fetch("/api/today");
+
+        const result =
+            await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(
+                result.error ||
+                "Failed to load today."
+            );
+        }
+
+        const data = result.data;
+
+        const business =
+            data.business || {};
+
+        const orders =
+            data.orders || {};
+
+        const pickups =
+            data.pickups || {};
+
+        const production =
+            data.production || {};
+
+        const context =
+            data.context || {};
+
+        const contexts =
+            Array.isArray(
+                context.daily_contexts
+            )
+                ? context.daily_contexts
+                : [];
+
+        const attention = [];
+
+        if (
+            business.business_day_open &&
+            !business.business_day_closed
+        ) {
+            if (pickups.ready > 0) {
+                attention.push(
+                    `${pickups.ready} pickup${pickups.ready === 1 ? "" : "s"} ready`
+                );
+            }
+
+            if (orders.unpaid > 0) {
+                attention.push(
+                    `${orders.unpaid} unpaid order${orders.unpaid === 1 ? "" : "s"}`
+                );
+            }
+
+            if (
+                production.planned_total > 0 &&
+                production.made_total <
+                    production.planned_total
+            ) {
+                attention.push(
+                    "Production is still in progress"
+                );
+            }
+        }
+
+        todayContent.innerHTML = `
+
+            <div class="today-status">
+
+                <strong>
+                    ${escapeHTML(
+                        business.date || ""
+                    )}
+                </strong>
+
+                <span>
+                    ${
+                        business.business_day_closed
+                            ? "Business Day Closed"
+                            : business.business_day_open
+                                ? "Business Day Open"
+                                : "Business Day Not Open"
+                    }
+                </span>
+
+            </div>
+
+            ${
+                attention.length
+                    ? `
+                        <section class="today-section">
+
+                            <h3>
+                                Attention
+                            </h3>
+
+                            <div class="today-attention">
+
+                                ${attention
+                                    .map(
+                                        (item) =>
+                                            `<div class="today-attention-item">
+                                                ${escapeHTML(item)}
+                                            </div>`
+                                    )
+                                    .join("")}
+
+                            </div>
+
+                        </section>
+                    `
+                    : ""
+            }
+
+            <section class="today-section">
+
+                <h3>
+                    Orders
+                </h3>
+
+                <div class="today-summary-grid">
+
+                    <div class="today-summary-card">
+                        <span>Total</span>
+                        <strong>${orders.total || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Unpaid</span>
+                        <strong>${orders.unpaid || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Partial</span>
+                        <strong>${orders.partial || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Paid</span>
+                        <strong>${orders.paid || 0}</strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="today-section">
+
+                <h3>
+                    Pickups
+                </h3>
+
+                <div class="today-summary-grid">
+
+                    <div class="today-summary-card">
+                        <span>Total</span>
+                        <strong>${pickups.total || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Waiting</span>
+                        <strong>${pickups.waiting || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Ready</span>
+                        <strong>${pickups.ready || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Completed</span>
+                        <strong>${pickups.completed || 0}</strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="today-section">
+
+                <h3>
+                    Production
+                </h3>
+
+                <div class="today-summary-grid">
+
+                    <div class="today-summary-card">
+                        <span>Demand</span>
+                        <strong>${production.demand_total || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Planned</span>
+                        <strong>${production.planned_total || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Made</span>
+                        <strong>${production.made_total || 0}</strong>
+                    </div>
+
+                    <div class="today-summary-card">
+                        <span>Available</span>
+                        <strong>${production.available_total || 0}</strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section class="today-section">
+
+                <h3>
+                    Context
+                </h3>
+
+                ${
+                    context.staffing_notes
+                        ? `
+                            <p>
+                                <strong>Staffing:</strong>
+                                ${escapeHTML(
+                                    context.staffing_notes
+                                )}
+                            </p>
+                        `
+                        : ""
+                }
+
+                ${
+                    contexts.length
+                        ? `
+                            <div class="today-context-list">
+
+                                ${contexts
+                                    .map(
+                                        (item) =>
+                                            `<span class="today-context-badge">
+                                                ${escapeHTML(
+                                                    item.context_type ||
+                                                    item.type ||
+                                                    "Context"
+                                                )}
+                                            </span>`
+                                    )
+                                    .join("")}
+
+                            </div>
+                        `
+                        : ""
+                }
+
+                ${
+                    !context.staffing_notes &&
+                    !contexts.length
+                        ? `
+                            <p class="today-empty">
+                                No additional context for today.
+                            </p>
+                        `
+                        : ""
+                }
+
+            </section>
+        `;
+
+    } catch (error) {
+
+        console.error(
+            "loadToday error:",
+            error
+        );
+
+        todayContent.innerHTML = `
+            <p class="error">
+                ${escapeHTML(
+                    error.message ||
+                    "Failed to load today."
+                )}
+            </p>
+        `;
+    }
+}
+
 async function loadCounterToday() {
 
     const counterTodayList =
@@ -12880,6 +13191,54 @@ historyBackButton.addEventListener(
         loadOrders();
     }
 );
+
+todayButton.addEventListener(
+    "click",
+    () => {
+
+        ordersView.classList.add("hidden");
+        orderDetailView.classList.add("hidden");
+        newOrderView.classList.add("hidden");
+        pickupListView.classList.add("hidden");
+        counterSaleView.classList.add("hidden");
+        productionView.classList.add("hidden");
+        counterTodayView.classList.add("hidden");
+
+        appView = "today";
+        saveNavigationState();
+
+        todayView.classList.remove("hidden");
+
+        loadToday();
+    }
+);
+
+document
+    .getElementById("today-back")
+    .addEventListener(
+        "click",
+        () => {
+
+            todayView.classList.add("hidden");
+
+            appView = "orders";
+            saveNavigationState();
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
+
+document
+    .getElementById("today-refresh")
+    .addEventListener(
+        "click",
+        () => {
+
+            loadToday();
+        }
+    );
 
 // Open Counter Today view
 
