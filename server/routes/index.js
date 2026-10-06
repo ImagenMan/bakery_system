@@ -535,6 +535,228 @@ router.get(
     }
 );
 
+// =========================================================
+// Today
+// =========================================================
+
+router.get("/today", (req, res) => {
+    try {
+        const date = getBusinessDate();
+
+        const {
+            startDate,
+            endDate
+        } = getBusinessDateUtcRange(
+            date
+        );
+
+        const dailyRecord =
+            req.models.dailyRecord
+                .getDailyRecordByDate(
+                    date
+                );
+
+        const businessDayOpen =
+            Boolean(
+                dailyRecord &&
+                req.models.operationalEvent
+                    .getBusinessDayOpeningEvent(
+                        dailyRecord.id
+                    )
+            );
+
+        const businessDayClosed =
+            Boolean(
+                dailyRecord &&
+                dailyRecord.closed_at
+            );
+
+        const productionDayClosed =
+            req.models.operationalEvent
+                .isProductionDayClosed(
+                    date
+                );
+
+        const allOrders =
+            req.models.order.getAllOrders();
+
+        const todayOrders =
+            allOrders.filter((order) => {
+                if (!order.created_at) {
+                    return false;
+                }
+
+                return (
+                    order.created_at >=
+                        startDate &&
+                    order.created_at <
+                        endDate
+                );
+            });
+
+        const activeOrders =
+            todayOrders.filter(
+                (order) =>
+                    order.status !== "CANCELLED"
+            );
+
+        const orders = {
+            total: activeOrders.length,
+            unpaid: activeOrders.filter(
+                (order) =>
+                    order.payment_status ===
+                    "UNPAID"
+            ).length,
+            partial: activeOrders.filter(
+                (order) =>
+                    order.payment_status ===
+                    "PARTIAL"
+            ).length,
+            paid: activeOrders.filter(
+                (order) =>
+                    order.payment_status ===
+                    "PAID"
+            ).length
+        };
+
+        const pickupOrders =
+            req.models.order
+                .getPickupOrdersByDate(
+                    date
+                );
+
+        const pickups = {
+            total: pickupOrders.length,
+            ready: 0,
+            waiting: 0,
+            completed: 0
+        };
+
+        pickupOrders.forEach((order) => {
+            const items =
+                Array.isArray(order.items)
+                    ? order.items
+                    : [];
+
+            const remaining =
+                items.reduce(
+                    (sum, item) =>
+                        sum +
+                        Number(
+                            item.quantity_remaining ||
+                            0
+                        ),
+                    0
+                );
+
+            if (remaining <= 0) {
+                pickups.completed += 1;
+            } else if (
+                order.pickup_ready
+            ) {
+                pickups.ready += 1;
+            } else {
+                pickups.waiting += 1;
+            }
+        });
+
+        const productionItems =
+            req.models.productionPlan
+                .getProductionOverviewByDate(
+                    date
+                );
+
+        const production =
+            productionItems.reduce(
+                (summary, item) => {
+                    summary.demand_total +=
+                        Number(
+                            item.demand_quantity ||
+                            0
+                        );
+
+                    summary.planned_total +=
+                        Number(
+                            item.planned_quantity ||
+                            0
+                        );
+
+                    summary.made_total +=
+                        Number(
+                            item.made_quantity ||
+                            0
+                        );
+
+                    summary.available_total +=
+                        Number(
+                            item.available_quantity ||
+                            0
+                        );
+
+                    return summary;
+                },
+                {
+                    demand_total: 0,
+                    planned_total: 0,
+                    made_total: 0,
+                    available_total: 0
+                }
+            );
+
+        const weather =
+            req.models.dailyWeather
+                .getWeatherByDate(
+                    date
+                );
+
+        const dailyContexts =
+            dailyRecord
+                ? req.models.dailyContext
+                    .getDailyContextsByDailyRecordId(
+                        dailyRecord.id
+                    )
+                : [];
+
+        res.json({
+            success: true,
+            data: {
+                business: {
+                    date,
+                    business_day_open:
+                        businessDayOpen,
+                    business_day_closed:
+                        businessDayClosed,
+                    production_day_closed:
+                        productionDayClosed
+                },
+                orders,
+                pickups,
+                production,
+                context: {
+                    weather,
+                    staffing_notes:
+                        dailyRecord
+                            ? dailyRecord.staffing_notes
+                            : null,
+                    daily_contexts:
+                        dailyContexts
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error(
+            "GET /api/today error:",
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            error: "Failed to retrieve today's operational summary."
+        });
+    }
+});
+
 router.put(
     "/daily-record",
     requireAdmin,

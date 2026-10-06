@@ -1504,6 +1504,7 @@ function getAllOrders() {
             o.customer_here,
             o.total_amount,
             o.amount_paid,
+            o.created_at,
             o.pickup_date,
             o.pickup_time,
             o.delivery,
