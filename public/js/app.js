@@ -13071,6 +13071,142 @@ function renderHistoryPeriod(
                     : ""
             }
 
+                        ${
+                            (() => {
+
+                                const highlights =
+                                    days
+                                        .map(
+                                            (day) => {
+
+                                                const dailyRecord =
+                                                    day.dailyRecord || null;
+
+                                                const staffingNotes =
+                                                    dailyRecord &&
+                                                    dailyRecord.staffing_notes
+                                                        ? dailyRecord.staffing_notes
+                                                        : "";
+
+                                                const contexts =
+                                                    day.dailyContexts || [];
+
+                                                const operationalEvents =
+                                                    day.operationalEvents || [];
+
+                                                const weather =
+                                                    day.dashboard?.weather ||
+                                                    null;
+
+                                                const items = [];
+
+                                                contexts.forEach(
+                                                    (context) => {
+
+                                                        if (
+                                                            context &&
+                                                            context.context_type
+                                                        ) {
+                                                            items.push(
+                                                                formatHistoryEventType(
+                                                                    context.context_type
+                                                                )
+                                                            );
+                                                        }
+                                                    }
+                                                );
+
+                                                if (weather) {
+                                                    items.push(
+                                                        "Weather recorded"
+                                                    );
+                                                }
+
+                                                if (staffingNotes) {
+                                                    items.push(
+                                                        "Staffing note recorded"
+                                                    );
+                                                }
+
+                                                if (
+                                                    operationalEvents.length
+                                                ) {
+                                                    items.push(
+                                                        `${operationalEvents.length} operational ${
+                                                            operationalEvents.length === 1
+                                                                ? "event"
+                                                                : "events"
+                                                        }`
+                                                    );
+                                                }
+
+                                                return {
+                                                    date: day.date,
+                                                    items
+                                                };
+
+                                            }
+                                        )
+                                        .filter(
+                                            (day) =>
+                                                day.items.length > 0
+                                        );
+
+                                return `
+                                    <div class="history-period-highlights">
+
+                                        <h3>Period Highlights</h3>
+
+                                        ${
+                                            highlights.length
+                                                ? `
+                                                    <div class="history-period-highlights-list">
+
+                                                        ${
+                                                            highlights
+                                                                .map(
+                                                                    (day) => `
+                                                                        <div class="history-period-highlight">
+
+                                                                            <strong>
+                                                                                ${day.date}
+                                                                            </strong>
+
+                                                                            <ul>
+                                                                                ${
+                                                                                    day.items
+                                                                                        .map(
+                                                                                            (item) => `
+                                                                                                <li>
+                                                                                                    ${item}
+                                                                                                </li>
+                                                                                            `
+                                                                                        )
+                                                                                        .join("")
+                                                                                }
+                                                                            </ul>
+
+                                                                        </div>
+                                                                    `
+                                                                )
+                                                                .join("")
+                                                        }
+
+                                                    </div>
+                                                `
+                                                : `
+                                                    <p class="history-empty">
+                                                        No documented highlights in this period.
+                                                    </p>
+                                                `
+                                        }
+
+                                    </div>
+                                `;
+
+                            })()
+                        }
+
             ${
                 (() => {
 

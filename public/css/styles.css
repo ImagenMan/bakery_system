@@ -1291,6 +1291,33 @@ textarea {
     border-left: 3px solid var(--border);
 }
 
+.history-period-highlights {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.history-period-highlights-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.history-period-highlight {
+    padding: 10px 12px;
+    border-left: 3px solid var(--border);
+}
+
+.history-period-highlight strong {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.history-period-highlight ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
 @media (max-width: 600px) {
 
     .history-period-day-grid {
