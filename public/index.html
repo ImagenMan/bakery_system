@@ -44,6 +44,22 @@
 
             <button
                 type="button"
+                id="my-account-button"
+                class="hidden"
+            >
+                My Account
+            </button>
+
+            <button
+                type="button"
+                id="users-button"
+                class="hidden"
+            >
+                Users
+            </button>
+
+            <button
+                type="button"
                 id="logout-button"
             >
                 Logout
@@ -831,6 +847,77 @@
         </p>
 
     </div>
+
+</section>
+
+<section
+    id="account-view"
+    class="view hidden"
+>
+
+    <div class="section-header">
+
+        <button id="account-back">
+            ← Orders
+        </button>
+
+        <h2>My Account</h2>
+
+    </div>
+
+    <div id="account-details">
+
+        <p class="loading">
+            Loading account...
+        </p>
+
+    </div>
+
+    <div id="account-credential-section">
+
+    </div>
+
+</section>
+
+<section
+    id="users-view"
+    class="view hidden"
+>
+
+    <div class="section-header">
+
+        <button id="users-back">
+            ← Orders
+        </button>
+
+        <h2>Users</h2>
+
+        <div class="header-actions">
+
+            <button
+                type="button"
+                id="add-user-button"
+                class="primary-action"
+            >
+                + Add User
+            </button>
+
+        </div>
+
+    </div>
+
+    <div id="users-list">
+
+        <p class="loading">
+            Loading users...
+        </p>
+
+    </div>
+
+    <div
+        id="user-form-container"
+        class="hidden"
+    ></div>
 
 </section>
 

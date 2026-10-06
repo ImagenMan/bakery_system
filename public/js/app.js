@@ -60,6 +60,17 @@ const newOrderView = document.getElementById("new-order-view");
 const counterSaleView = document.getElementById("counter-sale-view");
 const productionView = document.getElementById("production-view");
 const trainingView = document.getElementById("training-view");
+const accountView = document.getElementById("account-view");
+const accountDetails = document.getElementById("account-details");
+const accountCredentialSection = document.getElementById("account-credential-section");
+const usersView = document.getElementById("users-view");
+const usersList = document.getElementById("users-list");
+const userFormContainer =
+    document.getElementById(
+        "user-form-container"
+    );
+const myAccountButton = document.getElementById("my-account-button");
+const usersButton = document.getElementById("users-button");
 
 const historyView =
     document.getElementById("history-view");
@@ -2138,9 +2149,14 @@ function showLogin() {
     orderDetailView.classList.add("hidden");
     newOrderView.classList.add("hidden");
     counterSaleView.classList.add("hidden");
+
     historyView.classList.add("hidden");
+    accountView.classList.add("hidden");
+    usersView.classList.add("hidden");
 
     logoutButton.classList.add("hidden");
+    myAccountButton.classList.add("hidden");
+    usersButton.classList.add("hidden");
 
     loginAdminTab.classList.add("active");
     loginCounterTab.classList.remove("active");
@@ -2164,6 +2180,13 @@ async function showApplication() {
     loginView.classList.add("hidden");
 
     logoutButton.classList.remove("hidden");
+    myAccountButton.classList.remove("hidden");
+
+    if (currentUser && currentUser.role === "ADMIN") {
+        usersButton.classList.remove("hidden");
+    } else {
+        usersButton.classList.add("hidden");
+    }
 
     const savedMode =
         sessionStorage.getItem(
@@ -2206,6 +2229,34 @@ async function showApplication() {
     trainingView.classList.add("hidden");
     pickupListView.classList.add("hidden");
     historyView.classList.add("hidden");
+    accountView.classList.add("hidden");
+    usersView.classList.add("hidden");
+
+    if (
+        savedMode !== "TRAINING" &&
+        savedView === "account"
+    ) {
+
+        accountView.classList.remove("hidden");
+
+        loadAccount();
+
+        return;
+    }
+
+    if (
+        savedMode !== "TRAINING" &&
+        savedView === "users" &&
+        currentUser &&
+        currentUser.role === "ADMIN"
+    ) {
+
+        usersView.classList.remove("hidden");
+
+        loadUsers();
+
+        return;
+    }
 
     if (
         savedMode !== "TRAINING" &&
@@ -2290,6 +2341,1293 @@ async function checkAuthentication() {
     }
 }
 
+async function handleChangePassword(event) {
+
+    event.preventDefault();
+
+    const errorElement =
+        document.getElementById(
+            "account-credential-error"
+        );
+
+    errorElement.classList.add("hidden");
+
+    const currentPassword =
+        document.getElementById(
+            "account-current-password"
+        ).value;
+
+    const newPassword =
+        document.getElementById(
+            "account-new-password"
+        ).value;
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/auth/change-password",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        currentPassword,
+                        newPassword
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to change password."
+            );
+        }
+
+        event.target.reset();
+
+        alert(
+            "Password changed successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Change password error:",
+            error
+        );
+
+        errorElement.textContent =
+            error.message;
+
+        errorElement.classList.remove(
+            "hidden"
+        );
+    }
+}
+
+
+async function handleChangePin(event) {
+
+    event.preventDefault();
+
+    const errorElement =
+        document.getElementById(
+            "account-credential-error"
+        );
+
+    errorElement.classList.add("hidden");
+
+    const currentPin =
+        document.getElementById(
+            "account-current-pin"
+        ).value;
+
+    const newPin =
+        document.getElementById(
+            "account-new-pin"
+        ).value;
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/auth/change-pin",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        currentPin,
+                        newPin
+                    })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to change PIN."
+            );
+        }
+
+        event.target.reset();
+
+        alert(
+            "PIN changed successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Change PIN error:",
+            error
+        );
+
+        errorElement.textContent =
+            error.message;
+
+        errorElement.classList.remove(
+            "hidden"
+        );
+    }
+}
+
+async function loadAccount() {
+
+    accountDetails.innerHTML = `
+        <p class="loading">
+            Loading account...
+        </p>
+    `;
+
+    accountCredentialSection.innerHTML = "";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/auth/me"
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            response.status === 401 ||
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to load account."
+            );
+        }
+
+        currentUser =
+            result.data;
+
+        accountDetails.innerHTML = `
+            <div class="account-summary">
+
+                <p>
+                    <strong>Name:</strong>
+                    ${escapeHTML(currentUser.name)}
+                </p>
+
+                <p>
+                    <strong>Role:</strong>
+                    ${escapeHTML(currentUser.role)}
+                </p>
+
+                <p>
+                    <strong>Language:</strong>
+                    ${escapeHTML(currentUser.language)}
+                </p>
+
+                ${
+                    currentUser.role === "ADMIN"
+                        ? `
+                            <p>
+                                <strong>Username:</strong>
+                                ${escapeHTML(currentUser.username)}
+                            </p>
+                        `
+                        : `
+                            <p>
+                                <strong>Login:</strong>
+                                4-digit PIN
+                            </p>
+                        `
+                }
+
+            </div>
+        `;
+
+        if (
+            currentUser.role === "ADMIN"
+        ) {
+
+            accountCredentialSection.innerHTML = `
+                <div class="account-credential">
+
+                    <h3>Change Password</h3>
+
+                    <form id="change-password-form">
+
+                        <label>
+                            Current Password
+
+                            <input
+                                type="password"
+                                id="account-current-password"
+                                autocomplete="current-password"
+                                required
+                            >
+                        </label>
+
+                        <label>
+                            New Password
+
+                            <input
+                                type="password"
+                                id="account-new-password"
+                                autocomplete="new-password"
+                                minlength="8"
+                                required
+                            >
+                        </label>
+
+                        <button
+                            type="submit"
+                            class="primary-action"
+                        >
+                            Change Password
+                        </button>
+
+                        <p
+                            id="account-credential-error"
+                            class="form-error hidden"
+                        ></p>
+
+                    </form>
+
+                </div>
+            `;
+
+            document
+                .getElementById(
+                    "change-password-form"
+                )
+                .addEventListener(
+                    "submit",
+                    handleChangePassword
+                );
+
+        } else {
+
+            accountCredentialSection.innerHTML = `
+                <div class="account-credential">
+
+                    <h3>Change PIN</h3>
+
+                    <form id="change-pin-form">
+
+                        <label>
+                            Current PIN
+
+                            <input
+                                type="password"
+                                id="account-current-pin"
+                                inputmode="numeric"
+                                maxlength="4"
+                                autocomplete="current-password"
+                                required
+                            >
+                        </label>
+
+                        <label>
+                            New PIN
+
+                            <input
+                                type="password"
+                                id="account-new-pin"
+                                inputmode="numeric"
+                                maxlength="4"
+                                autocomplete="new-password"
+                                required
+                            >
+                        </label>
+
+                        <button
+                            type="submit"
+                            class="primary-action"
+                        >
+                            Change PIN
+                        </button>
+
+                        <p
+                            id="account-credential-error"
+                            class="form-error hidden"
+                        ></p>
+
+                    </form>
+
+                </div>
+            `;
+
+            document
+                .getElementById(
+                    "change-pin-form"
+                )
+                .addEventListener(
+                    "submit",
+                    handleChangePin
+                );
+        }
+
+    } catch (error) {
+
+        console.error(
+            "Account loading error:",
+            error
+        );
+
+        accountDetails.innerHTML = `
+            <p class="form-error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
+
+async function createUserFromForm(event) {
+
+    event.preventDefault();
+
+    const errorElement =
+        document.getElementById(
+            "user-form-error"
+        );
+
+    errorElement.classList.add(
+        "hidden"
+    );
+
+    const name =
+        document.getElementById(
+            "user-name"
+        ).value.trim();
+
+    const role =
+        document.getElementById(
+            "user-role"
+        ).value;
+
+    const language =
+        document.getElementById(
+            "user-language"
+        ).value;
+
+    const credential =
+        document.getElementById(
+            "user-credential"
+        ).value;
+
+    const payload = {
+        name,
+        role,
+        language
+    };
+
+    if (role === "ADMIN") {
+
+        payload.username =
+            document.getElementById(
+                "user-username"
+            ).value.trim();
+
+        payload.password =
+            credential;
+
+    } else {
+
+        payload.pin =
+            credential;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/auth/users",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to create user."
+            );
+        }
+
+        userFormContainer.classList.add(
+            "hidden"
+        );
+
+        userFormContainer.innerHTML =
+            "";
+
+        await loadUsers();
+
+        alert(
+            "User created successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Create user error:",
+            error
+        );
+
+        errorElement.textContent =
+            error.message;
+
+        errorElement.classList.remove(
+            "hidden"
+        );
+    }
+}
+
+async function updateUserFromForm(
+    event,
+    user
+) {
+    event.preventDefault();
+
+    const errorElement =
+        document.getElementById(
+            "user-form-error"
+        );
+
+    errorElement.classList.add(
+        "hidden"
+    );
+
+    const name =
+        document.getElementById(
+            "user-name"
+        ).value.trim();
+
+    const language =
+        document.getElementById(
+            "user-language"
+        ).value;
+
+    const active =
+        document.getElementById(
+            "user-active"
+        ).checked;
+
+    const payload = {
+        name,
+        language,
+        active
+    };
+
+    if (user.role === "ADMIN") {
+        payload.username =
+            document.getElementById(
+                "user-username"
+            ).value.trim();
+    }
+
+    try {
+        const response =
+            await fetch(
+                `/api/auth/users/${user.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to update user."
+            );
+        }
+
+        userFormContainer.classList.add(
+            "hidden"
+        );
+
+        userFormContainer.innerHTML =
+            "";
+
+        await loadUsers();
+
+        alert(
+            "User updated successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Update user error:",
+            error
+        );
+
+        errorElement.textContent =
+            error.message;
+
+        errorElement.classList.remove(
+            "hidden"
+        );
+    }
+}
+
+function openUserForm(userId = null) {
+
+    if (
+        !currentUser ||
+        currentUser.role !== "ADMIN"
+    ) {
+        return;
+    }
+
+    const users =
+        Array.isArray(window.bakeryUsers)
+            ? window.bakeryUsers
+            : [];
+
+    const user =
+        userId === null
+            ? null
+            : users.find(
+                item => Number(item.id) === Number(userId)
+            );
+
+    if (
+        userId !== null &&
+        !user
+    ) {
+        return;
+    }
+
+    const isEdit =
+        user !== null;
+
+    userFormContainer.classList.remove(
+        "hidden"
+    );
+
+    userFormContainer.innerHTML = `
+        <div class="user-form">
+
+            <div class="section-header">
+
+                <h3>
+                    ${
+                        isEdit
+                            ? "Edit User"
+                            : "Add User"
+                    }
+                </h3>
+
+                <button
+                    type="button"
+                    id="cancel-user-form"
+                >
+                    Cancel
+                </button>
+
+            </div>
+
+            <form id="user-form">
+
+                <label>
+                    Name
+
+                    <input
+                        type="text"
+                        id="user-name"
+                        value="${
+                            isEdit
+                                ? escapeHTML(user.name)
+                                : ""
+                        }"
+                        required
+                    >
+                </label>
+
+                ${
+                    isEdit
+                        ? `
+                            <p>
+                                <strong>Role:</strong>
+                                ${escapeHTML(user.role)}
+                            </p>
+
+                            ${
+                                user.role === "ADMIN"
+                                    ? `
+                                        <label>
+                                            Username
+
+                                            <input
+                                                type="text"
+                                                id="user-username"
+                                                value="${escapeHTML(user.username || "")}"
+                                                autocomplete="username"
+                                                required
+                                            >
+                                        </label>
+                                    `
+                                    : ""
+                            }
+                        `
+                        : `
+                            <label>
+                                Role
+
+                                <select
+                                    id="user-role"
+                                    required
+                                >
+                                    <option value="COUNTER">
+                                        Counter
+                                    </option>
+
+                                    <option value="ADMIN">
+                                        Admin
+                                    </option>
+                                </select>
+                            </label>
+
+                            <div id="new-user-username-field" class="hidden">
+
+                                <label>
+                                    Username
+
+                                    <input
+                                        type="text"
+                                        id="user-username"
+                                        autocomplete="username"
+                                    >
+                                </label>
+
+                            </div>
+                        `
+                }
+
+                <label>
+                    Language
+
+                    <select
+                        id="user-language"
+                        required
+                    >
+
+                        <option value="ENGLISH">
+                            English
+                        </option>
+
+                        <option value="SPANISH">
+                            Spanish
+                        </option>
+
+                        <option value="BILINGUAL">
+                            Bilingual
+                        </option>
+
+                    </select>
+                </label>
+
+                ${
+                    isEdit
+                        ? `
+                            <label>
+                                Active
+
+                                <input
+                                    type="checkbox"
+                                    id="user-active"
+                                    ${
+                                        user.active
+                                            ? "checked"
+                                            : ""
+                                    }
+                                >
+                            </label>
+                        `
+                        : `
+                            <div id="new-user-credential-fields">
+
+                                <label>
+                                    <span id="new-user-credential-label">
+                                        4-digit PIN
+                                    </span>
+
+                                    <input
+                                        type="password"
+                                        id="user-credential"
+                                        inputmode="numeric"
+                                        maxlength="4"
+                                        autocomplete="new-password"
+                                        required
+                                    >
+                                </label>
+
+                            </div>
+                        `
+                }
+
+                <p
+                    id="user-form-error"
+                    class="form-error hidden"
+                ></p>
+
+                <button
+                    type="submit"
+                    class="primary-action"
+                >
+                    ${
+                        isEdit
+                            ? "Save Changes"
+                            : "Create User"
+                    }
+                </button>
+
+            </form>
+
+        </div>
+    `;
+
+    if (!isEdit) {
+
+        const roleSelect =
+            document.getElementById(
+                "user-role"
+            );
+
+        const credentialLabel =
+            document.getElementById(
+                "new-user-credential-label"
+            );
+
+        const usernameField =
+            document.getElementById(
+                "new-user-username-field"
+            );
+
+        const usernameInput =
+            document.getElementById(
+                "user-username"
+            );
+
+        const credentialInput =
+            document.getElementById(
+                "user-credential"
+            );
+
+        roleSelect.addEventListener(
+            "change",
+            () => {
+
+                if (
+                    roleSelect.value === "ADMIN"
+                ) {
+
+                    usernameField.classList.remove(
+                        "hidden"
+                    );
+
+                    usernameInput.required =
+                        true;
+
+                    credentialLabel.textContent =
+                        "Password";
+
+                    credentialInput.type =
+                        "password";
+
+                    credentialInput.inputMode =
+                        "";
+
+                    credentialInput.maxLength =
+                        128;
+
+                } else {
+
+                    usernameField.classList.add(
+                        "hidden"
+                    );
+
+                    usernameInput.required =
+                        false;
+
+                    usernameInput.value =
+                        "";
+
+                    credentialLabel.textContent =
+                        "4-digit PIN";
+
+                    credentialInput.type =
+                        "password";
+
+                    credentialInput.inputMode =
+                        "numeric";
+
+                    credentialInput.maxLength =
+                        4;
+                }
+            }
+        );
+    }
+
+    if (isEdit) {
+
+        document
+            .getElementById(
+                "user-language"
+            )
+            .value =
+            user.language;
+    }
+
+    if (!isEdit) {
+
+        document
+            .getElementById(
+                "user-language"
+            )
+            .value =
+            "ENGLISH";
+    }
+
+    document
+        .getElementById(
+            "cancel-user-form"
+        )
+        .addEventListener(
+            "click",
+            () => {
+
+                userFormContainer.classList.add(
+                    "hidden"
+                );
+
+                userFormContainer.innerHTML =
+                    "";
+            }
+        );
+
+    document
+        .getElementById(
+            "user-form"
+        )
+        .addEventListener(
+            "submit",
+            event => {
+
+                if (isEdit) {
+                    updateUserFromForm(
+                        event,
+                        user
+                    );
+                } else {
+                    createUserFromForm(
+                        event
+                    );
+                }
+            }
+        );
+}
+
+async function resetUserPassword(user) {
+
+    if (
+        !confirm(
+            `Reset the password for ${user.name}?`
+        )
+    ) {
+        return;
+    }
+
+    const password =
+        prompt(
+            "Enter the new password (minimum 8 characters):"
+        );
+
+    if (password === null) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/auth/users/${user.id}/reset-password`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body:
+                        JSON.stringify({
+                            password
+                        })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to reset password."
+            );
+        }
+
+        alert(
+            "Password reset successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Reset password error:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+    }
+}
+
+
+async function resetUserPin(user) {
+
+    if (
+        !confirm(
+            `Reset the PIN for ${user.name}?`
+        )
+    ) {
+        return;
+    }
+
+    const pin =
+        prompt(
+            "Enter the new 4-digit PIN:"
+        );
+
+    if (pin === null) {
+        return;
+    }
+
+    try {
+
+        const response =
+            await fetch(
+                `/api/auth/users/${user.id}/reset-pin`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+                    body:
+                        JSON.stringify({
+                            pin
+                        })
+                }
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to reset PIN."
+            );
+        }
+
+        alert(
+            "PIN reset successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Reset PIN error:",
+            error
+        );
+
+        alert(
+            error.message
+        );
+    }
+}
+
+async function loadUsers() {
+
+    if (
+        !currentUser ||
+        currentUser.role !== "ADMIN"
+    ) {
+        return;
+    }
+
+    usersList.innerHTML = `
+        <p class="loading">
+            Loading users...
+        </p>
+    `;
+
+    userFormContainer.classList.add("hidden");
+    userFormContainer.innerHTML = "";
+
+    try {
+
+        const response =
+            await fetch(
+                "/api/auth/users"
+            );
+
+        const result =
+            await response.json();
+
+        if (
+            !response.ok ||
+            !result.success
+        ) {
+            throw new Error(
+                result.error ||
+                "Unable to load users."
+            );
+        }
+
+        window.bakeryUsers =
+            result.data;
+
+        if (
+            !Array.isArray(result.data) ||
+            result.data.length === 0
+        ) {
+            usersList.innerHTML = `
+                <p>
+                    No users found.
+                </p>
+            `;
+
+            return;
+        }
+
+        usersList.innerHTML = `
+            <div class="users-table">
+
+                ${result.data
+                    .map(user => `
+                        <div class="user-row">
+
+                            <div class="user-info">
+
+                                <strong>
+                                    ${escapeHTML(user.name)}
+                                </strong>
+
+                                <span>
+                                    ${escapeHTML(user.role)}
+                                </span>
+
+                                <span>
+                                    ${escapeHTML(user.language)}
+                                </span>
+
+                                ${
+                                    user.role === "ADMIN"
+                                        ? `
+                                            <span>
+                                                Username:
+                                                ${escapeHTML(
+                                                    user.username
+                                                )}
+                                            </span>
+                                        `
+                                        : `
+                                            <span>
+                                                Login:
+                                                4-digit PIN
+                                            </span>
+                                        `
+                                }
+
+                                <span>
+                                    ${
+                                        user.active
+                                            ? "Active"
+                                            : "Inactive"
+                                    }
+                                </span>
+
+                            </div>
+
+                            <div class="user-actions">
+
+                                <button
+                                    type="button"
+                                    class="user-edit-button"
+                                    data-user-id="${Number(user.id)}"
+                                >
+                                    Edit
+                                </button>
+
+                                ${
+                                    user.role === "ADMIN"
+                                        ? `
+                                            <button
+                                                type="button"
+                                                class="user-reset-password-button"
+                                                data-user-id="${Number(user.id)}"
+                                            >
+                                                Reset Password
+                                            </button>
+                                        `
+                                        : `
+                                            <button
+                                                type="button"
+                                                class="user-reset-pin-button"
+                                                data-user-id="${Number(user.id)}"
+                                            >
+                                                Reset PIN
+                                            </button>
+                                        `
+                                }
+
+                            </div>
+
+                        </div>
+                    `)
+                    .join("")}
+
+            </div>
+        `;
+
+        usersList
+            .querySelectorAll(
+                ".user-edit-button"
+            )
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+                        openUserForm(
+                            Number(
+                                button.dataset.userId
+                            )
+                        );
+                    }
+                );
+            });
+
+        usersList
+            .querySelectorAll(
+                ".user-reset-password-button"
+            )
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+                        const user =
+                            window.bakeryUsers.find(
+                                item =>
+                                    Number(item.id) ===
+                                    Number(button.dataset.userId)
+                            );
+
+                        if (user) {
+                            resetUserPassword(user);
+                        }
+                    }
+                );
+            });
+
+        usersList
+            .querySelectorAll(
+                ".user-reset-pin-button"
+            )
+            .forEach(button => {
+
+                button.addEventListener(
+                    "click",
+                    () => {
+                        const user =
+                            window.bakeryUsers.find(
+                                item =>
+                                    Number(item.id) ===
+                                    Number(button.dataset.userId)
+                            );
+
+                        if (user) {
+                            resetUserPin(user);
+                        }
+                    }
+                );
+            });
+
+    } catch (error) {
+
+        console.error(
+            "Users loading error:",
+            error
+        );
+
+        usersList.innerHTML = `
+            <p class="form-error">
+                ${escapeHTML(error.message)}
+            </p>
+        `;
+    }
+}
 
 async function loadCounterUsers() {
 
@@ -11416,6 +12754,115 @@ async function saveHistoryDailyContext() {
             false;
     }
 }
+
+function openAccount() {
+
+    ordersView.classList.add("hidden");
+    newOrderView.classList.add("hidden");
+    orderDetailView.classList.add("hidden");
+    pickupListView.classList.add("hidden");
+    counterSaleView.classList.add("hidden");
+    productionView.classList.add("hidden");
+    historyView.classList.add("hidden");
+    usersView.classList.add("hidden");
+
+    appView = "account";
+    saveNavigationState();
+
+    accountView.classList.remove("hidden");
+
+    loadAccount();
+}
+
+function openUsers() {
+
+    if (!currentUser || currentUser.role !== "ADMIN") {
+        return;
+    }
+
+    ordersView.classList.add("hidden");
+    newOrderView.classList.add("hidden");
+    orderDetailView.classList.add("hidden");
+    pickupListView.classList.add("hidden");
+    counterSaleView.classList.add("hidden");
+    productionView.classList.add("hidden");
+    historyView.classList.add("hidden");
+    accountView.classList.add("hidden");
+
+    appView = "users";
+    saveNavigationState();
+
+    usersView.classList.remove("hidden");
+
+    loadUsers();
+}
+
+// My Account navigation
+
+myAccountButton.addEventListener(
+    "click",
+    () => {
+        openAccount();
+    }
+);
+
+// Users navigation
+
+usersButton.addEventListener(
+    "click",
+    () => {
+        openUsers();
+    }
+);
+
+document
+    .getElementById(
+        "add-user-button"
+    )
+    .addEventListener(
+        "click",
+        () => {
+            openUserForm();
+        }
+    );
+
+// Back from My Account to Orders
+
+document
+    .getElementById("account-back")
+    .addEventListener(
+        "click",
+        () => {
+
+            accountView.classList.add("hidden");
+
+            appView = "orders";
+            saveNavigationState();
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
+
+// Back from Users to Orders
+
+document
+    .getElementById("users-back")
+    .addEventListener(
+        "click",
+        () => {
+
+            usersView.classList.add("hidden");
+
+            appView = "orders";
+            saveNavigationState();
+
+            ordersView.classList.remove("hidden");
+
+            loadOrders();
+        }
+    );
 
 // Back from History to Orders
 
