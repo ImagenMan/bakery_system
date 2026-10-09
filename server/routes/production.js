@@ -108,6 +108,320 @@ router.post(
     }
 );
 
+
+// =========================================================
+// Production Families and Family-Level Estimates
+// =========================================================
+
+function handleProductionFamilyError(error, res, operation) {
+    console.error(
+        `Production family ${operation} error:`,
+        error
+    );
+
+    const message =
+        error && typeof error.message === "string"
+            ? error.message
+            : "Unexpected production family error.";
+
+    if (
+        error &&
+        error.code === "SQLITE_CONSTRAINT_UNIQUE"
+    ) {
+        return res.status(409).json({
+            success: false,
+            error: "A production family with that name already exists."
+        });
+    }
+
+    if (message.includes("UNIQUE constraint failed")) {
+        return res.status(409).json({
+            success: false,
+            error: "A production family with that name already exists."
+        });
+    }
+
+    if (message.toLowerCase().includes("not found")) {
+        return res.status(404).json({
+            success: false,
+            error: message
+        });
+    }
+
+    if (
+        message.includes("required") ||
+        message.includes("valid") ||
+        message.includes("positive") ||
+        message.includes("nonnegative") ||
+        message.includes("must be text") ||
+        message.includes("inactive") ||
+        message.includes("Active must") ||
+        message.includes("Planned batches") ||
+        message.includes("Display order") ||
+        message.includes("must be a real calendar date") ||
+        message.includes("YYYY-MM-DD")
+    ) {
+        return res.status(400).json({
+            success: false,
+            error: message
+        });
+    }
+
+    return res.status(500).json({
+        success: false,
+        error: "Failed to process production family request."
+    });
+}
+
+router.get("/families", (req, res) => {
+    try {
+        const includeInactive =
+            req.query.include_inactive === "true";
+
+        if (includeInactive && req.user.role !== "ADMIN") {
+            return res.status(403).json({
+                success: false,
+                error: "Admin authorization is required to view inactive families."
+            });
+        }
+
+        const families =
+            req.models.productionFamily.getProductionFamilies({
+                includeInactive
+            });
+
+        res.json({
+            success: true,
+            data: families
+        });
+
+    } catch (error) {
+        handleProductionFamilyError(
+            error,
+            res,
+            "list"
+        );
+    }
+});
+
+router.post("/families", requireAdmin, (req, res) => {
+    try {
+        const {
+            name,
+            description,
+            display_order
+        } = req.body || {};
+
+        const family =
+            req.models.productionFamily.createProductionFamily({
+                name,
+                description,
+                display_order
+            });
+
+        res.status(201).json({
+            success: true,
+            data: family
+        });
+
+    } catch (error) {
+        handleProductionFamilyError(
+            error,
+            res,
+            "create"
+        );
+    }
+});
+
+router.put("/families/:id", requireAdmin, (req, res) => {
+    try {
+        const id = Number(req.params.id);
+
+        if (!Number.isSafeInteger(id) || id <= 0) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid production family ID."
+            });
+        }
+
+        const existingFamily =
+            req.models.productionFamily.getProductionFamilyById(id);
+
+        const body = req.body || {};
+
+        const family =
+            req.models.productionFamily.updateProductionFamily({
+                id,
+                name:
+                    body.name === undefined
+                        ? existingFamily.name
+                        : body.name,
+                description:
+                    body.description === undefined
+                        ? existingFamily.description
+                        : body.description,
+                display_order:
+                    body.display_order === undefined
+                        ? existingFamily.display_order
+                        : body.display_order
+            });
+
+        res.json({
+            success: true,
+            data: family
+        });
+
+    } catch (error) {
+        handleProductionFamilyError(
+            error,
+            res,
+            "update"
+        );
+    }
+});
+
+router.patch(
+    "/families/:id/active",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const id = Number(req.params.id);
+
+            if (!Number.isSafeInteger(id) || id <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production family ID."
+                });
+            }
+
+            const family =
+                req.models.productionFamily.setProductionFamilyActive(
+                    id,
+                    req.body && req.body.active
+                );
+
+            res.json({
+                success: true,
+                data: family
+            });
+
+        } catch (error) {
+            handleProductionFamilyError(
+                error,
+                res,
+                "change active status"
+            );
+        }
+    }
+);
+
+router.put(
+    "/items/:id/family",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const id = Number(req.params.id);
+
+            if (!Number.isSafeInteger(id) || id <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    error: "Invalid production item ID."
+                });
+            }
+
+            if (
+                !req.body ||
+                !Object.prototype.hasOwnProperty.call(
+                    req.body,
+                    "family_id"
+                )
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    error: "family_id is required. Use null to unassign the item."
+                });
+            }
+
+            const item =
+                req.models.productionFamily
+                    .assignProductionItemToFamily(
+                        id,
+                        req.body.family_id
+                    );
+
+            res.json({
+                success: true,
+                data: item
+            });
+
+        } catch (error) {
+            handleProductionFamilyError(
+                error,
+                res,
+                "assign production item"
+            );
+        }
+    }
+);
+
+router.get("/family-plans", (req, res) => {
+    try {
+        const { date } = req.query;
+
+        if (typeof date !== "string" || !date.trim()) {
+            return res.status(400).json({
+                success: false,
+                error: "Production date is required in YYYY-MM-DD format."
+            });
+        }
+
+        const plans =
+            req.models.productionFamily
+                .getProductionFamilyPlansByDate(date);
+
+        res.json({
+            success: true,
+            data: plans
+        });
+
+    } catch (error) {
+        handleProductionFamilyError(
+            error,
+            res,
+            "retrieve estimates"
+        );
+    }
+});
+
+router.put("/family-plans", requireAdmin, (req, res) => {
+    try {
+        const {
+            production_family_id,
+            production_date,
+            planned_batches
+        } = req.body || {};
+
+        const plan =
+            req.models.productionFamily.saveProductionFamilyPlan({
+                production_family_id,
+                production_date,
+                planned_batches
+            });
+
+        res.json({
+            success: true,
+            data: plan
+        });
+
+    } catch (error) {
+        handleProductionFamilyError(
+            error,
+            res,
+            "save estimate"
+        );
+    }
+});
+
 // =========================================================
 // Production Items
 // =========================================================
