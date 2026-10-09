@@ -4918,6 +4918,8 @@ async function loadProductionOverview(date) {
             date
         );
 
+        await loadProductionFamilyPlanning(date);
+
     } catch (error) {
 
         console.error(
@@ -4931,6 +4933,359 @@ async function loadProductionOverview(date) {
             </p>
         `;
     }
+}
+
+// =========================================================
+// Production Family Planning
+// =========================================================
+
+async function loadProductionFamilyPlanning(productionDate) {
+    const container = document.getElementById(
+        "production-family-planning"
+    );
+
+    if (!container) {
+        return;
+    }
+
+    container.innerHTML = `
+        <p class="loading">Loading family planning...</p>
+    `;
+
+    try {
+        const responses = await Promise.all([
+            fetch("/api/production/families"),
+            fetch(
+                `/api/production/family-plans?date=${encodeURIComponent(
+                    productionDate
+                )}`
+            ),
+            fetch("/api/production/items")
+        ]);
+
+        const results = await Promise.all(
+            responses.map(async response => {
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error ||
+                        `Request failed with status ${response.status}.`
+                    );
+                }
+
+                return result.data;
+            })
+        );
+
+        const [activeFamilies, plans, items] = results;
+
+        const selectedDate = document.getElementById(
+            "production-date"
+        )?.value;
+
+        if (selectedDate !== productionDate) {
+            return;
+        }
+
+        const familyMap = new Map(
+            activeFamilies.map(family => [
+                Number(family.id),
+                family
+            ])
+        );
+
+        // Keep inactive families visible when they have a saved
+        // estimate for this date. They remain read-only.
+        plans.forEach(plan => {
+            const familyId = Number(plan.production_family_id);
+
+            if (!familyMap.has(familyId)) {
+                familyMap.set(familyId, {
+                    id: familyId,
+                    name: plan.family_name,
+                    description: plan.family_description,
+                    display_order: plan.display_order,
+                    active: plan.family_active
+                });
+            }
+        });
+
+        const families = Array.from(familyMap.values()).sort(
+            (a, b) =>
+                Number(a.display_order || 0) -
+                    Number(b.display_order || 0) ||
+                String(a.name).localeCompare(String(b.name))
+        );
+
+        renderProductionFamilyPlanning(
+            container,
+            families,
+            plans,
+            items,
+            productionDate
+        );
+
+    } catch (error) {
+        const selectedDate = document.getElementById(
+            "production-date"
+        )?.value;
+
+        if (selectedDate !== productionDate) {
+            return;
+        }
+
+        console.error(
+            "loadProductionFamilyPlanning error:",
+            error
+        );
+
+        container.innerHTML = `
+            <section class="production-family-planning">
+                <h3>Family Planning</h3>
+                <p class="error">
+                    Unable to load family planning:
+                    ${escapeHTML(error.message)}
+                </p>
+            </section>
+        `;
+    }
+}
+
+function renderProductionFamilyPlanning(
+    container,
+    families,
+    plans,
+    items,
+    productionDate
+) {
+    const isAdmin =
+        currentUser &&
+        currentUser.role === "ADMIN";
+
+    const planByFamily = new Map(
+        plans.map(plan => [
+            Number(plan.production_family_id),
+            plan
+        ])
+    );
+
+    const itemsByFamily = new Map();
+
+    items.forEach(item => {
+        if (item.family_id === null || item.family_id === undefined) {
+            return;
+        }
+
+        const familyId = Number(item.family_id);
+
+        if (!itemsByFamily.has(familyId)) {
+            itemsByFamily.set(familyId, []);
+        }
+
+        itemsByFamily.get(familyId).push(item);
+    });
+
+    container.innerHTML = `
+        <section class="production-family-planning">
+            <div class="production-family-planning-header">
+                <div>
+                    <h3>Family Planning</h3>
+                    <p>
+                        Estimate batches by product family for
+                        ${escapeHTML(productionDate)}.
+                        These estimates do not create production plans
+                        or change inventory.
+                    </p>
+                </div>
+            </div>
+
+            ${families.length === 0
+                ? `
+                    <p>
+                        No production families are configured yet.
+                    </p>
+                `
+                : families.map(family => {
+                    const familyId = Number(family.id);
+                    const plan = planByFamily.get(familyId);
+                    const assignedItems =
+                        itemsByFamily.get(familyId) || [];
+                    const active = Number(family.active) === 1;
+                    const hasEstimate =
+                        plan &&
+                        plan.family_plan_id !== null &&
+                        plan.family_plan_id !== undefined;
+
+                    const estimateValue = hasEstimate
+                        ? Number(plan.planned_batches)
+                        : "";
+
+                    return `
+                        <div class="production-family-card">
+                            <div class="production-family-details">
+                                <strong>
+                                    ${escapeHTML(family.name)}
+                                </strong>
+
+                                ${family.description
+                                    ? `
+                                        <p>
+                                            ${escapeHTML(family.description)}
+                                        </p>
+                                    `
+                                    : ""}
+
+                                <p class="production-family-products">
+                                    <span>Assigned products:</span>
+                                    ${assignedItems.length
+                                        ? assignedItems.map(item =>
+                                            escapeHTML(item.product_name)
+                                        ).join(", ")
+                                        : "None"}
+                                </p>
+
+                                ${!active
+                                    ? `
+                                        <p class="production-family-inactive">
+                                            Inactive family — historical
+                                            estimate is read-only.
+                                        </p>
+                                    `
+                                    : ""}
+                            </div>
+
+                            <div class="production-family-estimate">
+                                <label for="family-batches-${familyId}">
+                                    Planned batches
+                                </label>
+
+                                <input
+                                    id="family-batches-${familyId}"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    inputmode="numeric"
+                                    placeholder="Not set"
+                                    value="${estimateValue}"
+                                    data-family-plan-input="${familyId}"
+                                    ${!isAdmin || !active ? "disabled" : ""}
+                                >
+
+                                ${isAdmin && active
+                                    ? `
+                                        <button
+                                            type="button"
+                                            data-family-plan-save="${familyId}"
+                                        >
+                                            Save estimate
+                                        </button>
+                                    `
+                                    : ""}
+
+                                <span
+                                    class="production-family-save-status"
+                                    data-family-plan-status="${familyId}"
+                                    role="status"
+                                ></span>
+                            </div>
+                        </div>
+                    `;
+                }).join("")}
+        </section>
+    `;
+
+    container
+        .querySelectorAll("[data-family-plan-save]")
+        .forEach(button => {
+            button.addEventListener("click", async () => {
+                const familyId = Number(
+                    button.dataset.familyPlanSave
+                );
+
+                const input = container.querySelector(
+                    `[data-family-plan-input="${familyId}"]`
+                );
+
+                const status = container.querySelector(
+                    `[data-family-plan-status="${familyId}"]`
+                );
+
+                const plannedBatches = Number(input.value);
+
+                if (
+                    input.value.trim() === "" ||
+                    !Number.isSafeInteger(plannedBatches) ||
+                    plannedBatches < 0
+                ) {
+                    status.textContent =
+                        "Enter a whole number of zero or more.";
+                    input.focus();
+                    return;
+                }
+
+                button.disabled = true;
+                status.textContent = "Saving...";
+
+                try {
+                    const response = await fetch(
+                        "/api/production/family-plans",
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                production_family_id: familyId,
+                                production_date: productionDate,
+                                planned_batches: plannedBatches
+                            })
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error ||
+                            "Failed to save family estimate."
+                        );
+                    }
+
+                    const selectedDate =
+                        document.getElementById(
+                            "production-date"
+                        )?.value;
+
+                    if (selectedDate === productionDate) {
+                        await loadProductionFamilyPlanning(
+                            productionDate
+                        );
+
+                        const refreshedStatus =
+                            container.querySelector(
+                                `[data-family-plan-status="${familyId}"]`
+                            );
+
+                        if (refreshedStatus) {
+                            refreshedStatus.textContent =
+                                "Estimate saved.";
+                        }
+                    }
+
+                } catch (error) {
+                    console.error(
+                        "saveProductionFamilyPlan error:",
+                        error
+                    );
+
+                    status.textContent =
+                        error.message || "Failed to save estimate.";
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        });
 }
 
 // =========================================================

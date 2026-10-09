@@ -96,6 +96,7 @@ function createProductionItemModel(db) {
             SELECT
                 pi.id,
                 pi.product_id,
+                pi.family_id,
                 p.sku,
                 p.name AS product_name,
                 p.unit,
