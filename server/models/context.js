@@ -12,6 +12,7 @@ const productionItemProductMappingModel =
     require("./productionItemProductMapping");
 const productionAvailableModel = require("./productionAvailable");
 const productionPlanModel = require("./productionPlan");
+const productionFamilyModel = require("./productionFamily");
 const productionSupplyModel = require("./productionSupply");
 const productionOutputModel = require("./productionOutput");
 const inventoryModel = require("./inventory");
@@ -67,6 +68,8 @@ function createModels(db, authorizationUser) {
                 db,
                 operationalEvent
             ),
+        productionFamily:
+            productionFamilyModel.createProductionFamilyModel(db),
         productionSupply:
             productionSupplyModel.createProductionSupplyModel(db),
         productionOutput:
