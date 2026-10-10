@@ -800,12 +800,24 @@ document
                     appView = "orders";
                     saveNavigationState();
 
-                    trainingView.classList.add("hidden");
-                    pickupListView.classList.add("hidden");
+                    ordersView.classList.add("hidden");
                     orderDetailView.classList.add("hidden");
                     newOrderView.classList.add("hidden");
                     counterSaleView.classList.add("hidden");
                     productionView.classList.add("hidden");
+                    productionItemView.classList.add("hidden");
+                    trainingView.classList.add("hidden");
+                    trainingCounterSaleView.classList.add("hidden");
+                    trainingPreorderView.classList.add("hidden");
+                    trainingPreorderReviewView.classList.add("hidden");
+                    trainingProductionView.classList.add("hidden");
+                    trainingProductionItemView.classList.add("hidden");
+                    pickupListView.classList.add("hidden");
+                    historyView.classList.add("hidden");
+                    accountView.classList.add("hidden");
+                    usersView.classList.add("hidden");
+                    todayView.classList.add("hidden");
+                    counterTodayView.classList.add("hidden");
 
                     ordersView.classList.remove("hidden");
 
@@ -1816,6 +1828,8 @@ document
 
             trainingProductionView.classList.remove("hidden");
 
+            appView = "training-production";
+            saveNavigationState();
 
             const productionDateInput =
                 document.getElementById("training-production-date");
@@ -1877,6 +1891,8 @@ document
 
             trainingView.classList.remove("hidden");
 
+            appView = "training";
+            saveNavigationState();
         }
     );
 
@@ -2151,6 +2167,16 @@ function showLogin() {
     orderDetailView.classList.add("hidden");
     newOrderView.classList.add("hidden");
     counterSaleView.classList.add("hidden");
+    productionView.classList.add("hidden");
+    productionItemView.classList.add("hidden");
+    trainingView.classList.add("hidden");
+    trainingCounterSaleView.classList.add("hidden");
+    trainingPreorderView.classList.add("hidden");
+    trainingPreorderReviewView.classList.add("hidden");
+    trainingProductionView.classList.add("hidden");
+    trainingProductionItemView.classList.add("hidden");
+    pickupListView.classList.add("hidden");
+    counterTodayView.classList.add("hidden");
 
     historyView.classList.add("hidden");
     accountView.classList.add("hidden");
@@ -2230,6 +2256,8 @@ async function showApplication() {
     counterSaleView.classList.add("hidden");
     productionView.classList.add("hidden");
     trainingView.classList.add("hidden");
+    trainingProductionView.classList.add("hidden");
+    trainingProductionItemView.classList.add("hidden");
     pickupListView.classList.add("hidden");
     historyView.classList.add("hidden");
     accountView.classList.add("hidden");
@@ -2258,6 +2286,59 @@ async function showApplication() {
         usersView.classList.remove("hidden");
 
         loadUsers();
+
+        return;
+    }
+
+    if (
+        savedMode !== "TRAINING" &&
+        savedView === "production"
+    ) {
+
+        productionView.classList.remove("hidden");
+
+        const productionDate =
+            document.getElementById("production-date");
+
+        if (productionDate) {
+
+            if (!productionDate.value) {
+                productionDate.value =
+                    new Date().toISOString().split("T")[0];
+            }
+
+            loadProductionOverview(
+                productionDate.value
+            );
+        }
+
+        return;
+    }
+
+    if (
+        savedMode === "TRAINING" &&
+        savedView === "training-production"
+    ) {
+
+        trainingProductionView.classList.remove("hidden");
+        trainingProductionItemView.classList.add("hidden");
+
+        const productionDateInput =
+            document.getElementById("training-production-date");
+
+        if (productionDateInput) {
+
+            if (!productionDateInput.value) {
+                const now = new Date();
+
+                productionDateInput.value =
+                    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+            }
+
+            loadTrainingProduction(
+                productionDateInput.value
+            );
+        }
 
         return;
     }
@@ -5071,6 +5152,10 @@ function renderProductionFamilyPlanning(
         currentUser &&
         currentUser.role === "ADMIN";
 
+    const assignableFamilies = families.filter(
+        family => Number(family.active) === 1
+    );
+
     const planByFamily = new Map(
         plans.map(plan => [
             Number(plan.production_family_id),
@@ -5117,6 +5202,81 @@ function renderProductionFamilyPlanning(
                         : ""}
                 </div>
             </div>
+
+            ${isAdmin
+                ? `
+                    <section class="production-family-management">
+                        <h4>Create a production family</h4>
+
+                        <form data-family-create-form>
+                            <label>
+                                Family name
+                                <input
+                                    type="text"
+                                    name="name"
+                                    maxlength="100"
+                                    required
+                                    placeholder="e.g. Shared Dough"
+                                >
+                            </label>
+
+                            <label>
+                                Description (optional)
+                                <input
+                                    type="text"
+                                    name="description"
+                                    maxlength="500"
+                                    placeholder="How this family is used"
+                                >
+                            </label>
+
+                            <button type="submit">Create family</button>
+
+                            <span
+                                data-family-management-status
+                                class="production-family-save-status"
+                                role="status"
+                            ></span>
+                        </form>
+
+                        <h4>Assign production items to families</h4>
+
+                        ${items.length
+                            ? `
+                                <div class="production-family-assignments">
+                                    ${items.map(item => `
+                                        <label class="production-family-assignment">
+                                            <span>
+                                                ${escapeHTML(item.product_name)}
+                                                ${item.sku
+                                                    ? `<small>${escapeHTML(item.sku)}</small>`
+                                                    : ""}
+                                            </span>
+
+                                            <select
+                                                data-product-family="${Number(item.id)}"
+                                            >
+                                                <option value="">No family</option>
+                                                ${assignableFamilies.map(family => `
+                                                    <option
+                                                        value="${Number(family.id)}"
+                                                        ${Number(item.family_id) === Number(family.id)
+                                                            ? "selected"
+                                                            : ""}
+                                                    >
+                                                        ${escapeHTML(family.name)}
+                                                    </option>
+                                                `).join("")}
+                                            </select>
+                                        </label>
+                                    `).join("")}
+                                </div>
+                            `
+                            : "<p>No active production items are available.</p>"
+                        }
+                    </section>
+                `
+                : ""}
 
             ${families.length === 0
                 ? `
@@ -5212,6 +5372,153 @@ function renderProductionFamilyPlanning(
                 }).join("")}
         </section>
     `;
+
+    const createForm = container.querySelector(
+        "[data-family-create-form]"
+    );
+
+    if (createForm) {
+        createForm.addEventListener("submit", async event => {
+            event.preventDefault();
+
+            const status = container.querySelector(
+                "[data-family-management-status]"
+            );
+            const submitButton = createForm.querySelector(
+                'button[type="submit"]'
+            );
+            const formData = new FormData(createForm);
+
+            const name = String(formData.get("name") || "").trim();
+            const description = String(
+                formData.get("description") || ""
+            ).trim();
+
+            if (!name) {
+                status.textContent = "Enter a family name.";
+                return;
+            }
+
+            submitButton.disabled = true;
+            status.textContent = "Creating family...";
+
+            try {
+                const response = await fetch(
+                    "/api/production/families",
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            name,
+                            description
+                        })
+                    }
+                );
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(
+                        result.error || "Failed to create family."
+                    );
+                }
+
+                await loadProductionFamilyPlanning(
+                    productionDate,
+                    options
+                );
+
+                const refreshedStatus = container.querySelector(
+                    "[data-family-management-status]"
+                );
+
+                if (refreshedStatus) {
+                    refreshedStatus.textContent = "Family created.";
+                }
+
+            } catch (error) {
+                status.textContent =
+                    error.message || "Failed to create family.";
+            } finally {
+                submitButton.disabled = false;
+            }
+        });
+    }
+
+    container
+        .querySelectorAll("[data-product-family]")
+        .forEach(select => {
+            select.addEventListener("change", async () => {
+                const productionItemId = Number(
+                    select.dataset.productFamily
+                );
+                const familyId = select.value === ""
+                    ? null
+                    : Number(select.value);
+                const previousValue = select.dataset.previousValue ??
+                    select.value;
+
+                select.disabled = true;
+
+                const status = container.querySelector(
+                    "[data-family-management-status]"
+                );
+
+                if (status) {
+                    status.textContent = "Saving assignment...";
+                }
+
+                try {
+                    const response = await fetch(
+                        `/api/production/items/${productionItemId}/family`,
+                        {
+                            method: "PUT",
+                            headers: {
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                family_id: familyId
+                            })
+                        }
+                    );
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result.success) {
+                        throw new Error(
+                            result.error || "Failed to assign product."
+                        );
+                    }
+
+                    await loadProductionFamilyPlanning(
+                        productionDate,
+                        options
+                    );
+
+                    const refreshedStatus = container.querySelector(
+                        "[data-family-management-status]"
+                    );
+
+                    if (refreshedStatus) {
+                        refreshedStatus.textContent =
+                            "Product assignment saved.";
+                    }
+
+                } catch (error) {
+                    select.value = previousValue;
+                    select.disabled = false;
+
+                    if (status) {
+                        status.textContent =
+                            error.message || "Failed to assign product.";
+                    }
+                }
+            });
+
+            select.dataset.previousValue = select.value;
+        });
 
     container
         .querySelectorAll("[data-family-plan-save]")
@@ -9473,6 +9780,9 @@ document
             orderDetailView.classList.add("hidden");
             newOrderView.classList.add("hidden");
 
+            appView = "production";
+            saveNavigationState();
+
             productionView.classList.remove("hidden");
 
             const productionDate =
@@ -9536,6 +9846,9 @@ document
         () => {
 
             productionView.classList.add("hidden");
+
+            appView = "orders";
+            saveNavigationState();
 
             ordersView.classList.remove("hidden");
 

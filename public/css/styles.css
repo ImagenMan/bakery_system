@@ -520,6 +520,59 @@ textarea {
     color: var(--text-muted);
 }
 
+.production-family-management {
+    margin: 16px 0;
+    padding: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-small);
+}
+
+.production-family-management h4 {
+    margin: 0 0 10px;
+}
+
+.production-family-management h4:not(:first-child) {
+    margin-top: 20px;
+}
+
+.production-family-management form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: end;
+}
+
+.production-family-management form label,
+.production-family-assignment {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.production-family-management input,
+.production-family-assignment select {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 10px;
+}
+
+.production-family-assignments {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.production-family-assignment {
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+}
+
+.production-family-assignment small {
+    display: block;
+    color: var(--text-muted);
+}
+
 .production-family-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
@@ -569,6 +622,11 @@ textarea {
 }
 
 @media (max-width: 600px) {
+    .production-family-management form,
+    .production-family-assignments {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
     .production-family-card {
         grid-template-columns: minmax(0, 1fr);
         gap: 10px;
