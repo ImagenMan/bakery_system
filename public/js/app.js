@@ -4939,10 +4939,16 @@ async function loadProductionOverview(date) {
 // Production Family Planning
 // =========================================================
 
-async function loadProductionFamilyPlanning(productionDate) {
-    const container = document.getElementById(
-        "production-family-planning"
-    );
+async function loadProductionFamilyPlanning(
+    productionDate,
+    options = {}
+) {
+    const containerId =
+        options.containerId || "production-family-planning";
+
+    const dateInputId =
+        options.dateInputId || "production-date";
+    const container = document.getElementById(containerId);
 
     if (!container) {
         return;
@@ -4981,7 +4987,7 @@ async function loadProductionFamilyPlanning(productionDate) {
         const [activeFamilies, plans, items] = results;
 
         const selectedDate = document.getElementById(
-            "production-date"
+            dateInputId
         )?.value;
 
         if (selectedDate !== productionDate) {
@@ -5023,12 +5029,13 @@ async function loadProductionFamilyPlanning(productionDate) {
             families,
             plans,
             items,
-            productionDate
+            productionDate,
+            options
         );
 
     } catch (error) {
         const selectedDate = document.getElementById(
-            "production-date"
+            dateInputId
         )?.value;
 
         if (selectedDate !== productionDate) {
@@ -5057,7 +5064,8 @@ function renderProductionFamilyPlanning(
     families,
     plans,
     items,
-    productionDate
+    productionDate,
+    options = {}
 ) {
     const isAdmin =
         currentUser &&
@@ -5097,6 +5105,16 @@ function renderProductionFamilyPlanning(
                         These estimates do not create production plans
                         or change inventory.
                     </p>
+
+                    ${options.isTraining
+                        ? `
+                            <p>
+                                This estimate is saved in Training Mode
+                                only. It does not change Normal Mode,
+                                actual production plans, or inventory.
+                            </p>
+                        `
+                        : ""}
                 </div>
             </div>
 
@@ -5254,12 +5272,13 @@ function renderProductionFamilyPlanning(
 
                     const selectedDate =
                         document.getElementById(
-                            "production-date"
+                            options.dateInputId || "production-date"
                         )?.value;
 
                     if (selectedDate === productionDate) {
                         await loadProductionFamilyPlanning(
-                            productionDate
+                            productionDate,
+                            options
                         );
 
                         const refreshedStatus =
@@ -9743,6 +9762,12 @@ async function loadTrainingProduction(date) {
                 : [];
 
         renderTrainingProductionOverview();
+
+        await loadProductionFamilyPlanning(date, {
+            containerId: "training-production-family-planning",
+            dateInputId: "training-production-date",
+            isTraining: true
+        });
 
     } catch (error) {
 
