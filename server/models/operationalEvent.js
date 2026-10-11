@@ -180,24 +180,6 @@ function createOperationalEventModel(db) {
         return findOperationalEventById(result.lastInsertRowid);
     }
 
-    function getBusinessDayOpeningEvent(daily_record_id) {
-        validateDailyRecordId(daily_record_id);
-
-        return db.prepare(`
-            SELECT
-                id,
-                event_type,
-                event_at,
-                daily_record_id,
-                user_id,
-                notes,
-                created_at
-            FROM operational_events
-            WHERE daily_record_id = ?
-              AND event_type = 'BUSINESS_DAY_OPENED'
-        `).get(daily_record_id);
-    }
-
     function getBusinessDayLifecycleEvent(daily_record_id) {
         validateDailyRecordId(daily_record_id);
 
@@ -573,7 +555,6 @@ function createOperationalEventModel(db) {
         getOperationalEventById,
         findOperationalEventById,
         createOperationalEvent,
-        getBusinessDayOpeningEvent,
         getBusinessDayLifecycleEvent,
         getActiveBusinessDayOpeningEvent,
         openBusinessDay,

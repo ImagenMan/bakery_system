@@ -1200,7 +1200,9 @@ router.get(
                 !req.models.operationalEvent
                     .hasOperationalActivitySinceOpening(
                         dailyRecord.id
-                    );
+                    ) &&
+                !req.models.operationalEvent
+                    .isProductionDayClosed(recordDate);
 
             const productionDayClosed =
                 req.models.operationalEvent
