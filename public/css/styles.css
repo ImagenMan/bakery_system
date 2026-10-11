@@ -94,17 +94,21 @@ body {
 }
 
 .business-day-status {
-    margin-top: 3px;
-    font-size: 12px;
-    font-weight: 600;
+    display: inline-block;
+    margin-top: 8px;
+    padding: 8px 11px;
+    border: 2px solid transparent;
+    border-radius: var(--radius-small);
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.35;
 }
 
-.business-day-status.open {
-    color: var(--text);
-}
-
+.business-day-status.open,
 .business-day-status.production-closed {
-    color: var(--text-muted);
+    color: var(--danger);
+    border-color: var(--danger);
+    background: var(--surface);
 }
 
 .business-day-status.closed,
@@ -1539,4 +1543,17 @@ textarea {
         );
     }
 
+}
+
+/* Keep the Business Day action visually separate from mode navigation. */
+#business-day-action {
+    margin-left: 10px;
+    border: 2px solid var(--text-muted);
+}
+
+@media (max-width: 700px) {
+    #business-day-action {
+        margin-left: 0;
+        margin-bottom: 6px;
+    }
 }

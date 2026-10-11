@@ -4,6 +4,7 @@ function createOperationalEventModel(db) {
         "LOGIN",
         "LOGOUT",
         "BUSINESS_DAY_OPENED",
+        "BUSINESS_DAY_OPENING_CANCELLED",
         "BUSINESS_DAY_CLOSED",
         "BUSINESS_DAY_REOPENED",
         "PRODUCTION_DAY_CLOSED",
@@ -197,17 +198,10 @@ function createOperationalEventModel(db) {
         `).get(daily_record_id);
     }
 
-    function openBusinessDay({
-        daily_record_id,
-        event_at,
-        user_id = null,
-        notes = null
-    }) {
+    function getBusinessDayLifecycleEvent(daily_record_id) {
         validateDailyRecordId(daily_record_id);
-        validateEventAt(event_at);
-        validateUserId(user_id);
 
-        const existingEvent = db.prepare(`
+        return db.prepare(`
             SELECT
                 id,
                 event_type,
@@ -218,11 +212,66 @@ function createOperationalEventModel(db) {
                 created_at
             FROM operational_events
             WHERE daily_record_id = ?
-              AND event_type = 'BUSINESS_DAY_OPENED'
+              AND event_type IN (
+                  'BUSINESS_DAY_OPENED',
+                  'BUSINESS_DAY_OPENING_CANCELLED',
+                  'BUSINESS_DAY_CLOSED',
+                  'BUSINESS_DAY_REOPENED'
+              )
+            ORDER BY
+                event_at DESC,
+                id DESC
+            LIMIT 1
         `).get(daily_record_id);
+    }
 
-        if (existingEvent) {
-            return existingEvent;
+    function getActiveBusinessDayOpeningEvent(daily_record_id) {
+        const latestEvent =
+            getBusinessDayLifecycleEvent(daily_record_id);
+
+        if (
+            !latestEvent ||
+            ![
+                "BUSINESS_DAY_OPENED",
+                "BUSINESS_DAY_REOPENED"
+            ].includes(latestEvent.event_type)
+        ) {
+            return null;
+        }
+
+        return latestEvent;
+    }
+
+    function openBusinessDay({
+        daily_record_id,
+        event_at,
+        user_id = null,
+        notes = null
+    }) {
+        validateDailyRecordId(daily_record_id);
+        validateEventAt(event_at);
+        validateUserId(user_id);
+
+        const latestEvent =
+            getBusinessDayLifecycleEvent(daily_record_id);
+
+        if (
+            latestEvent &&
+            [
+                "BUSINESS_DAY_OPENED",
+                "BUSINESS_DAY_REOPENED"
+            ].includes(latestEvent.event_type)
+        ) {
+            return latestEvent;
+        }
+
+        if (
+            latestEvent &&
+            latestEvent.event_type === "BUSINESS_DAY_CLOSED"
+        ) {
+            throw new Error(
+                "Business day is closed. Reopen it before opening again."
+            );
         }
 
         const result = db.prepare(`
@@ -255,33 +304,26 @@ function createOperationalEventModel(db) {
         validateEventAt(event_at);
         validateUserId(user_id);
 
-        const latestEvent = db.prepare(`
-            SELECT
-                id,
-                event_type,
-                event_at,
-                daily_record_id,
-                user_id,
-                notes,
-                created_at
-            FROM operational_events
-            WHERE daily_record_id = ?
-              AND event_type IN (
-                  'BUSINESS_DAY_CLOSED',
-                  'BUSINESS_DAY_REOPENED'
-              )
-            ORDER BY
-                event_at DESC,
-                id DESC
-            LIMIT 1
-        `).get(daily_record_id);
+        const latestEvent =
+            getBusinessDayLifecycleEvent(daily_record_id);
 
         if (
             latestEvent &&
-            latestEvent.event_type ===
-                "BUSINESS_DAY_CLOSED"
+            latestEvent.event_type === "BUSINESS_DAY_CLOSED"
         ) {
             return latestEvent;
+        }
+
+        if (
+            !latestEvent ||
+            ![
+                "BUSINESS_DAY_OPENED",
+                "BUSINESS_DAY_REOPENED"
+            ].includes(latestEvent.event_type)
+        ) {
+            throw new Error(
+                "Business day is not currently open."
+            );
         }
 
         const result = db.prepare(`
@@ -316,31 +358,12 @@ function createOperationalEventModel(db) {
         validateEventAt(event_at);
         validateUserId(user_id);
 
-        const latestEvent = db.prepare(`
-            SELECT
-                id,
-                event_type,
-                event_at,
-                daily_record_id,
-                user_id,
-                notes,
-                created_at
-            FROM operational_events
-            WHERE daily_record_id = ?
-              AND event_type IN (
-                  'BUSINESS_DAY_CLOSED',
-                  'BUSINESS_DAY_REOPENED'
-              )
-            ORDER BY
-                event_at DESC,
-                id DESC
-            LIMIT 1
-        `).get(daily_record_id);
+        const latestEvent =
+            getBusinessDayLifecycleEvent(daily_record_id);
 
         if (
             !latestEvent ||
-            latestEvent.event_type !==
-                "BUSINESS_DAY_CLOSED"
+            latestEvent.event_type !== "BUSINESS_DAY_CLOSED"
         ) {
             throw new Error(
                 "Business day is not currently closed."
@@ -367,6 +390,107 @@ function createOperationalEventModel(db) {
         return findOperationalEventById(
             result.lastInsertRowid
         );
+    }
+
+    function hasOperationalActivitySinceOpening(
+        daily_record_id
+    ) {
+        validateDailyRecordId(daily_record_id);
+
+        const latestEvent =
+            getBusinessDayLifecycleEvent(daily_record_id);
+
+        if (
+            !latestEvent ||
+            latestEvent.event_type !== "BUSINESS_DAY_OPENED"
+        ) {
+            return false;
+        }
+
+        const activity = db.prepare(`
+            SELECT
+                (
+                    EXISTS (SELECT 1 FROM orders WHERE updated_at >= ?)
+                    OR EXISTS (SELECT 1 FROM payments WHERE created_at >= ?)
+                    OR EXISTS (SELECT 1 FROM order_item_set_asides WHERE set_aside_at >= ?)
+                    OR EXISTS (SELECT 1 FROM order_item_pickups WHERE picked_up_at >= ?)
+                    OR EXISTS (SELECT 1 FROM production_plans WHERE created_at >= ? OR updated_at >= ?)
+                    OR EXISTS (SELECT 1 FROM production_outputs WHERE created_at >= ?)
+                    OR EXISTS (SELECT 1 FROM production_available WHERE created_at >= ?)
+                    OR EXISTS (SELECT 1 FROM production_supply WHERE created_at >= ? OR updated_at >= ?)
+                    OR EXISTS (SELECT 1 FROM inventory_transactions WHERE created_at >= ?)
+                    OR EXISTS (SELECT 1 FROM frozen_inventory WHERE created_at >= ?)
+                ) AS has_activity
+        `).get(
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at,
+            latestEvent.event_at
+        );
+
+        return Boolean(activity.has_activity);
+    }
+
+    function cancelBusinessDayOpening({
+        daily_record_id,
+        event_at,
+        user_id = null,
+        notes = null
+    }) {
+        validateDailyRecordId(daily_record_id);
+        validateEventAt(event_at);
+        validateUserId(user_id);
+
+        const latestEvent =
+            getBusinessDayLifecycleEvent(daily_record_id);
+
+        if (
+            !latestEvent ||
+            latestEvent.event_type !== "BUSINESS_DAY_OPENED"
+        ) {
+            throw new Error(
+                "Only the current initial business-day opening can be cancelled."
+            );
+        }
+
+        if (event_at < latestEvent.event_at) {
+            throw new Error(
+                "Cancellation time cannot precede the opening time."
+            );
+        }
+
+        if (
+            hasOperationalActivitySinceOpening(
+                daily_record_id
+            )
+        ) {
+            throw new Error(
+                "The business-day opening cannot be cancelled because operational activity has occurred since it was opened."
+            );
+        }
+
+        const result = db.prepare(`
+            INSERT INTO operational_events (
+                event_type, event_at, daily_record_id, user_id, notes
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `).run(
+            "BUSINESS_DAY_OPENING_CANCELLED",
+            event_at,
+            daily_record_id,
+            user_id,
+            notes
+        );
+
+        return findOperationalEventById(result.lastInsertRowid);
     }
 
     function isProductionDayClosed(production_date) {
@@ -450,9 +574,13 @@ function createOperationalEventModel(db) {
         findOperationalEventById,
         createOperationalEvent,
         getBusinessDayOpeningEvent,
+        getBusinessDayLifecycleEvent,
+        getActiveBusinessDayOpeningEvent,
         openBusinessDay,
         closeBusinessDay,
         reopenBusinessDay,
+        hasOperationalActivitySinceOpening,
+        cancelBusinessDayOpening,
         isProductionDayClosed,
         closeProductionDay
     };

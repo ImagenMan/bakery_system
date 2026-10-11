@@ -1995,7 +1995,7 @@ async function loadBusinessDayStatus() {
         if (status.production_day_closed) {
 
             businessDayStatus.textContent =
-                "Business Day: Open · Production: Closed";
+                "⚠ BUSINESS DAY IS OPEN · PRODUCTION IS CLOSED";
 
             businessDayStatus.className =
                 "business-day-status production-closed";
@@ -2021,10 +2021,26 @@ async function loadBusinessDayStatus() {
         if (status.business_day_open) {
 
             businessDayStatus.textContent =
-                "Business Day: Open · Production: Open";
+                "⚠ BUSINESS DAY IS OPEN · PRODUCTION IS OPEN";
 
             businessDayStatus.className =
                 "business-day-status open";
+
+            if (
+                currentUser &&
+                currentUser.role === "ADMIN" &&
+                status.can_cancel_opening
+            ) {
+                businessDayAction.textContent =
+                    "Cancel Opening";
+
+                businessDayAction.dataset.action =
+                    "cancel-opening";
+
+                businessDayAction.classList.remove(
+                    "hidden"
+                );
+            }
 
             return;
         }
@@ -2083,11 +2099,49 @@ businessDayAction.addEventListener(
             return;
         }
 
+        if (action === "open") {
+
+            const modeName =
+                appMode === "TRAINING"
+                    ? "Training"
+                    : "Normal";
+
+            const confirmed =
+                window.confirm(
+                    `Open the Business Day in ${modeName} Mode?\n\n` +
+                    `This affects ${modeName} Mode only.`
+                );
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
         if (action === "close") {
 
             const confirmed =
                 window.confirm(
                     "Close the Business Day?"
+                );
+
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        if (action === "cancel-opening") {
+
+            const modeName =
+                appMode === "TRAINING"
+                    ? "Training"
+                    : "Normal";
+
+            const confirmed =
+                window.confirm(
+                    `Cancel the initial Business Day opening in ${modeName} Mode?\n\n` +
+                    "This does not delete the opening record. " +
+                    "The cancellation is recorded in the current mode only. " +
+                    "Cancellation will be rejected if operational activity has occurred."
                 );
 
             if (!confirmed) {
@@ -2134,7 +2188,9 @@ businessDayAction.addEventListener(
                             ? "Failed to open Business Day."
                             : action === "close"
                                 ? "Failed to close Business Day."
-                                : "Failed to reopen Business Day."
+                                : action === "cancel-opening"
+                                    ? "Failed to cancel the Business Day opening."
+                                    : "Failed to reopen Business Day."
                     )
                 );
             }

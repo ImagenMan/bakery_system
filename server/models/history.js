@@ -22,6 +22,7 @@ const HISTORY_EVENT_TYPES = Object.freeze({
     LOGIN: "LOGIN",
     LOGOUT: "LOGOUT",
     BUSINESS_DAY_OPENED: "BUSINESS_DAY_OPENED",
+    BUSINESS_DAY_OPENING_CANCELLED: "BUSINESS_DAY_OPENING_CANCELLED",
     BUSINESS_DAY_CLOSED: "BUSINESS_DAY_CLOSED",
     BUSINESS_DAY_REOPENED: "BUSINESS_DAY_REOPENED",
     PRODUCTION_DAY_CLOSED: "PRODUCTION_DAY_CLOSED",
@@ -820,6 +821,7 @@ function calculateHistoryDashboard(events) {
         .filter(
             (event) =>
                 event.event_type === "BUSINESS_DAY_OPENED" ||
+                event.event_type === "BUSINESS_DAY_OPENING_CANCELLED" ||
                 event.event_type === "BUSINESS_DAY_CLOSED" ||
                 event.event_type === "BUSINESS_DAY_REOPENED"
         )
@@ -876,6 +878,12 @@ function calculateHistoryDashboard(events) {
         ) {
             businessDayStatus = "CLOSED";
             closedAt = event.event_at;
+        } else if (
+            event.event_type === "BUSINESS_DAY_OPENING_CANCELLED"
+        ) {
+            businessDayStatus = "NOT_OPENED";
+            openedAt = null;
+            closedAt = null;
         }
     }
 

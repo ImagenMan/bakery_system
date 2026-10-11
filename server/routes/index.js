@@ -452,8 +452,11 @@ router.get(
             const operatingDayCount =
                 days.filter(
                     day =>
-                        day.dailyRecord &&
-                        day.dailyRecord.opened_at
+                        day.dashboard &&
+                        (
+                            day.dashboard.business_day.status === "OPEN" ||
+                            day.dashboard.business_day.status === "CLOSED"
+                        )
                 ).length;
 
             const averageDayCount =
@@ -560,7 +563,7 @@ router.get("/today", (req, res) => {
             Boolean(
                 dailyRecord &&
                 req.models.operationalEvent
-                    .getBusinessDayOpeningEvent(
+                    .getActiveBusinessDayOpeningEvent(
                         dailyRecord.id
                     )
             );
@@ -1178,9 +1181,24 @@ router.get(
                 });
             }
 
+            const businessDayLifecycleEvent =
+                req.models.operationalEvent
+                    .getBusinessDayLifecycleEvent(
+                        dailyRecord.id
+                    );
+
             const businessDayOpeningEvent =
                 req.models.operationalEvent
-                    .getBusinessDayOpeningEvent(
+                    .getActiveBusinessDayOpeningEvent(
+                        dailyRecord.id
+                    );
+
+            const canCancelOpening =
+                businessDayLifecycleEvent &&
+                businessDayLifecycleEvent.event_type ===
+                    "BUSINESS_DAY_OPENED" &&
+                !req.models.operationalEvent
+                    .hasOperationalActivitySinceOpening(
                         dailyRecord.id
                     );
 
@@ -1198,6 +1216,8 @@ router.get(
                         Boolean(
                             businessDayOpeningEvent
                         ),
+                    can_cancel_opening:
+                        Boolean(canCancelOpening),
                     production_day_closed:
                         productionDayClosed,
                     business_day_closed:
@@ -1394,6 +1414,105 @@ router.post(
 );
 
 router.post(
+    "/business-day/cancel-opening",
+    requireAdmin,
+    (req, res) => {
+        try {
+            const recordDate =
+                getBusinessDate();
+
+            const eventAt =
+                getCurrentEventAt();
+
+            const db =
+                req.mode === "TRAINING"
+                    ? trainingDb
+                    : productionDb;
+
+            const result =
+                db.transaction(() => {
+                    const dailyRecord =
+                        req.models.dailyRecord
+                            .findDailyRecordByDate(
+                                recordDate
+                            );
+
+                    if (!dailyRecord) {
+                        throw new Error(
+                            `No daily record exists for ${recordDate}.`
+                        );
+                    }
+
+                    if (dailyRecord.closed_at !== null) {
+                        throw new Error(
+                            "A closed business day cannot have its opening cancelled."
+                        );
+                    }
+
+                    if (
+                        req.models.operationalEvent
+                            .isProductionDayClosed(recordDate)
+                    ) {
+                        throw new Error(
+                            "The opening cannot be cancelled after the production day has been closed."
+                        );
+                    }
+
+                    const latestEvent =
+                        req.models.operationalEvent
+                            .getBusinessDayLifecycleEvent(
+                                dailyRecord.id
+                            );
+
+                    if (
+                        !latestEvent ||
+                        latestEvent.event_type !==
+                            "BUSINESS_DAY_OPENED"
+                    ) {
+                        throw new Error(
+                            "Only a currently active initial opening can be cancelled."
+                        );
+                    }
+
+                    const event =
+                        req.models.operationalEvent
+                            .cancelBusinessDayOpening({
+                                daily_record_id:
+                                    dailyRecord.id,
+                                event_at:
+                                    eventAt,
+                                user_id:
+                                    req.mode === "TRAINING"
+                                        ? 1
+                                        : req.user.id
+                            });
+
+                    return {
+                        dailyRecord,
+                        event
+                    };
+                })();
+
+            res.json({
+                success: true,
+                data: result
+            });
+
+        } catch (error) {
+            console.error(
+                "POST /api/business-day/cancel-opening error:",
+                error
+            );
+
+            res.status(400).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+);
+
+router.post(
     "/business-day/close",
     requireAdmin,
     async (req, res) => {
@@ -1417,7 +1536,7 @@ router.post(
 
                     const openingEvent =
                         req.models.operationalEvent
-                            .getBusinessDayOpeningEvent(
+                            .getActiveBusinessDayOpeningEvent(
                                 dailyRecord.id
                             );
 
@@ -1549,15 +1668,19 @@ router.post(
                         );
                     }
 
-                    const openingEvent =
+                    const lifecycleEvent =
                         req.models.operationalEvent
-                            .getBusinessDayOpeningEvent(
+                            .getBusinessDayLifecycleEvent(
                                 dailyRecord.id
                             );
 
-                    if (!openingEvent) {
+                    if (
+                        !lifecycleEvent ||
+                        lifecycleEvent.event_type !==
+                            "BUSINESS_DAY_CLOSED"
+                    ) {
                         throw new Error(
-                            `Business day for ${recordDate} has not been opened.`
+                            `Business day for ${recordDate} must be closed before it can be reopened.`
                         );
                     }
 
