@@ -392,7 +392,12 @@ function createOperationalEventModel(db) {
         const activity = db.prepare(`
             SELECT
                 (
-                    EXISTS (SELECT 1 FROM orders WHERE updated_at >= ?)
+                    EXISTS (
+                        SELECT 1
+                        FROM orders
+                        WHERE order_type = 'COUNTER_SALE'
+                          AND updated_at >= ?
+                    )
                     OR EXISTS (SELECT 1 FROM payments WHERE created_at >= ?)
                     OR EXISTS (SELECT 1 FROM order_item_set_asides WHERE set_aside_at >= ?)
                     OR EXISTS (SELECT 1 FROM order_item_pickups WHERE picked_up_at >= ?)
