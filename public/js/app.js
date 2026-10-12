@@ -5955,7 +5955,7 @@ function renderProductionItem(
             : [];
 
     const toMake =
-        Math.max(demand - planned, 0);
+        Math.max(demand - made, 0);
 
     productionItemDetail.innerHTML = `
 
@@ -7237,7 +7237,7 @@ function renderProductionOverview(
             Number(item.made_quantity) || 0;
 
         const toMake =
-            Math.max(demand - planned, 0);
+            Math.max(demand - made, 0);
 
         const productionItemId =
             Number(item.production_item_id);
@@ -10238,7 +10238,7 @@ function renderTrainingProductionOverview() {
 
                 const toMake =
                     Math.max(
-                        committed - planned,
+                        committed - made,
                         0
                     );
 
