@@ -8,9 +8,44 @@ const {
     getCurrentEventAt
 } = require("../utils/businessTime");
 
+function requireOpenBusinessDay(req, res, next) {
+    try {
+        const businessDate = getBusinessDate();
+
+        const dailyRecord =
+            req.models.dailyRecord.getDailyRecordByDate(
+                businessDate
+            );
+
+        const openingEvent = dailyRecord
+            ? req.models.operationalEvent
+                .getActiveBusinessDayOpeningEvent(
+                    dailyRecord.id
+                )
+            : null;
+
+        if (
+            !openingEvent ||
+            dailyRecord.closed_at
+        ) {
+            return res.status(409).json({
+                success: false,
+                error:
+                    `Business day for ${businessDate} must be open before production operations can be changed.`
+            });
+        }
+
+        next();
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 router.post(
     "/days/:productionDate/close",
     requireAdmin,
+    requireOpenBusinessDay,
     (req, res) => {
         try {
             const productionDate =
@@ -918,7 +953,7 @@ router.get(
 );
 
 
-router.post("/plans", requireAdmin, (req, res) => {
+router.post("/plans", requireAdmin, requireOpenBusinessDay, (req, res) => {
     try {
         const {
             production_item_id,
@@ -1098,7 +1133,7 @@ router.get("/overview", (req, res) => {
     }
 });
 
-router.put("/plans/:id", requireAdmin, (req, res) => {
+router.put("/plans/:id", requireAdmin, requireOpenBusinessDay, (req, res) => {
     try {
         const id = Number(req.params.id);
 
@@ -1165,7 +1200,7 @@ router.put("/plans/:id", requireAdmin, (req, res) => {
 
 router.post(
     "/plans/:planId/end-of-day",
-    requireAdmin,
+    requireAdmin, requireOpenBusinessDay,
     (req, res) => {
         try {
             const planId =
@@ -1395,7 +1430,7 @@ router.get(
 
 
 router.post(
-    "/plans/:planId/outputs",
+    "/plans/:planId/outputs", requireOpenBusinessDay,
     (req, res) => {
         try {
             const planId =
@@ -1527,7 +1562,7 @@ router.get(
 
 
 router.post(
-    "/plans/:planId/available",
+    "/plans/:planId/available", requireOpenBusinessDay,
     (req, res) => {
         try {
             const planId =
@@ -1651,7 +1686,7 @@ router.get(
 );
 
 router.post(
-    "/available/:availableId/freeze",
+    "/available/:availableId/freeze", requireOpenBusinessDay,
     (req, res) => {
         try {
             const availableId =
@@ -1715,7 +1750,7 @@ router.post(
 );
 
 router.post(
-    "/available/:availableId/release",
+    "/available/:availableId/release", requireOpenBusinessDay,
     (req, res) => {
         try {
             const availableId =
@@ -1781,6 +1816,7 @@ router.post(
 router.post(
     "/available/:availableId/waste",
     requireAdmin,
+    requireOpenBusinessDay,
     (req, res) => {
         try {
             const availableId =
@@ -1854,7 +1890,7 @@ router.post(
 
 
 
-router.put("/supply/:id", requireAdmin, (req, res) => {
+router.put("/supply/:id", requireAdmin, requireOpenBusinessDay, (req, res) => {
     try {
         const id = Number(req.params.id);
 
@@ -2018,7 +2054,7 @@ router.get(
 );
 
 
-router.post("/supply", requireAdmin, (req, res) => {
+router.post("/supply", requireAdmin, requireOpenBusinessDay, (req, res) => {
     try {
         const {
             production_item_id,
