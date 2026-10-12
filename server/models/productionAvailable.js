@@ -75,7 +75,7 @@ function createProductionAvailableModel(
             throw new Error("Production plan not found.");
         }
 
-        return db.prepare(`
+        const entries = db.prepare(`
             SELECT
                 id,
                 production_plan_id,
@@ -87,6 +87,23 @@ function createProductionAvailableModel(
                 created_at ASC,
                 id ASC
         `).all(production_plan_id);
+
+        return entries
+            .map((entry) => {
+                const balances =
+                    inventoryModel.getSourceLotBalances(
+                        entry.id
+                    );
+
+                return {
+                    ...entry,
+                    available_quantity:
+                        balances.fresh + balances.frozen
+                };
+            })
+            .filter(
+                (entry) => entry.available_quantity > 0
+            );
     }
 
     function getAvailableTotal(production_plan_id) {
@@ -109,17 +126,16 @@ function createProductionAvailableModel(
             throw new Error("Production plan not found.");
         }
 
-        const result = db.prepare(`
-            SELECT
-                COALESCE(
-                    SUM(available_quantity),
-                    0
-                ) AS total_available
-            FROM production_available
-            WHERE production_plan_id = ?
-        `).get(production_plan_id);
+        const entries =
+            getProductionAvailableByPlanId(
+                production_plan_id
+            );
 
-        return result.total_available;
+        return entries.reduce(
+            (total, entry) =>
+                total + entry.available_quantity,
+            0
+        );
     }
 
     function createProductionAvailable({

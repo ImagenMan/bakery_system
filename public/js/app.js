@@ -6422,6 +6422,11 @@ function renderProductionItem(
                             `Selected Lot #${selectedWasteAvailableId} — Fresh available: ${fresh} — Frozen available: ${frozen}`;
                     }
 
+                    await loadProductionItem(
+                        productionItemId,
+                        productionDate
+                    );
+
                     alert(
                         "Waste / Loss saved."
                     );
