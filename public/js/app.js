@@ -2197,6 +2197,13 @@ businessDayAction.addEventListener(
 
             await loadBusinessDayStatus();
 
+            if (
+                action === "cancel-opening" &&
+                appView === "today"
+            ) {
+                await loadToday();
+            }
+
         } catch (error) {
 
             console.error(
