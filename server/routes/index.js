@@ -18,7 +18,8 @@ const { requireAdmin } = require("../middleware/auth");
 const {
     requireOpenBusinessDay,
     requireOpenBusinessDayUnlessCancelled,
-    requireOpenBusinessDayForCounterSalePayment
+    requireOpenBusinessDayForCounterSalePayment,
+    requireOpenBusinessDayForCounterSaleMutation
 } = require("../middleware/businessDay");
 
 const {
@@ -2604,7 +2605,7 @@ router.post("/counter-sales", requireOpenBusinessDay, (req, res) => {
     }
 });
 
-router.post("/orders/:id/items", (req, res) => {
+router.post("/orders/:id/items", requireOpenBusinessDayForCounterSaleMutation, (req, res) => {
     try {
         const orderId = Number(req.params.id);
 
@@ -2718,7 +2719,7 @@ router.post("/orders/:id/items", (req, res) => {
     }
 });
 
-router.put("/orders/:id/details", (req, res) => {
+router.put("/orders/:id/details", requireOpenBusinessDayForCounterSaleMutation, (req, res) => {
     const orderId = Number(req.params.id);
 
     if (!Number.isInteger(orderId) || orderId <= 0) {
@@ -2781,7 +2782,7 @@ router.put("/orders/:id/details", (req, res) => {
     }
 });
 
-router.put("/orders/:id/items/:itemId", (req, res) => {
+router.put("/orders/:id/items/:itemId", requireOpenBusinessDayForCounterSaleMutation, (req, res) => {
     try {
         const orderId = Number(req.params.id);
         const itemId = Number(req.params.itemId);
@@ -2922,7 +2923,7 @@ router.put("/orders/:id/items/:itemId/status", requireOpenBusinessDay,
     }
 });
 
-router.delete("/orders/:id/items/:itemId", (req, res) => {
+router.delete("/orders/:id/items/:itemId", requireOpenBusinessDayForCounterSaleMutation, (req, res) => {
     try {
         const orderId = Number(req.params.id);
         const itemId = Number(req.params.itemId);

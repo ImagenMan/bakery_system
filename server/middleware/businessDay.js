@@ -69,8 +69,30 @@ function requireOpenBusinessDayForCounterSalePayment(
     }
 }
 
+function requireOpenBusinessDayForCounterSaleMutation(
+    req,
+    res,
+    next
+) {
+    try {
+        const orderId = Number(req.params.id);
+        const order = req.models.order.getOrderById(orderId);
+
+        // Preserve existing handling for missing orders and preorders.
+        if (!order || order.order_type !== "COUNTER_SALE") {
+            return next();
+        }
+
+        return requireOpenBusinessDay(req, res, next);
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 module.exports = {
     requireOpenBusinessDay,
     requireOpenBusinessDayUnlessCancelled,
-    requireOpenBusinessDayForCounterSalePayment
+    requireOpenBusinessDayForCounterSalePayment,
+    requireOpenBusinessDayForCounterSaleMutation
 };
