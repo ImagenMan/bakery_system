@@ -16,6 +16,12 @@ const {
 const { requireAdmin } = require("../middleware/auth");
 
 const {
+    requireOpenBusinessDay,
+    requireOpenBusinessDayUnlessCancelled,
+    requireOpenBusinessDayForCounterSalePayment
+} = require("../middleware/businessDay");
+
+const {
     getBusinessDate,
     getCurrentEventAt,
     getBusinessDateUtcRange
@@ -2396,10 +2402,11 @@ router.post("/orders", (req, res) => {
             });
         }
 
-        if (!["PREORDER", "COUNTER_SALE"].includes(order_type)) {
+        if (order_type !== "PREORDER") {
             return res.status(400).json({
                 success: false,
-                error: "Invalid order type."
+                error:
+                    "Counter sales must be created through the counter-sales endpoint."
             });
         }
 
@@ -2543,7 +2550,7 @@ router.get("/counter/today", (req, res) => {
     }
 });
 
-router.post("/counter-sales", (req, res) => {
+router.post("/counter-sales", requireOpenBusinessDay, (req, res) => {
     try {
         const {
             customer_id = null,
@@ -2859,8 +2866,7 @@ router.put("/orders/:id/items/:itemId", (req, res) => {
     }
 });
 
-router.put(
-    "/orders/:id/items/:itemId/status",
+router.put("/orders/:id/items/:itemId/status", requireOpenBusinessDay,
     (req, res) => {
 
     try {
@@ -2993,7 +2999,7 @@ if (
     }
 });
 
-router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
+router.post("/orders/:id/items/:itemId/pickup", requireOpenBusinessDay, (req, res) => {
     try {
         const orderId = Number(req.params.id);
         const itemId = Number(req.params.itemId);
@@ -3067,8 +3073,7 @@ router.post("/orders/:id/items/:itemId/pickup", (req, res) => {
     }
 });
 
-router.put(
-    "/orders/:id/customer-here",
+router.put("/orders/:id/customer-here", requireOpenBusinessDay,
     (req, res) => {
         try {
             const orderId = Number(req.params.id);
@@ -3131,7 +3136,7 @@ router.put(
     }
 );
 
-router.put("/orders/:id/pickup-ready", (req, res) => {
+router.put("/orders/:id/pickup-ready", requireOpenBusinessDay, (req, res) => {
     try {
         const orderId = Number(req.params.id);
         const { pickup_ready } = req.body;
@@ -3184,8 +3189,7 @@ router.put("/orders/:id/pickup-ready", (req, res) => {
     }
 });
 
-router.post(
-    "/orders/:id/items/:itemId/set-aside",
+router.post("/orders/:id/items/:itemId/set-aside", requireOpenBusinessDay,
     (req, res) => {
         try {
             const orderId = Number(req.params.id);
@@ -3309,8 +3313,7 @@ router.get("/orders/:id/set-asides", (req, res) => {
     }
 });
 
-router.put(
-    "/orders/:id/items/:itemId/decorator-priority",
+router.put("/orders/:id/items/:itemId/decorator-priority", requireOpenBusinessDay,
     (req, res) => {
         try {
             const orderId = Number(req.params.id);
@@ -3425,7 +3428,7 @@ router.get("/orders/:id/pickups", (req, res) => {
     }
 });
 
-router.put("/orders/:id/status", (req, res) => {
+router.put("/orders/:id/status", requireOpenBusinessDayUnlessCancelled, (req, res) => {
     try {
         const orderId = Number(req.params.id);
         const { status } = req.body;
@@ -3477,7 +3480,7 @@ router.put("/orders/:id/status", (req, res) => {
 }
 });
 
-router.post("/orders/:id/payments", (req, res) => {
+router.post("/orders/:id/payments", requireOpenBusinessDayForCounterSalePayment, (req, res) => {
     try {
         const orderId = Number(req.params.id);
 

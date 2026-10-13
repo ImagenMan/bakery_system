@@ -3,44 +3,13 @@ const router = express.Router();
 
 const { requireAdmin } = require("../middleware/auth");
 
+const { requireOpenBusinessDay } = require("../middleware/businessDay");
+
 const {
     getBusinessDate,
     getCurrentEventAt
 } = require("../utils/businessTime");
 
-function requireOpenBusinessDay(req, res, next) {
-    try {
-        const businessDate = getBusinessDate();
-
-        const dailyRecord =
-            req.models.dailyRecord.getDailyRecordByDate(
-                businessDate
-            );
-
-        const openingEvent = dailyRecord
-            ? req.models.operationalEvent
-                .getActiveBusinessDayOpeningEvent(
-                    dailyRecord.id
-                )
-            : null;
-
-        if (
-            !openingEvent ||
-            dailyRecord.closed_at
-        ) {
-            return res.status(409).json({
-                success: false,
-                error:
-                    `Business day for ${businessDate} must be open before production operations can be changed.`
-            });
-        }
-
-        next();
-
-    } catch (error) {
-        next(error);
-    }
-}
 
 router.post(
     "/days/:productionDate/close",
