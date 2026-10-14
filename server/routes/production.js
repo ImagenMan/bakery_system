@@ -20,61 +20,43 @@ router.post(
             const productionDate =
                 req.params.productionDate;
 
-            const productionRecord =
-                req.models.dailyRecord
-                    .getDailyRecordByDate(productionDate);
-
-            if (!productionRecord) {
-                return res.status(404).json({
-                    success: false,
-                    error:
-                        `No daily record exists for production date ${productionDate}.`
-                });
-            }
-
-            if (!productionRecord.opened_at) {
+            if (
+                !req.models.productionPlan.isValidProductionDate(
+                    productionDate
+                )
+            ) {
                 return res.status(400).json({
                     success: false,
                     error:
-                        "Cannot close production for a daily record that has not been opened."
+                        "Production date must be a valid date in YYYY-MM-DD format."
                 });
             }
 
-            if (productionRecord.closed_at) {
-                return res.status(400).json({
-                    success: false,
-                    error:
-                        "Cannot close production for a daily record that is already closed."
-                });
-            }
-
-            const todayDate =
-                getBusinessDate();
-
-            if (productionDate > todayDate) {
+            if (productionDate > getBusinessDate()) {
                 return res.status(400).json({
                     success: false,
                     error: "Cannot close a future production date."
                 });
             }
 
-            const eventAt =
-                getCurrentEventAt();
-
-            const event =
-                req.models.operationalEvent.closeProductionDay({
-                    daily_record_id:
-                        productionRecord.id,
-                    event_at: eventAt,
+            const result =
+                req.models.productionDay.endProductionDay({
+                    production_date: productionDate,
+                    event_at: getCurrentEventAt(),
                     user_id:
                         req.mode === "TRAINING"
                             ? 1
                             : req.user.id
                 });
 
-            res.json({
+            return res.json({
                 success: true,
-                data: event
+                data: {
+                    event: result.event,
+                    waste_transactions: result.waste_transactions,
+                    waste_count: result.waste_transactions.length,
+                    already_closed: result.already_closed
+                }
             });
 
         } catch (error) {
@@ -83,28 +65,34 @@ router.post(
                 error
             );
 
-            if (error.message.includes("not found")) {
+            const message =
+                error && typeof error.message === "string"
+                    ? error.message
+                    : "";
+
+            if (message.includes("No daily record exists")) {
                 return res.status(404).json({
                     success: false,
-                    error: error.message
+                    error: message
                 });
             }
 
             if (
-                error.message.includes("required") ||
-                error.message.includes("valid") ||
-                error.message.includes("positive") ||
-                error.message.includes("future") ||
-                error.message.includes("opened") ||
-                error.message.includes("closed")
+                message.includes("required") ||
+                message.includes("valid") ||
+                message.includes("positive") ||
+                message.includes("future") ||
+                message.includes("opened") ||
+                message.includes("closed") ||
+                message.includes("Insufficient")
             ) {
                 return res.status(400).json({
                     success: false,
-                    error: error.message
+                    error: message
                 });
             }
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: "Failed to close production day."
             });
@@ -1169,7 +1157,8 @@ router.put("/plans/:id", requireAdmin, requireOpenBusinessDay, (req, res) => {
 
 router.post(
     "/plans/:planId/end-of-day",
-    requireAdmin, requireOpenBusinessDay,
+    requireAdmin,
+    requireOpenBusinessDay,
     (req, res) => {
         try {
             const planId =
@@ -1182,30 +1171,38 @@ router.post(
                 });
             }
 
-            const productionPlan =
-                req.models.productionPlan.findProductionPlanById(planId);
+            const plan =
+                req.models.productionPlan.findProductionPlanById(
+                    planId
+                );
 
-            const todayDate =
-                getBusinessDate();
+            const productionDate =
+                plan.production_date;
 
-            if (productionPlan.production_date > todayDate) {
+            if (productionDate > getBusinessDate()) {
                 return res.status(400).json({
                     success: false,
                     error: "Cannot close a future production date."
                 });
             }
 
-            const wasteTransactions =
-                req.models.inventory
-                    .wasteRemainingFreshForProductionPlan({
-                        production_plan_id: planId
-                    });
+            const result =
+                req.models.productionDay.endProductionDay({
+                    production_date: productionDate,
+                    event_at: getCurrentEventAt(),
+                    user_id:
+                        req.mode === "TRAINING"
+                            ? 1
+                            : req.user.id
+                });
 
-            res.json({
+            return res.json({
                 success: true,
                 data: {
-                    waste_transactions: wasteTransactions,
-                    waste_count: wasteTransactions.length
+                    event: result.event,
+                    waste_transactions: result.waste_transactions,
+                    waste_count: result.waste_transactions.length,
+                    already_closed: result.already_closed
                 }
             });
 
@@ -1215,32 +1212,41 @@ router.post(
                 error
             );
 
-            if (error.message.includes("not found")) {
+            const message =
+                error && typeof error.message === "string"
+                    ? error.message
+                    : "";
+
+            if (message.includes("not found")) {
                 return res.status(404).json({
                     success: false,
-                    error: error.message
+                    error: message
                 });
             }
 
             if (
-                error.message.includes("required") ||
-                error.message.includes("valid") ||
-                error.message.includes("positive") ||
-                error.message.includes("Insufficient")
+                message.includes("required") ||
+                message.includes("valid") ||
+                message.includes("positive") ||
+                message.includes("future") ||
+                message.includes("opened") ||
+                message.includes("closed") ||
+                message.includes("Insufficient")
             ) {
                 return res.status(400).json({
                     success: false,
-                    error: error.message
+                    error: message
                 });
             }
 
-            res.status(500).json({
+            return res.status(500).json({
                 success: false,
                 error: "Failed to close production day."
             });
         }
     }
 );
+
 
 // =========================================================
 // Production Outputs

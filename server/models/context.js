@@ -21,6 +21,7 @@ const dailyRecordModel = require("./dailyRecord");
 const dailyWeatherModel = require("./dailyWeather");
 const dailyContextModel = require("./dailyContext");
 const operationalEventModel = require("./operationalEvent");
+const productionDayModel = require("./productionDay");
 
 const productionDb = require("../config/database");
 
@@ -41,6 +42,15 @@ const authorizationUser = userModel.createUserModel(productionDb);
 function createModels(db, authorizationUser) {
     const operationalEvent =
         operationalEventModel.createOperationalEventModel(db);
+    const productionPlan =
+        productionPlanModel.createProductionPlanModel(
+            db,
+            operationalEvent
+        );
+    const inventory =
+        inventoryModel.createInventoryModel(db);
+    const dailyRecord =
+        dailyRecordModel.createDailyRecordModel(db);
 
     return {
         user: userModel.createUserModel(db),
@@ -63,11 +73,7 @@ function createModels(db, authorizationUser) {
                 inventoryModel.createInventoryModel(db),
                 operationalEvent
             ),
-        productionPlan:
-            productionPlanModel.createProductionPlanModel(
-                db,
-                operationalEvent
-            ),
+        productionPlan,
         productionFamily:
             productionFamilyModel.createProductionFamilyModel(db),
         productionSupply:
@@ -77,16 +83,22 @@ function createModels(db, authorizationUser) {
                 db,
                 operationalEvent
             ),
-        inventory:
-            inventoryModel.createInventoryModel(db),
+        inventory,
         frozenInventory:
             frozenInventoryModel.createFrozenInventoryModel(db),
-        dailyRecord:
-            dailyRecordModel.createDailyRecordModel(db),
+        dailyRecord,
         dailyWeather:
             dailyWeatherModel.createDailyWeatherModel(db),
         dailyContext:
             dailyContextModel.createDailyContextModel(db),
+        productionDay:
+            productionDayModel.createProductionDayModel({
+                db,
+                productionPlan,
+                inventory,
+                dailyRecord,
+                operationalEvent
+            }),
         operationalEvent
     };
 }

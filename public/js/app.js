@@ -6876,8 +6876,9 @@ async function endProductionDay(
 
     const confirmed =
         window.confirm(
-            "End this production day?\n\n" +
-            "Any remaining fresh inventory will be written off as waste.\n\n" +
+            "Close the production date " + productionDate + "?\n\n" +
+            "This closes ALL production plans for this date.\n\n" +
+            "Remaining fresh inventory across those plans will be written off as waste.\n\n" +
             "Frozen inventory will not be affected.\n\n" +
             "This action cannot be undone."
         );
@@ -6900,7 +6901,7 @@ async function endProductionDay(
 
         const response =
             await fetch(
-                `/api/production/plans/${Number(plan.id)}/end-of-day`,
+                `/api/production/days/${encodeURIComponent(productionDate)}/close`,
                 {
                     method: "POST"
                 }
@@ -6920,9 +6921,11 @@ async function endProductionDay(
             Number(result.data?.waste_count) || 0;
 
         alert(
-            wasteCount > 0
-                ? `Production day ended. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded.`
-                : "Production day ended. No remaining fresh inventory was found."
+            result.data?.already_closed
+                ? "This production date was already closed. No additional waste was recorded."
+                : wasteCount > 0
+                    ? `Production date closed. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded across its plans.`
+                    : "Production date closed. No remaining fresh inventory was found across its plans."
         );
 
         await loadProductionItem(
@@ -11337,8 +11340,9 @@ async function loadTrainingProductionItem(
 
                     const confirmed =
                         window.confirm(
-                            "End this production day?\n\n" +
-                            "Any remaining fresh inventory will be written off as waste.\n\n" +
+                            "Close the production date " + trainingProductionDate + "?\n\n" +
+                            "This closes ALL production plans for this date.\n\n" +
+                            "Remaining fresh inventory across those plans will be written off as waste.\n\n" +
                             "Frozen inventory will not be affected.\n\n" +
                             "This action cannot be undone."
                         );
@@ -11356,7 +11360,7 @@ async function loadTrainingProductionItem(
 
                         const response =
                             await fetch(
-                                `/api/production/plans/${Number(planId)}/end-of-day`,
+                                `/api/production/days/${encodeURIComponent(trainingProductionDate)}/close`,
                                 {
                                     method: "POST"
                                 }
@@ -11381,9 +11385,11 @@ async function loadTrainingProductionItem(
                             ) || 0;
 
                         alert(
-                            wasteCount > 0
-                                ? `Production day ended. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded.`
-                                : "Production day ended. No remaining fresh inventory was found."
+                            result.data?.already_closed
+                                ? "This production date was already closed. No additional waste was recorded."
+                                : wasteCount > 0
+                                    ? `Production date closed. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded across its plans.`
+                                    : "Production date closed. No remaining fresh inventory was found across its plans."
                         );
 
                         await loadTrainingProduction(
