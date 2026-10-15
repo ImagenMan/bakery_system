@@ -7329,7 +7329,10 @@ function attachCloseProductionDayHandler(
 
             const confirmed =
                 window.confirm(
-                    `Close production for ${productionDate}?`
+                    `Close production for ${productionDate}?\n\n` +
+                    "Any remaining fresh inventory will be written off as waste.\n\n" +
+                    "Frozen inventory will not be affected.\n\n" +
+                    "This action cannot be undone."
                 );
 
             if (!confirmed) {
