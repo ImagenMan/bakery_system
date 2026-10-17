@@ -104,10 +104,40 @@ that frozen inventory remains available after a successful UI closure.
 The UI test was stopped without adding a synthetic opening event. The live
 Normal and Training databases were not used for these actions.
 
-### Updated overall assessment
+### Successful multi-plan UI validation — 2026-10-17
 
-The single-plan UI test passed for closure, fresh-stock write-off, and retry
-safety. Separate isolated API evidence supports multi-plan closure and retry
-idempotency. Multi-plan closure through the UI and frozen-stock preservation
-after a successful UI closure remain unverified. Do not report the API result
-as a successful multi-plan UI test.
+A later test passed in disposable Training copy
+`/tmp/bakery-close-multiplan.2QdvsR`, port `3101`, using valid daily record
+`#11` and its matching `BUSINESS_DAY_OPENED` event.
+
+The Production overview date-wide **Close Production Day** action closed
+production for plans `#14` (Sencilla) and `#15` (Sticky). The UI changed to
+**Production Day Closed** while the business day remained open.
+
+Read-only verification confirmed:
+
+- Sencilla fresh lot `#11`: receipt `+2`, one waste `-2`, balance `0`.
+- Sticky fresh lot `#12`: receipt `+3`, one waste `-3`, balance `0`.
+- Existing frozen source lot `#5` remained at ledger balance `3`.
+- Frozen-inventory records for source lots `#5` and `#10` remained present.
+- Exactly one `PRODUCTION_DAY_CLOSED` event (`#22`) existed for daily record
+  `#11`.
+- Retrying the close returned HTTP `200`, `already_closed: true`,
+  `waste_count: 0`, and no additional waste transactions.
+- Plans `#14` and `#15` remained present.
+
+The live database hashes matched their recorded baselines:
+
+- `data/bakery.db`: `ea7f320c4cb7b6f5e0ec452da4716a19c77cf3acf81531d85ee272ff8af9d3a0`
+- `data/training.db`: `38157b3ce54e4d7626672e898ebfb3ae15f2f2b0feb04207b4f359b500fdf397`
+
+All multi-plan test actions were performed in the disposable copy. The live
+application on port `3000` and live databases were not used. The business day
+was left open.
+
+### Final assessment
+
+The isolated evidence now covers single-plan and date-wide multi-plan UI
+closure, fresh-inventory write-off, retry idempotency, and preservation of
+existing frozen inventory. The earlier failed attempt for `2026-09-22` remains
+documented above as a failed test setup, not a successful closure.
