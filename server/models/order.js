@@ -701,42 +701,55 @@ function removeOrderItem(orderId, orderItemId) {
     return getOrderById(item.order_id);
 }
 
+function hasMatchingPickupIdempotencyKey(
+    orderId,
+    orderItemId,
+    quantity,
+    idempotencyKey
+) {
+    if (
+        !Number.isInteger(orderId) ||
+        !Number.isInteger(orderItemId) ||
+        !Number.isInteger(quantity) ||
+        quantity <= 0 ||
+        typeof idempotencyKey !== "string" ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)
+    ) {
+        return false;
+    }
+
+    const existingPickup = db.prepare(`
+        SELECT
+            oip.order_item_id,
+            oip.quantity,
+            oi.order_id
+        FROM order_item_pickups oip
+        JOIN order_items oi
+            ON oi.id = oip.order_item_id
+        WHERE oip.idempotency_key = ?
+    `).get(idempotencyKey);
+
+    return Boolean(
+        existingPickup &&
+        existingPickup.order_id === orderId &&
+        existingPickup.order_item_id === orderItemId &&
+        existingPickup.quantity === quantity
+    );
+}
+
 function recordItemPickup(
     orderId,
     orderItemId,
     quantity,
     pickedUpBy = null,
-    notes = null
+    notes = null,
+    idempotencyKey = null
 ) {
-    getMutableOrder(orderId);
-
-    const order = db.prepare(`
-        SELECT id
-        FROM orders
-        WHERE id = ?
-    `).get(orderId);
-
-    if (!order) {
-        throw new Error(`Order ${orderId} not found.`);
-    }
-
-    const item = db.prepare(`
-        SELECT
-            id,
-            order_id,
-            quantity
-        FROM order_items
-        WHERE id = ?
-    `).get(orderItemId);
-
-    if (!item) {
-        throw new Error(`Order item ${orderItemId} not found.`);
-    }
-
-    if (item.order_id !== orderId) {
-        throw new Error(
-            `Order item ${orderItemId} does not belong to order ${orderId}.`
-        );
+    if (
+        typeof idempotencyKey !== "string" ||
+        !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)
+    ) {
+        throw new Error("A valid pickup request key is required.");
     }
 
     if (!Number.isInteger(quantity) || quantity <= 0) {
@@ -745,69 +758,147 @@ function recordItemPickup(
         );
     }
 
-    const pickedUpResult = db.prepare(`
-        SELECT COALESCE(
-            SUM(quantity),
-            0
-        ) AS quantity_picked_up
-        FROM order_item_pickups
-        WHERE order_item_id = ?
-    `).get(orderItemId);
-
-    const quantityPickedUp = pickedUpResult.quantity_picked_up;
-    const remainingQuantity = item.quantity - quantityPickedUp;
-
-    if (quantity > remainingQuantity) {
-        throw new Error(
-            `Pickup quantity exceeds remaining quantity of ${remainingQuantity}.`
-        );
-    }
-
     const transaction = db.transaction(() => {
-    db.prepare(`
-        INSERT INTO order_item_pickups (
-            order_item_id,
-            quantity,
-            picked_up_by,
-            notes
-        )
-        VALUES (?, ?, ?, ?)
-    `).run(
-        orderItemId,
-        quantity,
-        pickedUpBy,
-        notes
-    );
+        const existingPickup = db.prepare(`
+            SELECT
+                oip.order_item_id,
+                oip.quantity,
+                oi.order_id
+            FROM order_item_pickups oip
+            JOIN order_items oi
+                ON oi.id = oip.order_item_id
+            WHERE oip.idempotency_key = ?
+        `).get(idempotencyKey);
 
-    const pickupTotals = db.prepare(`
-        SELECT
-            oi.quantity,
-            COALESCE(
-                SUM(oip.quantity),
-                0
-            ) AS quantity_picked_up
-        FROM order_items oi
+        if (existingPickup) {
+            if (
+                existingPickup.order_id !== orderId ||
+                existingPickup.order_item_id !== orderItemId ||
+                existingPickup.quantity !== quantity
+            ) {
+                throw new Error(
+                    "This pickup request key was already used for a different request."
+                );
+            }
 
-        LEFT JOIN order_item_pickups oip
-            ON oi.id = oip.order_item_id
+            return;
+        }
 
-        WHERE oi.id = ?
+        getMutableOrder(orderId);
 
-        GROUP BY oi.id
-    `).get(orderItemId);
-
-    if (
-        pickupTotals.quantity_picked_up >= pickupTotals.quantity
-    ) {
-        db.prepare(`
-            UPDATE order_items
-            SET production_status = 'COMPLETED'
+        const item = db.prepare(`
+            SELECT
+                id,
+                order_id,
+                product_id,
+                quantity
+            FROM order_items
             WHERE id = ?
-        `).run(orderItemId);
-    }
-});
+        `).get(orderItemId);
 
-transaction();
+        if (!item) {
+            throw new Error(`Order item ${orderItemId} not found.`);
+        }
+
+        if (item.order_id !== orderId) {
+            throw new Error(
+                `Order item ${orderItemId} does not belong to order ${orderId}.`
+            );
+        }
+
+        const pickedUpResult = db.prepare(`
+            SELECT COALESCE(SUM(quantity), 0) AS quantity_picked_up
+            FROM order_item_pickups
+            WHERE order_item_id = ?
+        `).get(orderItemId);
+
+        const remainingQuantity =
+            item.quantity - pickedUpResult.quantity_picked_up;
+
+        if (quantity > remainingQuantity) {
+            throw new Error(
+                `Pickup quantity exceeds remaining quantity of ${remainingQuantity}.`
+            );
+        }
+
+        const pickupResult = db.prepare(`
+            INSERT INTO order_item_pickups (
+                order_item_id,
+                quantity,
+                picked_up_by,
+                notes,
+                idempotency_key
+            )
+            VALUES (?, ?, ?, ?, ?)
+        `).run(
+            orderItemId,
+            quantity,
+            pickedUpBy,
+            notes,
+            idempotencyKey
+        );
+
+        const pickupId = Number(pickupResult.lastInsertRowid);
+
+        if (item.product_id !== null) {
+            if (!productionItem || !inventory) {
+                throw new Error(
+                    "Pickup inventory dependencies are not configured."
+                );
+            }
+
+            const production =
+                productionItem.getProductionItemByProductId(
+                    item.product_id
+                );
+
+            if (!production) {
+                throw new Error(
+                    `Product ${item.product_id} is not mapped to a production item; pickup inventory cannot be deducted.`
+                );
+            }
+
+            if (
+                !Number.isInteger(production.units_per_sale) ||
+                production.units_per_sale <= 0
+            ) {
+                throw new Error(
+                    `Product ${item.product_id} has an invalid production units-per-sale mapping.`
+                );
+            }
+
+            inventory.consumeFromAvailableLots({
+                production_item_id: production.id,
+                quantity: quantity * production.units_per_sale,
+                reference_type: "PREORDER_PICKUP",
+                reference_id: pickupId
+            });
+        }
+
+        const pickupTotals = db.prepare(`
+            SELECT
+                oi.quantity,
+                COALESCE(SUM(oip.quantity), 0) AS quantity_picked_up
+            FROM order_items oi
+            LEFT JOIN order_item_pickups oip
+                ON oi.id = oip.order_item_id
+            WHERE oi.id = ?
+            GROUP BY oi.id
+        `).get(orderItemId);
+
+        if (
+            pickupTotals.quantity_picked_up >=
+            pickupTotals.quantity
+        ) {
+            db.prepare(`
+                UPDATE order_items
+                SET production_status = 'COMPLETED'
+                WHERE id = ?
+            `).run(orderItemId);
+        }
+    });
+
+    transaction();
 
     return getOrderById(orderId);
 }
@@ -1990,6 +2081,7 @@ function getPaymentHistory(orderId) {
         addOrderItem,
         removeOrderItem,
         recordItemPickup,
+        hasMatchingPickupIdempotencyKey,
         getPickupHistory,
         recordItemSetAside,
         getSetAsideHistory,

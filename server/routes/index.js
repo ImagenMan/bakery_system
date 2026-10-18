@@ -17,6 +17,7 @@ const { requireAdmin } = require("../middleware/auth");
 
 const {
     requireOpenBusinessDay,
+    requireOpenBusinessDayForPickup,
     requireOpenBusinessDayUnlessCancelled,
     requireOpenBusinessDayForCounterSalePayment,
     requireOpenBusinessDayForCounterSaleMutation
@@ -3000,14 +3001,15 @@ if (
     }
 });
 
-router.post("/orders/:id/items/:itemId/pickup", requireOpenBusinessDay, (req, res) => {
+router.post("/orders/:id/items/:itemId/pickup", requireOpenBusinessDayForPickup, (req, res) => {
     try {
         const orderId = Number(req.params.id);
         const itemId = Number(req.params.itemId);
 
         const {
             quantity,
-            notes
+            notes,
+            idempotencyKey
         } = req.body;
 
         if (!Number.isInteger(orderId) || orderId <= 0) {
@@ -3031,6 +3033,16 @@ router.post("/orders/:id/items/:itemId/pickup", requireOpenBusinessDay, (req, re
             });
         }
 
+        if (
+            typeof idempotencyKey !== "string" ||
+            !/^[A-Za-z0-9._:-]{8,128}$/.test(idempotencyKey)
+        ) {
+            return res.status(400).json({
+                success: false,
+                error: "Invalid pickup idempotency key."
+            });
+        }
+
         const actorUserId =
             req.mode === "TRAINING"
                 ? 1
@@ -3041,7 +3053,8 @@ router.post("/orders/:id/items/:itemId/pickup", requireOpenBusinessDay, (req, re
             itemId,
             quantity,
             actorUserId,
-            notes
+            notes,
+            idempotencyKey
         );
 
         res.json({
@@ -3059,7 +3072,12 @@ router.post("/orders/:id/items/:itemId/pickup", requireOpenBusinessDay, (req, re
             error.message.includes("not found") ||
             error.message.includes("does not belong") ||
             error.message.includes("Pickup quantity") ||
-            error.message.includes("cannot be modified")
+            error.message.includes("cannot be modified") ||
+            error.message.toLowerCase().includes("idempotency") ||
+            error.message.toLowerCase().includes("insufficient") ||
+            error.message.toLowerCase().includes("not mapped to a production item") ||
+            error.message.toLowerCase().includes("dependencies are not configured") ||
+            error.message.toLowerCase().includes("invalid production units-per-sale mapping")
         ) {
             return res.status(400).json({
                 success: false,

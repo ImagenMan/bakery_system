@@ -4620,6 +4620,8 @@ async function loadPickupList() {
 
                             event.stopPropagation();
 
+                            const pickupButton = event.currentTarget;
+
                             const itemId =
                                 Number(
                                     event.currentTarget.dataset.itemId
@@ -4678,9 +4680,25 @@ async function loadPickupList() {
                                 return;
                             }
 
-                            event.currentTarget.disabled = true;
-                            event.currentTarget.textContent =
-                                "Recording...";
+                            const requestFingerprint =
+                                `${orderId}:${itemId}:${quantity}`;
+
+                            if (
+                                pickupButton.dataset.pickupRequestFingerprint !==
+                                requestFingerprint
+                            ) {
+                                pickupButton.dataset.pickupRequestKey =
+                                    `pickup-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+                                pickupButton.dataset.pickupRequestFingerprint =
+                                    requestFingerprint;
+                            }
+
+                            const idempotencyKey =
+                                pickupButton.dataset.pickupRequestKey;
+
+                            pickupButton.disabled = true;
+                            pickupButton.textContent = "Recording...";
 
                             try {
 
@@ -4694,7 +4712,8 @@ async function loadPickupList() {
                                                     "application/json"
                                             },
                                             body: JSON.stringify({
-                                                quantity
+                                                quantity,
+                                                idempotencyKey
                                             })
                                         }
                                     );
@@ -4708,6 +4727,9 @@ async function loadPickupList() {
                                         "Failed to record pickup."
                                     );
                                 }
+
+                                delete pickupButton.dataset.pickupRequestKey;
+                                delete pickupButton.dataset.pickupRequestFingerprint;
 
                                 const orderIndex =
                                     orders.findIndex(
@@ -4739,11 +4761,8 @@ async function loadPickupList() {
 
                                 alert(error.message);
 
-                                event.currentTarget.disabled =
-                                    false;
-
-                                event.currentTarget.textContent =
-                                    "Pick Up";
+                                pickupButton.disabled = false;
+                                pickupButton.textContent = "Pick Up";
                             }
 
                         }
@@ -9102,6 +9121,23 @@ function attachOrderDetailListeners(order) {
                         return;
                     }
 
+                    const requestFingerprint =
+                        `${order.id}:${itemId}:${quantity}`;
+
+                    if (
+                        button.dataset.pickupRequestFingerprint !==
+                        requestFingerprint
+                    ) {
+                        button.dataset.pickupRequestKey =
+                            `pickup-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+                        button.dataset.pickupRequestFingerprint =
+                            requestFingerprint;
+                    }
+
+                    const idempotencyKey =
+                        button.dataset.pickupRequestKey;
+
                     button.disabled = true;
                     button.textContent = "Recording...";
 
@@ -9117,7 +9153,8 @@ function attachOrderDetailListeners(order) {
                                             "application/json"
                                     },
                                     body: JSON.stringify({
-                                        quantity
+                                        quantity,
+                                        idempotencyKey
                                     })
                                 }
                             );
@@ -9131,6 +9168,9 @@ function attachOrderDetailListeners(order) {
                                 "Failed to record pickup."
                             );
                         }
+
+                        delete button.dataset.pickupRequestKey;
+                        delete button.dataset.pickupRequestFingerprint;
 
                         renderOrderDetail(result.data);
 

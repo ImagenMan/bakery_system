@@ -36,6 +36,30 @@ function requireOpenBusinessDay(req, res, next) {
     }
 }
 
+function requireOpenBusinessDayForPickup(req, res, next) {
+    try {
+        const orderId = Number(req.params.id);
+        const itemId = Number(req.params.itemId);
+        const { quantity, idempotencyKey } = req.body;
+
+        if (
+            req.models.order.hasMatchingPickupIdempotencyKey(
+                orderId,
+                itemId,
+                quantity,
+                idempotencyKey
+            )
+        ) {
+            return next();
+        }
+
+        return requireOpenBusinessDay(req, res, next);
+
+    } catch (error) {
+        next(error);
+    }
+}
+
 function requireOpenBusinessDayUnlessCancelled(
     req,
     res,
@@ -92,6 +116,7 @@ function requireOpenBusinessDayForCounterSaleMutation(
 
 module.exports = {
     requireOpenBusinessDay,
+    requireOpenBusinessDayForPickup,
     requireOpenBusinessDayUnlessCancelled,
     requireOpenBusinessDayForCounterSalePayment,
     requireOpenBusinessDayForCounterSaleMutation
