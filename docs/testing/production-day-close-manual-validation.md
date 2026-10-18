@@ -157,3 +157,32 @@ Results:
 - Repeating the close created no duplicate waste or close event.
 
 All assertions passed. This test used only the disposable database; the live Normal and Training database hashes remained unchanged.
+
+### Mixed and all-frozen inventory regression test — passed (2026-10-18)
+
+A disposable copy of `data/training.db` was used to test the real production
+close, inventory, and frozen-inventory model methods. The test did not load
+`server/models/context.js` and did not write to either live database.
+
+Two synthetic production plans were created for `2099-01-01`:
+
+- Mixed lot: 5 physical units, with 3 frozen and 2 fresh.
+- All-frozen lot: 4 physical units, all frozen.
+
+Results:
+
+- Before closure, the mixed lot reported 2 fresh and 3 frozen units.
+- Closure wrote off exactly 2 fresh units from the mixed lot.
+- All 3 frozen units in the mixed lot remained available.
+- The all-frozen lot retained all 4 frozen units; no fresh-stock write-off
+  was recorded for that lot.
+- Retrying closure returned `already_closed: true` and no waste transactions.
+- The retry created neither additional waste nor a duplicate closure event.
+- Both live database file hashes remained unchanged.
+
+All regression assertions passed. The disposable test directory was removed
+when the test finished.
+
+This supplements the earlier multi-plan UI and atomic-rollback validations.
+It specifically verifies that closure distinguishes fresh from frozen stock
+for both mixed and all-frozen lots.
