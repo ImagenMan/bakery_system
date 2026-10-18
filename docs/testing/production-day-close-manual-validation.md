@@ -186,3 +186,29 @@ when the test finished.
 This supplements the earlier multi-plan UI and atomic-rollback validations.
 It specifically verifies that closure distinguishes fresh from frozen stock
 for both mixed and all-frozen lots.
+
+### Multi-lot inventory consumption rollback test — passed (2026-10-18)
+
+A standalone regression test used a temporary copy of the disposable
+`data/production-inventory-e2e-test.db`. It created two synthetic FIFO lots
+and installed a temporary SQLite trigger that forced the second lot's
+`CONSUMPTION` insert to fail. The allocator was called inside an outer
+database transaction, matching the transaction boundary used by counter
+sales and preorder pickups.
+
+Results:
+
+- The forced failure occurred on the second lot.
+- The first lot's attempted consumption was rolled back.
+- Both lots returned to their original balances.
+- The inventory transaction count was unchanged after rollback.
+- Both live database hashes matched their pre-test values.
+- The temporary test database and trigger were removed with the temporary
+  test directory.
+
+All assertions passed. No application code was changed. The live Normal and
+Training databases were not modified.
+
+This verifies atomic rollback for a multi-lot consumption failure when the
+allocator is called within its caller's transaction. It complements the
+FIFO, frozen-stock protection, and insufficient-inventory regression checks.
