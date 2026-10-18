@@ -141,3 +141,19 @@ The isolated evidence now covers single-plan and date-wide multi-plan UI
 closure, fresh-inventory write-off, retry idempotency, and preservation of
 existing frozen inventory. The earlier failed attempt for `2026-09-22` remains
 documented above as a failed test setup, not a successful closure.
+
+### Atomic rollback test — passed
+
+A separate isolated test used:
+- Disposable database: `/tmp/bakery-rollback-test.sJeLGV/training-test.db`
+- Synthetic production date: `2099-01-01`
+- Two production plans with fresh stock and 3 frozen units.
+
+Results:
+- Forcing the final `PRODUCTION_DAY_CLOSED` event insert to fail rolled back all changes.
+- A subsequent successful close wrote off fresh stock across both plans.
+- All 3 frozen units remained intact.
+- Exactly one close event was recorded.
+- Repeating the close created no duplicate waste or close event.
+
+All assertions passed. This test used only the disposable database; the live Normal and Training database hashes remained unchanged.
