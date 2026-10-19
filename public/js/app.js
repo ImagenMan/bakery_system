@@ -1854,6 +1854,12 @@ document
         }
     );
 
+setupProductionDateCloseButton(
+    "training-production-date",
+    "training-end-production-day-overview",
+    true
+);
+
 document
     .getElementById("back-to-training-production")
     .addEventListener(
@@ -2480,6 +2486,8 @@ async function checkAuthentication() {
         }
 
         currentUser = result.data;
+
+        updateProductionDateCloseButtonVisibility();
 
         await showApplication();
 
@@ -6882,6 +6890,113 @@ function renderProductionItem(
 
 }
 
+function formatProductionDateLabel(date) {
+    if (!date) return "Select a date";
+
+    const [year, month, day] = date.split("-").map(Number);
+
+    if (!year || !month || !day) return date;
+
+    return new Date(year, month - 1, day, 12).toLocaleDateString(
+        "en-US",
+        { month: "short", day: "numeric", year: "numeric" }
+    );
+}
+
+function updateProductionDateCloseButtonVisibility() {
+    const isAdmin = currentUser && currentUser.role === "ADMIN";
+
+    [
+        "training-end-production-day-overview",
+        "end-production-day-overview"
+    ].forEach((buttonId) => {
+        const button = document.getElementById(buttonId);
+        const section = button && button.closest(".production-eod");
+
+        if (section) section.hidden = !isAdmin;
+    });
+}
+
+function setupProductionDateCloseButton(dateInputId, buttonId, isTraining) {
+    const dateInput = document.getElementById(dateInputId);
+    const button = document.getElementById(buttonId);
+
+    if (!dateInput || !button) return;
+
+    updateProductionDateCloseButtonVisibility();
+
+    const updateLabel = () => {
+        button.disabled = false;
+        button.textContent =
+            `End Production Day — ${formatProductionDateLabel(dateInput.value)}`;
+    };
+
+    dateInput.addEventListener("change", updateLabel);
+
+    button.addEventListener("click", async () => {
+        const date = dateInput.value;
+
+        if (!date) {
+            alert("Select a production date first.");
+            return;
+        }
+
+        const label = formatProductionDateLabel(date);
+        const confirmed = window.confirm(
+            `End production for ${label}?\n\n` +
+            `This closes all production plans for ${label}.\n\n` +
+            "Remaining fresh inventory will be written off as waste.\n\n" +
+            "Frozen inventory will be preserved.\n\n" +
+            "This action cannot be undone."
+        );
+
+        if (!confirmed) return;
+
+        button.disabled = true;
+        button.textContent = "Ending Day...";
+
+        try {
+            const response = await fetch(
+                `/api/production/days/${encodeURIComponent(date)}/close`,
+                { method: "POST" }
+            );
+            const result = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(
+                    result.error || "Failed to close production day."
+                );
+            }
+
+            const wasteCount = Number(result.data?.waste_count) || 0;
+
+            alert(
+                result.data?.already_closed
+                    ? "This production date was already closed. No additional waste was recorded."
+                    : wasteCount > 0
+                        ? `Production date closed. ${wasteCount} fresh inventory waste transaction${wasteCount === 1 ? "" : "s"} recorded across its plans.`
+                        : "Production date closed. No remaining fresh inventory was found across its plans."
+            );
+
+            button.textContent = `Production Day Closed — ${label}`;
+
+            if (isTraining) {
+                await loadTrainingProduction(date);
+            } else {
+                await loadProductionOverview(date);
+            }
+        } catch (error) {
+            console.error("Production date close error:", error);
+            alert(error.message || "Failed to close production day.");
+            updateLabel();
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    updateLabel();
+}
+
 async function endProductionDay(
     plan,
     productionDate,
@@ -9927,6 +10042,12 @@ document
             );
         }
     );
+
+setupProductionDateCloseButton(
+    "production-date",
+    "end-production-day-overview",
+    false
+);
 
 
 // Back from Production Item to Production Overview
