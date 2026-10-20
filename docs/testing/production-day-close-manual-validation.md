@@ -212,3 +212,21 @@ Training databases were not modified.
 This verifies atomic rollback for a multi-lot consumption failure when the
 allocator is called within its caller's transaction. It complements the
 FIFO, frozen-stock protection, and insufficient-inventory regression checks.
+
+## 2026-10-20 — Isolated real-route API close test
+
+**Result: PASS**
+
+Tested the production-day close endpoint through the real production routes using an isolated Express harness and a disposable copy of the Training database. The harness listened only on `127.0.0.1:3137`. The Normal database was not used for this test.
+
+- Production date: `2026-09-23`
+- Production plans: `#11` and `#12`
+- Inventory lots: `#8` and `#9`
+- Before close: lot `#8` had 8 fresh units and 2 frozen units; lot `#9` had 4 fresh units and 2 frozen units.
+- First close request: HTTP 200. Created exactly two `WASTE` transactions: 8 units from lot `#8` and 4 units from lot `#9`, for 12 fresh units written off.
+- After close: both lots retained their 2 frozen units, with zero fresh units remaining. Both production plans remained present.
+- Retry request: HTTP 200 with `already_closed: true`, the same close event ID (`19`), and zero additional waste transactions.
+- Final counts: 2 waste transactions totaling 12 units, and exactly 1 `PRODUCTION_DAY_CLOSED` event for the daily record.
+- The Normal database integrity check returned `ok`.
+
+This test confirms successful close behavior, fresh-versus-frozen inventory handling, and retry idempotency through the real route in an isolated environment. It does not, by itself, establish that every authorization and business-day guard was revalidated in this run.
