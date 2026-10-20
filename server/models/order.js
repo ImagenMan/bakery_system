@@ -898,7 +898,7 @@ function recordItemPickup(
         }
     });
 
-    transaction();
+    transaction.immediate();
 
     return getOrderById(orderId);
 }
