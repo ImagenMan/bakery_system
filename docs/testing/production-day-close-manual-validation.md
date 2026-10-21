@@ -230,3 +230,47 @@ Tested the production-day close endpoint through the real production routes usin
 - The Normal database integrity check returned `ok`.
 
 This test confirms successful close behavior, fresh-versus-frozen inventory handling, and retry idempotency through the real route in an isolated environment. It does not, by itself, establish that every authorization and business-day guard was revalidated in this run.
+
+## 2026-10-21 — Production-close HTTP guard tests
+
+**Result: PASS**
+
+Tested the real production-close route in an isolated copy of the application
+using a disposable copy of the Normal database. The isolated server listened
+on port `3138`. The live Normal and Training databases were not used for test
+writes.
+
+### Unopened current business day
+
+- Authenticated as a temporary ADMIN account created only in the disposable
+  database.
+- Requested closure for production date `2026-10-20` while the current
+  business date (`2026-10-21`) had not been opened.
+- Result: HTTP `409`.
+- Response stated that business day `2026-10-21` must be open before
+  operational actions can be changed.
+- The request was rejected by the business-day guard.
+
+### Future production date
+
+- Opened business date `2026-10-21` only in the disposable database using
+  the application's daily-record and operational-event models.
+- Requested closure for future production date `2026-10-22`.
+- Result: HTTP `400`.
+- Response: `Cannot close a future production date.`
+- The request was rejected by the future-date guard.
+
+### Cleanup and isolation
+
+- Stopped the isolated test server after testing.
+- The live Normal database SHA-256 remained
+  `ea7f320c4cb7b6f5e0ec452da4716a19c77cf3acf81531d85ee272ff8af9d3a0`.
+- The live Training database SHA-256 remained
+  `38157b3ce54e4d7626672e898ebfb3ae15f2f2b0feb04207b4f359b500fdf397`.
+- Local `HEAD` and `origin/main` both remained at
+  `97a5e8e2952ef244c0d4ef1ca94fc978d04682ca`.
+
+Both guard assertions passed. These results supplement the previously
+documented authorization, successful-close, retry-idempotency, inventory,
+and rollback tests; they do not replace the scope limitations recorded for
+the earlier individual tests.
