@@ -55,6 +55,10 @@ function createProductionDayModel({
             const plans =
                 productionPlan.getProductionPlansByDate(production_date);
 
+            inventory.validateFreshWasteForProductionPlans({
+                production_plan_ids: plans.map(plan => plan.id)
+            });
+
             const wasteTransactions = [];
 
             for (const plan of plans) {

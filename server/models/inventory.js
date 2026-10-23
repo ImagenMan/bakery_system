@@ -786,6 +786,91 @@ function createInventoryModel(db) {
         return transaction();
     }
 
+    function validateFreshWasteForProductionPlans({
+        production_plan_ids
+    }) {
+        if (!Array.isArray(production_plan_ids)) {
+            throw new Error(
+                "Production plan IDs must be provided as an array."
+            );
+        }
+
+        const closingFreshByItem = new Map();
+
+        for (const production_plan_id of production_plan_ids) {
+            validatePositiveInteger(
+                production_plan_id,
+                "Production plan ID"
+            );
+
+            const productionPlan = db.prepare(`
+                SELECT
+                    pp.id,
+                    pp.production_item_id
+                FROM production_plans pp
+                WHERE pp.id = ?
+            `).get(production_plan_id);
+
+            if (!productionPlan) {
+                throw new Error("Production plan not found.");
+            }
+
+            const lots = db.prepare(`
+                SELECT
+                    pa.id AS source_production_available_id
+                FROM production_available pa
+                WHERE pa.production_plan_id = ?
+                ORDER BY pa.created_at ASC, pa.id ASC
+            `).all(production_plan_id);
+
+            for (const lot of lots) {
+                const balances = getSourceLotBalances(
+                    lot.source_production_available_id
+                );
+
+                if (balances.fresh <= 0) {
+                    continue;
+                }
+
+                const currentQuantity =
+                    closingFreshByItem.get(
+                        productionPlan.production_item_id
+                    ) || 0;
+
+                closingFreshByItem.set(
+                    productionPlan.production_item_id,
+                    currentQuantity + balances.fresh
+                );
+            }
+        }
+
+        for (const [
+            production_item_id,
+            closingFreshQuantity
+        ] of closingFreshByItem) {
+            const availability = getAvailability(
+                production_item_id
+            );
+
+            if (
+                closingFreshQuantity >
+                availability.unreserved
+            ) {
+                throw new Error(
+                    "Insufficient unreserved fresh inventory to " +
+                    "close production day for production item " +
+                    production_item_id + ". " +
+                    closingFreshQuantity +
+                    " fresh unit(s) must be written off, but only " +
+                    availability.unreserved +
+                    " unit(s) are unreserved for preorders."
+                );
+            }
+        }
+
+        return true;
+    }
+
     function wasteRemainingFreshForProductionPlan({
         production_plan_id
     }) {
@@ -981,6 +1066,7 @@ function createInventoryModel(db) {
         createReceipt,
         createConsumption,
         createWaste,
+        validateFreshWasteForProductionPlans,
         wasteRemainingFreshForProductionPlan,
         consumeFromAvailableLots
     };
