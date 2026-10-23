@@ -388,7 +388,9 @@ function createCounterSale({
             );
 
             if (!production) {
-                continue;
+                throw new Error(
+                    `Product ${item.product_id} is not mapped to a production item; counter sale inventory cannot be deducted.`
+                );
             }
 
             const inventoryQuantity =
@@ -445,7 +447,7 @@ function createCounterSale({
         };
     });
 
-    const result = transaction();
+    const result = transaction.immediate();
 
     return {
         order: getOrderById(result.orderId),

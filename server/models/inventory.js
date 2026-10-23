@@ -225,6 +225,157 @@ function createInventoryModel(db) {
         `).all(production_item_id);
     }
 
+    function getReservedQuantity(production_item_id) {
+        validatePositiveInteger(
+            production_item_id,
+            "Production item ID"
+        );
+
+        const result = db.prepare(`
+            WITH item_reservations AS (
+                SELECT
+                    oi.id AS order_item_id,
+                    oi.product_id,
+                    MAX(
+                        0,
+                        COALESCE((
+                            SELECT SUM(s.quantity)
+                            FROM order_item_set_asides s
+                            WHERE s.order_item_id = oi.id
+                        ), 0)
+                        -
+                        COALESCE((
+                            SELECT SUM(p.quantity)
+                            FROM order_item_pickups p
+                            WHERE p.order_item_id = oi.id
+                        ), 0)
+                    ) AS outstanding_quantity
+                FROM order_items oi
+                JOIN orders o
+                    ON o.id = oi.order_id
+                WHERE o.order_type = 'PREORDER'
+                  AND o.status <> 'CANCELLED'
+                  AND oi.product_id IS NOT NULL
+            ),
+            resolved_products AS (
+                SELECT
+                    pi.id AS production_item_id,
+                    pi.product_id,
+                    1 AS units_per_sale
+                FROM production_items pi
+                WHERE pi.product_id IS NOT NULL
+
+                UNION ALL
+
+                SELECT
+                    m.production_item_id,
+                    m.product_id,
+                    m.units_per_sale
+                FROM production_item_product_mappings m
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM production_items pi
+                    WHERE pi.product_id = m.product_id
+                )
+            )
+            SELECT
+                COALESCE(
+                    SUM(
+                        ir.outstanding_quantity *
+                        rp.units_per_sale
+                    ),
+                    0
+                ) AS quantity,
+            (
+                SELECT COUNT(DISTINCT ir.product_id)
+                FROM item_reservations ir
+                WHERE ir.outstanding_quantity > 0
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM resolved_products rp
+                      WHERE rp.product_id = ir.product_id
+                  )
+            ) AS unmapped_count
+            FROM item_reservations ir
+            JOIN resolved_products rp
+                ON rp.product_id = ir.product_id
+            WHERE rp.production_item_id = ?
+        `).get(production_item_id);
+
+        if (result.unmapped_count > 0) {
+            throw new Error(
+                "Cannot calculate inventory reservations: " +
+                result.unmapped_count +
+                " product(s) with outstanding preorder reservations " +
+                "are not mapped to a production item."
+            );
+        }
+
+        return result.quantity;
+    }
+
+    function getAvailability(production_item_id) {
+        validatePositiveInteger(
+            production_item_id,
+            "Production item ID"
+        );
+
+        const productionItem = db.prepare(`
+            SELECT id
+            FROM production_items
+            WHERE id = ?
+        `).get(production_item_id);
+
+        if (!productionItem) {
+            throw new Error("Production item not found.");
+        }
+
+        const result = db.prepare(`
+            SELECT
+                COALESCE(SUM(l.remaining_quantity), 0) AS fresh
+            FROM (
+                SELECT
+                    (
+                        COALESCE(SUM(it.quantity_delta), 0)
+                        -
+                        MAX(
+                            0,
+                            COALESCE((
+                                SELECT SUM(
+                                    CASE
+                                        WHEN fi.action_type = 'FREEZE'
+                                        THEN fi.quantity
+                                        WHEN fi.action_type IN ('RELEASE', 'WASTE')
+                                        THEN -fi.quantity
+                                        ELSE 0
+                                    END
+                                )
+                                FROM frozen_inventory fi
+                                WHERE fi.source_production_available_id = pa.id
+                            ), 0)
+                        )
+                    ) AS remaining_quantity
+                FROM production_available pa
+                JOIN production_plans pp
+                    ON pp.id = pa.production_plan_id
+                LEFT JOIN inventory_transactions it
+                    ON it.source_production_available_id = pa.id
+                WHERE pp.production_item_id = ?
+                GROUP BY pa.id
+                HAVING remaining_quantity > 0
+            ) l
+        `).get(production_item_id);
+
+        const fresh = result.fresh;
+        const reserved = getReservedQuantity(production_item_id);
+
+        return {
+            fresh,
+            reserved,
+            unreserved: Math.max(0, fresh - reserved)
+        };
+    }
+
     function getSourceLotBalances(
         source_production_available_id
     ) {
@@ -581,6 +732,20 @@ function createInventoryModel(db) {
                 );
             }
 
+            if (state === "FRESH") {
+                const availability = getAvailability(
+                    sourceLot.production_item_id
+                );
+
+                if (quantity > availability.unreserved) {
+                    throw new Error(
+                        "Cannot waste fresh inventory reserved for " +
+                        "preorders. Unreserved quantity is " +
+                        availability.unreserved + "."
+                    );
+                }
+            }
+
             const result = db.prepare(`
                 INSERT INTO inventory_transactions (
                     production_item_id,
@@ -681,10 +846,23 @@ function createInventoryModel(db) {
                     continue;
                 }
 
+                const unreservedQuantity = getAvailability(
+                    productionPlan.production_item_id
+                ).unreserved;
+
+                const wasteQuantity = Math.min(
+                    balances.fresh,
+                    unreservedQuantity
+                );
+
+                if (wasteQuantity <= 0) {
+                    continue;
+                }
+
                 const wasteTransaction = createWaste({
                     source_production_available_id:
                         lot.source_production_available_id,
-                    quantity: balances.fresh,
+                    quantity: wasteQuantity,
                     state: "FRESH",
                     reason: "UNSOLD"
                 });
@@ -771,6 +949,16 @@ function createInventoryModel(db) {
             );
         }
 
+        const availability = getAvailability(production_item_id);
+
+        if (quantity > availability.unreserved) {
+            throw new Error(
+                "Insufficient unreserved inventory. " +
+                `Available unreserved quantity is ${availability.unreserved}; ` +
+                `${availability.reserved} unit(s) are reserved.`
+            );
+        }
+
         let remainingToConsume = quantity;
         const allocations = [];
 
@@ -806,6 +994,8 @@ function createInventoryModel(db) {
         getInventoryBalance,
         getCounterAvailableInventory,
         getInventoryTransactionsByProductionItem,
+        getReservedQuantity,
+        getAvailability,
         getSourceLotBalances,
         createReceipt,
         createConsumption,
