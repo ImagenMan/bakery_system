@@ -285,31 +285,12 @@ function createInventoryModel(db) {
                         rp.units_per_sale
                     ),
                     0
-                ) AS quantity,
-            (
-                SELECT COUNT(DISTINCT ir.product_id)
-                FROM item_reservations ir
-                WHERE ir.outstanding_quantity > 0
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM resolved_products rp
-                      WHERE rp.product_id = ir.product_id
-                  )
-            ) AS unmapped_count
+                ) AS quantity
             FROM item_reservations ir
             JOIN resolved_products rp
                 ON rp.product_id = ir.product_id
             WHERE rp.production_item_id = ?
         `).get(production_item_id);
-
-        if (result.unmapped_count > 0) {
-            throw new Error(
-                "Cannot calculate inventory reservations: " +
-                result.unmapped_count +
-                " product(s) with outstanding preorder reservations " +
-                "are not mapped to a production item."
-            );
-        }
 
         return result.quantity;
     }
