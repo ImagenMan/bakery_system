@@ -98,6 +98,47 @@ function recordLogout(req, authenticatedUser) {
 }
 
 // =========================================================
+// Application Mode (selected before login)
+// =========================================================
+
+router.get("/mode", (req, res) => {
+    const mode =
+        req.session.mode === "TRAINING"
+            ? "TRAINING"
+            : "NORMAL";
+
+    res.json({
+        success: true,
+        mode
+    });
+});
+
+router.post("/mode", (req, res) => {
+    if (req.session.userId) {
+        return res.status(409).json({
+            success: false,
+            error: "Log out before changing application mode."
+        });
+    }
+
+    const { mode } = req.body;
+
+    if (mode !== "NORMAL" && mode !== "TRAINING") {
+        return res.status(400).json({
+            success: false,
+            error: "Invalid application mode."
+        });
+    }
+
+    req.session.mode = mode;
+
+    res.json({
+        success: true,
+        mode
+    });
+});
+
+// =========================================================
 // Available Counter users for PIN login
 // =========================================================
 
@@ -680,7 +721,11 @@ router.post(
 router.get("/me", requireAuth, (req, res) => {
     res.json({
         success: true,
-        data: req.user
+        data: req.user,
+        mode:
+            req.session.mode === "TRAINING"
+                ? "TRAINING"
+                : "NORMAL"
     });
 });
 

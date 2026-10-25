@@ -321,6 +321,7 @@ const businessDayAction =
     document.getElementById("business-day-action");
 
 const loginForm = document.getElementById("login-form");
+const loginMode = document.getElementById("login-mode");
 const loginUsername = document.getElementById("login-username");
 const loginPassword = document.getElementById("login-password");
 const loginError = document.getElementById("login-error");
@@ -726,131 +727,54 @@ const productionItemDetail =
 // Authentication
 // =========================================================
 
-async function setNormalMode() {
-    const response = await fetch("/api/mode", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            mode: "NORMAL"
-        })
-    });
+function applyApplicationMode(mode) {
+    appMode = mode === "TRAINING" ? "TRAINING" : "NORMAL";
 
-    const result = await response.json();
+    const trainingButton =
+        document.getElementById("training-mode");
 
-    if (!response.ok || !result.success || result.mode !== "NORMAL") {
-        throw new Error(
-            result.error || "Failed to enter Normal Mode."
-        );
+    if (appMode === "TRAINING") {
+        modeIndicator.textContent = "TRAINING MODE";
+        modeIndicator.className = "mode-indicator training";
+        trainingButton.textContent = "Training Home";
+        trainingButton.classList.remove("hidden");
+    } else {
+        modeIndicator.textContent = "NORMAL MODE";
+        modeIndicator.className = "mode-indicator normal";
+        trainingButton.classList.add("hidden");
     }
-
-    modeIndicator.textContent = "NORMAL MODE";
-    modeIndicator.className = "mode-indicator normal";
-    appMode = "NORMAL";
-
-    document.getElementById("training-mode").textContent =
-        "Training / Playground";
-
-    await loadBusinessDayStatus();
-}
-
-
-async function setTrainingMode() {
-    const response = await fetch("/api/mode", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            mode: "TRAINING"
-        })
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || !result.success || result.mode !== "TRAINING") {
-        throw new Error(
-            result.error || "Failed to enter Training Mode."
-        );
-    }
-
-    modeIndicator.textContent = "TRAINING MODE";
-    modeIndicator.className = "mode-indicator training";
-    appMode = "TRAINING";
-
-    document.getElementById("training-mode").textContent =
-        "Return to Normal";
-
-    await loadBusinessDayStatus();
 }
 
 document
     .getElementById("training-mode")
-    .addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                if (appMode === "TRAINING") {
-
-                    await setNormalMode();
-
-                    appView = "orders";
-                    saveNavigationState();
-
-                    ordersView.classList.add("hidden");
-                    orderDetailView.classList.add("hidden");
-                    newOrderView.classList.add("hidden");
-                    counterSaleView.classList.add("hidden");
-                    productionView.classList.add("hidden");
-                    productionItemView.classList.add("hidden");
-                    trainingView.classList.add("hidden");
-                    trainingCounterSaleView.classList.add("hidden");
-                    trainingPreorderView.classList.add("hidden");
-                    trainingPreorderReviewView.classList.add("hidden");
-                    trainingProductionView.classList.add("hidden");
-                    trainingProductionItemView.classList.add("hidden");
-                    pickupListView.classList.add("hidden");
-                    historyView.classList.add("hidden");
-                    accountView.classList.add("hidden");
-                    usersView.classList.add("hidden");
-                    todayView.classList.add("hidden");
-                    counterTodayView.classList.add("hidden");
-
-                    ordersView.classList.remove("hidden");
-
-                    loadOrders();
-
-                    return;
-                }
-
-                await setTrainingMode();
-
-                appView = "training";
-                saveNavigationState();
-
-                ordersView.classList.add("hidden");
-                orderDetailView.classList.add("hidden");
-                newOrderView.classList.add("hidden");
-                counterSaleView.classList.add("hidden");
-                productionView.classList.add("hidden");
-                pickupListView.classList.add("hidden");
-
-                trainingView.classList.remove("hidden");
-
-            } catch (error) {
-
-                console.error(
-                    "Failed to change application mode:",
-                    error
-                );
-
-                alert(error.message);
-            }
+    .addEventListener("click", () => {
+        if (appMode !== "TRAINING") {
+            return;
         }
-    );
+
+        appView = "training";
+        saveNavigationState();
+
+        ordersView.classList.add("hidden");
+        orderDetailView.classList.add("hidden");
+        newOrderView.classList.add("hidden");
+        counterSaleView.classList.add("hidden");
+        productionView.classList.add("hidden");
+        productionItemView.classList.add("hidden");
+        trainingCounterSaleView.classList.add("hidden");
+        trainingPreorderView.classList.add("hidden");
+        trainingPreorderReviewView.classList.add("hidden");
+        trainingProductionView.classList.add("hidden");
+        trainingProductionItemView.classList.add("hidden");
+        pickupListView.classList.add("hidden");
+        historyView.classList.add("hidden");
+        accountView.classList.add("hidden");
+        usersView.classList.add("hidden");
+        todayView.classList.add("hidden");
+        counterTodayView.classList.add("hidden");
+
+        trainingView.classList.remove("hidden");
+    });
 
 document
     .getElementById("training-counter-sale")
@@ -2286,38 +2210,13 @@ async function showApplication() {
         usersButton.classList.add("hidden");
     }
 
-    const savedMode =
-        sessionStorage.getItem(
-            "bakery-app-mode"
-        ) || "NORMAL";
-
     const savedView =
         sessionStorage.getItem(
             "bakery-app-view"
         ) || "orders";
 
-    try {
-
-        if (savedMode === "TRAINING") {
-            await setTrainingMode();
-        } else {
-            await setNormalMode();
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Failed to establish application mode:",
-            error
-        );
-
-        loginError.textContent =
-            "Unable to establish application mode.";
-
-        loginError.classList.remove("hidden");
-
-        return;
-    }
+    applyApplicationMode(appMode);
+    await loadBusinessDayStatus();
 
     ordersView.classList.add("hidden");
     orderDetailView.classList.add("hidden");
@@ -2334,7 +2233,7 @@ async function showApplication() {
     todayView.classList.add("hidden");
 
     if (
-        savedMode !== "TRAINING" &&
+        appMode !== "TRAINING" &&
         savedView === "account"
     ) {
 
@@ -2346,7 +2245,7 @@ async function showApplication() {
     }
 
     if (
-        savedMode !== "TRAINING" &&
+        appMode !== "TRAINING" &&
         savedView === "users" &&
         currentUser &&
         currentUser.role === "ADMIN"
@@ -2360,7 +2259,7 @@ async function showApplication() {
     }
 
     if (
-        savedMode !== "TRAINING" &&
+        appMode !== "TRAINING" &&
         savedView === "production"
     ) {
 
@@ -2385,7 +2284,7 @@ async function showApplication() {
     }
 
     if (
-        savedMode === "TRAINING" &&
+        appMode === "TRAINING" &&
         savedView === "training-production"
     ) {
 
@@ -2422,7 +2321,7 @@ async function showApplication() {
     }
 
     if (
-        savedMode !== "TRAINING" &&
+        appMode !== "TRAINING" &&
         savedView === "history"
     ) {
 
@@ -2449,7 +2348,7 @@ async function showApplication() {
     }
 
     if (
-        savedMode === "TRAINING" &&
+        appMode === "TRAINING" &&
         savedView === "training"
     ) {
 
@@ -2486,6 +2385,10 @@ async function checkAuthentication() {
         }
 
         currentUser = result.data;
+        appMode =
+            result.mode === "TRAINING"
+                ? "TRAINING"
+                : "NORMAL";
 
         updateProductionDateCloseButtonVisibility();
 
@@ -3989,6 +3892,7 @@ logoutButton.addEventListener(
 
             appMode = "NORMAL";
             appView = "orders";
+            loginMode.value = "NORMAL";
 
             modeIndicator.textContent =
                 "NORMAL MODE";
@@ -4037,6 +3941,34 @@ loginForm.addEventListener(
         submitButton.textContent = "Logging in...";
 
         try {
+
+            const selectedMode = loginMode.value;
+
+            const modeResponse = await fetch(
+                "/api/auth/mode",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        mode: selectedMode
+                    })
+                }
+            );
+
+            const modeResult = await modeResponse.json();
+
+            if (
+                !modeResponse.ok ||
+                !modeResult.success ||
+                modeResult.mode !== selectedMode
+            ) {
+                throw new Error(
+                    modeResult.error ||
+                    "Unable to select application mode."
+                );
+            }
 
             const isCounter =
                 loginCounterTab.classList.contains(
@@ -16713,4 +16645,21 @@ function openHistory() {
 // Initial Load
 // =========================================================
 
-checkAuthentication();
+async function initializeLoginMode() {
+    try {
+        const response = await fetch("/api/auth/mode");
+        const result = await response.json();
+
+        if (
+            response.ok &&
+            result.success &&
+            (result.mode === "NORMAL" || result.mode === "TRAINING")
+        ) {
+            loginMode.value = result.mode;
+        }
+    } catch (error) {
+        console.error("Unable to restore login mode:", error);
+    }
+}
+
+initializeLoginMode().finally(checkAuthentication);

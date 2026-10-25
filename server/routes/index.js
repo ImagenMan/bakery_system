@@ -34,50 +34,6 @@ const {
 } = require("../services/weather/importWeather");
 
 // =========================================================
-// Application Mode
-// =========================================================
-
-router.post("/mode", (req, res) => {
-    try {
-        const { mode } = req.body;
-
-        if (mode !== "NORMAL" && mode !== "TRAINING") {
-            return res.status(400).json({
-                success: false,
-                error: "Invalid application mode."
-            });
-        }
-
-        req.session.mode = mode;
-
-        res.json({
-            success: true,
-            mode
-        });
-
-    } catch (error) {
-        console.error("POST /api/mode error:", error);
-
-        res.status(500).json({
-            success: false,
-            error: "Failed to change application mode."
-        });
-    }
-});
-
-router.get("/mode", (req, res) => {
-    const mode =
-        req.session.mode === "TRAINING"
-            ? "TRAINING"
-            : "NORMAL";
-
-    res.json({
-        success: true,
-        mode
-    });
-});
-
-// =========================================================
 // History
 // =========================================================
 
