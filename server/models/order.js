@@ -817,6 +817,27 @@ function recordItemPickup(
         const remainingQuantity =
             item.quantity - pickedUpResult.quantity_picked_up;
 
+        const setAsideResult = db.prepare(`
+            SELECT
+                MAX(
+                    0,
+                    COALESCE((
+                        SELECT SUM(quantity)
+                        FROM order_item_set_asides
+                        WHERE order_item_id = ?
+                    ), 0)
+                    -
+                    COALESCE((
+                        SELECT SUM(quantity)
+                        FROM order_item_pickups
+                        WHERE order_item_id = ?
+                    ), 0)
+                ) AS outstanding_quantity
+        `).get(orderItemId, orderItemId);
+
+        const outstandingSetAside =
+            setAsideResult.outstanding_quantity;
+
         if (quantity > remainingQuantity) {
             throw new Error(
                 `Pickup quantity exceeds remaining quantity of ${remainingQuantity}.`
@@ -873,7 +894,10 @@ function recordItemPickup(
                 production_item_id: production.id,
                 quantity: quantity * production.units_per_sale,
                 reference_type: "PREORDER_PICKUP",
-                reference_id: pickupId
+                reference_id: pickupId,
+                reservationCredit:
+                    Math.min(quantity, outstandingSetAside) *
+                    production.units_per_sale
             });
         }
 

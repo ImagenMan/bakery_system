@@ -853,17 +853,17 @@ function createInventoryModel(db) {
             );
 
             if (
-                closingFreshQuantity >
-                availability.unreserved
+                closingFreshQuantity > 0 &&
+                availability.unreserved === 0
             ) {
                 throw new Error(
-                    "Insufficient unreserved fresh inventory to " +
-                    "close production day for production item " +
-                    production_item_id + ". " +
+                    "Cannot close production day for production item " +
+                    production_item_id + ": fresh inventory remains, " +
+                    "but no units are unreserved for write-off. " +
                     closingFreshQuantity +
-                    " fresh unit(s) must be written off, but only " +
-                    availability.unreserved +
-                    " unit(s) are unreserved for preorders."
+                    " fresh unit(s) remain and " +
+                    availability.reserved +
+                    " unit(s) are reserved for preorders."
                 );
             }
         }
@@ -946,7 +946,8 @@ function createInventoryModel(db) {
         production_item_id,
         quantity,
         reference_type = null,
-        reference_id = null
+        reference_id = null,
+        reservationCredit = 0
     }) {
         validatePositiveInteger(production_item_id, "Production item ID");
         validatePositiveInteger(quantity, "Consumption quantity");
@@ -1017,10 +1018,24 @@ function createInventoryModel(db) {
 
         const availability = getAvailability(production_item_id);
 
-        if (quantity > availability.unreserved) {
+        if (
+            !Number.isInteger(reservationCredit) ||
+            reservationCredit < 0
+        ) {
+            throw new Error(
+                "Reservation credit must be a non-negative integer."
+            );
+        }
+
+        const availableForConsumption = Math.min(
+            availability.fresh,
+            availability.unreserved + reservationCredit
+        );
+
+        if (quantity > availableForConsumption) {
             throw new Error(
                 "Insufficient unreserved inventory. " +
-                `Available unreserved quantity is ${availability.unreserved}; ` +
+                `Available consumable quantity is ${availableForConsumption}; ` +
                 `${availability.reserved} unit(s) are reserved.`
             );
         }
