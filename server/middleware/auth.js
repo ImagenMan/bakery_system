@@ -1,5 +1,3 @@
-const user = require("../models/user");
-
 function requireAuth(req, res, next) {
     try {
         if (!req.session.userId) {
@@ -10,7 +8,7 @@ function requireAuth(req, res, next) {
         }
 
         const authenticatedUser =
-            user.findById(req.session.userId);
+            req.models.user.findById(req.session.userId);
 
         if (!authenticatedUser.active) {
             req.session.destroy(() => {});

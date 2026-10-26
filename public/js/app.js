@@ -323,26 +323,8 @@ const businessDayAction =
 const loginForm = document.getElementById("login-form");
 const loginMode = document.getElementById("login-mode");
 const loginUsername = document.getElementById("login-username");
-const loginPassword = document.getElementById("login-password");
+const loginCredential = document.getElementById("login-credential");
 const loginError = document.getElementById("login-error");
-
-const loginAdminTab =
-    document.getElementById("login-admin-tab");
-
-const loginCounterTab =
-    document.getElementById("login-counter-tab");
-
-const adminLoginFields =
-    document.getElementById("admin-login-fields");
-
-const counterLoginFields =
-    document.getElementById("counter-login-fields");
-
-const counterUser =
-    document.getElementById("counter-user");
-
-const counterPin =
-    document.getElementById("counter-pin");
 
 const logoutButton =
     document.getElementById("logout-button");
@@ -2154,6 +2136,7 @@ businessDayAction.addEventListener(
 );
 
 function showLogin() {
+    document.body.classList.add("login-only");
     loginView.classList.remove("hidden");
 
     ordersView.classList.add("hidden");
@@ -2180,24 +2163,28 @@ function showLogin() {
     myAccountButton.classList.add("hidden");
     usersButton.classList.add("hidden");
 
-    loginAdminTab.classList.add("active");
-    loginCounterTab.classList.remove("active");
-
-    adminLoginFields.classList.remove("hidden");
-    counterLoginFields.classList.add("hidden");
-
+    loginMode.value = "";
+    loginUsername.value = "";
+    loginCredential.value = "";
     loginUsername.required = true;
-    loginPassword.required = true;
-    counterUser.required = false;
-    counterPin.required = false;
+    loginCredential.required = true;
+    loginError.textContent = "";
+    loginError.classList.add("hidden");
+    modeIndicator.textContent = "SELECT MODE";
+    modeIndicator.className = "mode-indicator";
 
-    loginPassword.value = "";
-    counterPin.value = "";
+    // Business-day status requires an authenticated, selected mode.
+    businessDayStatus.textContent =
+        "Business Day: Log in to view status";
+
+    businessDayStatus.className =
+        "business-day-status";
 
     loginUsername.focus();
 }
 
 async function showApplication() {
+    document.body.classList.remove("login-only");
 
     loginView.classList.add("hidden");
 
@@ -2800,23 +2787,14 @@ async function createUserFromForm(event) {
     const payload = {
         name,
         role,
-        language
+        language,
+        username: document.getElementById("user-username").value.trim()
     };
 
     if (role === "ADMIN") {
-
-        payload.username =
-            document.getElementById(
-                "user-username"
-            ).value.trim();
-
-        payload.password =
-            credential;
-
+        payload.password = credential;
     } else {
-
-        payload.pin =
-            credential;
+        payload.pin = credential;
     }
 
     try {
@@ -2912,15 +2890,9 @@ async function updateUserFromForm(
     const payload = {
         name,
         language,
-        active
+        active,
+        username: document.getElementById("user-username").value.trim()
     };
-
-    if (user.role === "ADMIN") {
-        payload.username =
-            document.getElementById(
-                "user-username"
-            ).value.trim();
-    }
 
     try {
         const response =
@@ -3063,23 +3035,17 @@ function openUserForm(userId = null) {
                                 ${escapeHTML(user.role)}
                             </p>
 
-                            ${
-                                user.role === "ADMIN"
-                                    ? `
-                                        <label>
-                                            Username
+                            <label>
+                                Username
 
-                                            <input
-                                                type="text"
-                                                id="user-username"
-                                                value="${escapeHTML(user.username || "")}"
-                                                autocomplete="username"
-                                                required
-                                            >
-                                        </label>
-                                    `
-                                    : ""
-                            }
+                                <input
+                                    type="text"
+                                    id="user-username"
+                                    value="${escapeHTML(user.username || "")}"
+                                    autocomplete="username"
+                                    required
+                                >
+                            </label>
                         `
                         : `
                             <label>
@@ -3099,7 +3065,7 @@ function openUserForm(userId = null) {
                                 </select>
                             </label>
 
-                            <div id="new-user-username-field" class="hidden">
+                            <div id="new-user-username-field">
 
                                 <label>
                                     Username
@@ -3108,6 +3074,7 @@ function openUserForm(userId = null) {
                                         type="text"
                                         id="user-username"
                                         autocomplete="username"
+                                        required
                                     >
                                 </label>
 
@@ -3228,53 +3195,18 @@ function openUserForm(userId = null) {
         roleSelect.addEventListener(
             "change",
             () => {
-
-                if (
-                    roleSelect.value === "ADMIN"
-                ) {
-
-                    usernameField.classList.remove(
-                        "hidden"
-                    );
-
-                    usernameInput.required =
-                        true;
-
-                    credentialLabel.textContent =
-                        "Password";
-
-                    credentialInput.type =
-                        "password";
-
-                    credentialInput.inputMode =
-                        "";
-
-                    credentialInput.maxLength =
-                        128;
-
+                if (roleSelect.value === "ADMIN") {
+                    credentialLabel.textContent = "Password";
+                    credentialInput.type = "password";
+                    credentialInput.inputMode = "";
+                    credentialInput.maxLength = 128;
+                    credentialInput.removeAttribute("pattern");
                 } else {
-
-                    usernameField.classList.add(
-                        "hidden"
-                    );
-
-                    usernameInput.required =
-                        false;
-
-                    usernameInput.value =
-                        "";
-
-                    credentialLabel.textContent =
-                        "4-digit PIN";
-
-                    credentialInput.type =
-                        "password";
-
-                    credentialInput.inputMode =
-                        "numeric";
-
-                    credentialInput.maxLength =
-                        4;
+                    credentialLabel.textContent = "4-digit PIN";
+                    credentialInput.type = "password";
+                    credentialInput.inputMode = "numeric";
+                    credentialInput.maxLength = 4;
+                    credentialInput.pattern = "[0-9]{4}";
                 }
             }
         );
@@ -3549,22 +3481,20 @@ async function loadUsers() {
                                     ${escapeHTML(user.language)}
                                 </span>
 
+                                <span>
+                                    Username:
+                                    ${escapeHTML(user.username || "Not set")}
+                                </span>
+
                                 ${
-                                    user.role === "ADMIN"
+                                    user.role === "COUNTER"
                                         ? `
-                                            <span>
-                                                Username:
-                                                ${escapeHTML(
-                                                    user.username
-                                                )}
-                                            </span>
-                                        `
-                                        : `
                                             <span>
                                                 Login:
                                                 4-digit PIN
                                             </span>
                                         `
+                                        : ""
                                 }
 
                                 <span>
@@ -3697,160 +3627,6 @@ async function loadUsers() {
     }
 }
 
-async function loadCounterUsers() {
-
-    counterUser.innerHTML = `
-        <option value="">
-            Loading Counter users...
-        </option>
-    `;
-
-    try {
-
-        const response =
-            await fetch(
-                "/api/auth/counter-users"
-            );
-
-        const result =
-            await response.json();
-
-        if (
-            !response.ok ||
-            !result.success
-        ) {
-            throw new Error(
-                result.error ||
-                "Unable to load Counter users."
-            );
-        }
-
-        if (
-            !Array.isArray(result.data) ||
-            result.data.length === 0
-        ) {
-            counterUser.innerHTML = `
-                <option value="">
-                    No active Counter users
-                </option>
-            `;
-
-            return;
-        }
-
-        counterUser.innerHTML = `
-            <option value="">
-                Select Counter user
-            </option>
-
-            ${result.data
-                .map(user => `
-                    <option value="${Number(user.id)}">
-                        ${escapeHTML(user.name)}
-                    </option>
-                `)
-                .join("")}
-        `;
-
-    } catch (error) {
-
-        console.error(
-            "Counter user loading error:",
-            error
-        );
-
-        counterUser.innerHTML = `
-            <option value="">
-                Unable to load Counter users
-            </option>
-        `;
-    }
-}
-
-
-function setLoginMethod(method) {
-
-    const isCounter =
-        method === "counter";
-
-    loginAdminTab.classList.toggle(
-        "active",
-        !isCounter
-    );
-
-    loginCounterTab.classList.toggle(
-        "active",
-        isCounter
-    );
-
-    adminLoginFields.classList.toggle(
-        "hidden",
-        isCounter
-    );
-
-    counterLoginFields.classList.toggle(
-        "hidden",
-        !isCounter
-    );
-
-    loginUsername.required =
-        !isCounter;
-
-    loginPassword.required =
-        !isCounter;
-
-    counterUser.required =
-        isCounter;
-
-    counterPin.required =
-        isCounter;
-
-    loginError.textContent = "";
-
-    loginError.classList.add(
-        "hidden"
-    );
-
-    if (isCounter) {
-
-        loadCounterUsers();
-
-        counterUser.focus();
-
-    } else {
-
-        loginUsername.focus();
-    }
-}
-
-
-loginAdminTab.addEventListener(
-    "click",
-    () => {
-        setLoginMethod("admin");
-    }
-);
-
-
-loginCounterTab.addEventListener(
-    "click",
-    () => {
-        setLoginMethod("counter");
-    }
-);
-
-
-counterPin.addEventListener(
-    "input",
-    () => {
-        counterPin.value =
-            counterPin.value
-                .replace(/\D/g, "")
-                .slice(0, 4);
-    }
-);
-
-
 logoutButton.addEventListener(
     "click",
     async () => {
@@ -3892,13 +3668,10 @@ logoutButton.addEventListener(
 
             appMode = "NORMAL";
             appView = "orders";
-            loginMode.value = "NORMAL";
+            loginMode.value = "";
 
-            modeIndicator.textContent =
-                "NORMAL MODE";
-
-            modeIndicator.className =
-                "mode-indicator normal";
+            modeIndicator.textContent = "SELECT MODE";
+            modeIndicator.className = "mode-indicator";
 
             document.getElementById(
                 "training-mode"
@@ -3928,21 +3701,27 @@ logoutButton.addEventListener(
 loginForm.addEventListener(
     "submit",
     async event => {
-
         event.preventDefault();
 
         loginError.textContent = "";
         loginError.classList.add("hidden");
 
-        const submitButton =
-            document.getElementById("login-submit");
-
+        const submitButton = document.getElementById("login-submit");
         submitButton.disabled = true;
         submitButton.textContent = "Logging in...";
 
         try {
-
             const selectedMode = loginMode.value;
+            const username = loginUsername.value.trim();
+            const credential = loginCredential.value;
+
+            if (!["NORMAL", "TRAINING"].includes(selectedMode)) {
+                throw new Error("Choose Normal Mode or Training Mode.");
+            }
+
+            if (!username || !credential) {
+                throw new Error("Enter your username and password or PIN.");
+            }
 
             const modeResponse = await fetch(
                 "/api/auth/mode",
@@ -3951,9 +3730,7 @@ loginForm.addEventListener(
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({
-                        mode: selectedMode
-                    })
+                    body: JSON.stringify({ mode: selectedMode })
                 }
             );
 
@@ -3965,122 +3742,34 @@ loginForm.addEventListener(
                 modeResult.mode !== selectedMode
             ) {
                 throw new Error(
-                    modeResult.error ||
-                    "Unable to select application mode."
+                    modeResult.error || "Unable to select application mode."
                 );
             }
 
-            const isCounter =
-                loginCounterTab.classList.contains(
-                    "active"
-                );
-
-            let response;
-
-            if (isCounter) {
-
-                const userId =
-                    Number(counterUser.value);
-
-                const pin =
-                    counterPin.value;
-
-                if (
-                    !Number.isInteger(userId) ||
-                    userId <= 0
-                ) {
-                    throw new Error(
-                        "Select a Counter user."
-                    );
+            const response = await fetch(
+                "/api/auth/login",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ username, credential })
                 }
+            );
 
-                if (!/^\d{4}$/.test(pin)) {
-                    throw new Error(
-                        "Enter a 4-digit PIN."
-                    );
-                }
+            const result = await response.json();
 
-                response =
-                    await fetch(
-                        "/api/auth/login/pin",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-                            body: JSON.stringify({
-                                user_id: userId,
-                                pin
-                            })
-                        }
-                    );
-
-            } else {
-
-                const username =
-                    loginUsername.value.trim();
-
-                const password =
-                    loginPassword.value;
-
-                if (!username || !password) {
-                    throw new Error(
-                        "Username and password are required."
-                    );
-                }
-
-                response =
-                    await fetch(
-                        "/api/auth/login/password",
-                        {
-                            method: "POST",
-                            headers: {
-                                "Content-Type":
-                                    "application/json"
-                            },
-                            body: JSON.stringify({
-                                username,
-                                password
-                            })
-                        }
-                    );
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || "Login failed.");
             }
 
-            const result =
-                await response.json();
-
-            if (
-                !response.ok ||
-                !result.success
-            ) {
-                throw new Error(
-                    result.error ||
-                    "Login failed."
-                );
-            }
-
-            loginPassword.value = "";
-            counterPin.value = "";
-
+            loginCredential.value = "";
             await checkAuthentication();
-
         } catch (error) {
-
-            console.error(
-                "Login error:",
-                error
-            );
-
-            loginError.textContent =
-                error.message;
-
-            loginError.classList.remove(
-                "hidden"
-            );
-
+            console.error("Login error:", error);
+            loginError.textContent = error.message;
+            loginError.classList.remove("hidden");
         } finally {
-
             submitButton.disabled = false;
             submitButton.textContent = "Login";
         }
@@ -16646,20 +16335,7 @@ function openHistory() {
 // =========================================================
 
 async function initializeLoginMode() {
-    try {
-        const response = await fetch("/api/auth/mode");
-        const result = await response.json();
-
-        if (
-            response.ok &&
-            result.success &&
-            (result.mode === "NORMAL" || result.mode === "TRAINING")
-        ) {
-            loginMode.value = result.mode;
-        }
-    } catch (error) {
-        console.error("Unable to restore login mode:", error);
-    }
+    loginMode.value = "";
 }
 
 initializeLoginMode().finally(checkAuthentication);

@@ -1,7 +1,6 @@
 const express = require("express");
 const router = express.Router();
 
-const user = require("../models/user");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
 const { productionDb, trainingDb } =
     require("../models/context");
@@ -139,167 +138,83 @@ router.post("/mode", (req, res) => {
 });
 
 // =========================================================
-// Available Counter users for PIN login
+// Unified login: username + role-specific credential
 // =========================================================
 
-router.get("/counter-users", (req, res) => {
-    try {
+router.post("/login", (req, res) => {
+    const { username, credential } = req.body || {};
 
-        const counterUsers =
-            user.findActiveByRole("COUNTER");
-
-        res.json({
-            success: true,
-            data: counterUsers.map(counterUser => ({
-                id: counterUser.id,
-                name: counterUser.name
-            }))
-        });
-
-    } catch (error) {
-
-        console.error(
-            "GET /api/auth/counter-users error:",
-            error
-        );
-
-        res.status(500).json({
+    if (
+        req.session.mode !== "NORMAL" &&
+        req.session.mode !== "TRAINING"
+    ) {
+        return res.status(400).json({
             success: false,
-            error: "Unable to load Counter users."
+            error: "Select Normal or Training mode before logging in."
         });
     }
-});
 
-// =========================================================
-// Login with username/password
-// =========================================================
+    if (
+        typeof username !== "string" ||
+        !username.trim() ||
+        typeof credential !== "string" ||
+        !credential
+    ) {
+        return res.status(401).json({
+            success: false,
+            error: "Invalid username or credential."
+        });
+    }
 
-router.post("/login/password", (req, res) => {
+    let authenticatedUser;
+
     try {
-        const { username, password } = req.body;
+        const selectedUser =
+            req.models.user.findByUsername(username.trim());
 
-        if (
-            typeof username !== "string" ||
-            !username.trim()
-        ) {
-            return res.status(400).json({
-                success: false,
-                error: "Username is required."
-            });
+        if (!selectedUser || !selectedUser.active) {
+            throw new Error("Invalid username or credential.");
         }
 
-        if (
-            typeof password !== "string" ||
-            !password
-        ) {
-            return res.status(400).json({
-                success: false,
-                error: "Password is required."
-            });
+        if (selectedUser.role === "ADMIN") {
+            authenticatedUser =
+                req.models.user.verifyPassword(
+                    username.trim(),
+                    credential
+                );
+        } else if (selectedUser.role === "COUNTER") {
+            if (!/^\d{4}$/.test(credential)) {
+                throw new Error("Invalid username or credential.");
+            }
+
+            authenticatedUser =
+                req.models.user.verifyPinByUsername(
+                    username.trim(),
+                    credential
+                );
+        } else {
+            throw new Error("Invalid username or credential.");
         }
+    } catch (error) {
+        return res.status(401).json({
+            success: false,
+            error: "Invalid username or credential."
+        });
+    }
 
-        const authenticatedUser =
-            user.verifyPassword(username, password);
+    try {
+        recordLogin(req, authenticatedUser);
 
-        recordLogin(
-            req,
-            authenticatedUser
-        );
+        req.session.userId = authenticatedUser.id;
 
-        req.session.userId =
-            authenticatedUser.id;
-
-        res.json({
+        return res.json({
             success: true,
             data: authenticatedUser
         });
-
     } catch (error) {
-        console.error(
-            "POST /api/auth/login/password error:",
-            error
-        );
+        console.error("POST /api/auth/login error:", error);
 
-        if (
-            error.message === "Invalid username or password." ||
-            error.message === "User is not active." ||
-            error.message.includes("not configured")
-        ) {
-            return res.status(401).json({
-                success: false,
-                error: error.message
-            });
-        }
-
-        res.status(500).json({
-            success: false,
-            error: "Login failed."
-        });
-    }
-});
-
-// =========================================================
-// Login with user ID + PIN
-// =========================================================
-
-router.post("/login/pin", (req, res) => {
-    try {
-        const { user_id, pin } = req.body;
-
-        const userId = Number(user_id);
-
-        if (!Number.isInteger(userId) || userId <= 0) {
-            return res.status(400).json({
-                success: false,
-                error: "Valid user ID is required."
-            });
-        }
-
-        if (
-            typeof pin !== "string" ||
-            !/^\d{4}$/.test(pin)
-        ) {
-            return res.status(400).json({
-                success: false,
-                error: "PIN must be exactly 4 digits."
-            });
-        }
-
-        const authenticatedUser =
-            user.verifyPin(userId, pin);
-
-        recordLogin(
-            req,
-            authenticatedUser
-        );
-
-        req.session.userId =
-            authenticatedUser.id;
-
-        res.json({
-            success: true,
-            data: authenticatedUser
-        });
-
-    } catch (error) {
-        console.error(
-            "POST /api/auth/login/pin error:",
-            error
-        );
-
-        if (
-            error.message === "User not found." ||
-            error.message === "Invalid PIN." ||
-            error.message === "User is not active." ||
-            error.message.includes("not configured")
-        ) {
-            return res.status(401).json({
-                success: false,
-                error: error.message
-            });
-        }
-
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             error: "Login failed."
         });
@@ -315,7 +230,7 @@ router.get("/users", requireAdmin, (req, res) => {
 
         res.json({
             success: true,
-            data: user.listUsers()
+            data: req.models.user.listUsers()
         });
 
     } catch (error) {
@@ -347,7 +262,7 @@ router.post("/users", requireAdmin, (req, res) => {
         } = req.body;
 
         const createdUser =
-            user.createUser({
+            req.models.user.createUser({
                 name,
                 username,
                 password,
@@ -407,7 +322,7 @@ router.put("/users/:id", requireAdmin, (req, res) => {
         }
 
         const updatedUser =
-            user.updateUser(
+            req.models.user.updateUser(
                 userId,
                 req.body
             );
@@ -431,8 +346,7 @@ router.put("/users/:id", requireAdmin, (req, res) => {
             error.message.includes("already in use") ||
             error.message.includes("last active Admin") ||
             error.message.includes("Active Counter users") ||
-            error.message.includes("User role cannot be changed.") ||
-            error.message.includes("Counter users cannot have a username.")
+            error.message.includes("User role cannot be changed.")
         ) {
             return res.status(400).json({
                 success: false,
@@ -468,7 +382,7 @@ router.post(
             }
 
             const updatedUser =
-                user.setPassword(
+                req.models.user.setPassword(
                     userId,
                     req.body.password
                 );
@@ -527,7 +441,7 @@ router.post(
             }
 
             const updatedUser =
-                user.setPin(
+                req.models.user.setPin(
                     userId,
                     req.body.pin
                 );
@@ -590,7 +504,7 @@ router.post(
             }
 
             const authenticatedUser =
-                user.verifyPassword(
+                req.models.user.verifyPassword(
                     req.user.username,
                     currentPassword
                 );
@@ -605,7 +519,7 @@ router.post(
             }
 
             const updatedUser =
-                user.setPassword(
+                req.models.user.setPassword(
                     req.user.id,
                     newPassword
                 );
@@ -669,13 +583,13 @@ router.post(
                 });
             }
 
-            user.verifyPin(
+            req.models.user.verifyPin(
                 req.user.id,
                 currentPin
             );
 
             const updatedUser =
-                user.setPin(
+                req.models.user.setPin(
                     req.user.id,
                     newPin
                 );
@@ -743,7 +657,7 @@ router.post("/logout", (req, res) => {
     try {
         if (req.session.userId) {
             const authenticatedUser =
-                user.findById(
+                req.models.user.findById(
                     req.session.userId
                 );
 

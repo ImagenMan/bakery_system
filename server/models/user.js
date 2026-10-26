@@ -213,12 +213,16 @@ function createUserModel(db) {
                 ? null
                 : validateUsername(username);
 
+        if (!cleanUsername) {
+            throw new Error("Username is required.");
+        }
+
         if (
             cleanRole === "ADMIN" &&
-            (!cleanUsername || password === null)
+            password === null
         ) {
             throw new Error(
-                "Admin users require a username and password."
+                "Admin users require a password."
             );
         }
 
@@ -248,10 +252,7 @@ function createUserModel(db) {
                 ? hashPin(pin)
                 : null;
 
-        const storedUsername =
-            cleanRole === "ADMIN"
-                ? cleanUsername
-                : null;
+        const storedUsername = cleanUsername;
 
         const result =
             db.prepare(`
@@ -354,22 +355,8 @@ function createUserModel(db) {
                 WHERE id = ?
             `).get(id);
 
-        if (
-            existingUser.role === "COUNTER" &&
-            cleanUsername
-        ) {
-            throw new Error(
-                "Counter users cannot have a username."
-            );
-        }
-
-        if (
-            existingUser.role === "ADMIN" &&
-            !cleanUsername
-        ) {
-            throw new Error(
-                "Admin users require a username."
-            );
+        if (!cleanUsername) {
+            throw new Error("Username is required.");
         }
 
         if (
@@ -494,8 +481,8 @@ function createUserModel(db) {
             throw new Error("Invalid username or password.");
         }
 
-        if (!user.active) {
-            throw new Error("User is not active.");
+        if (!user.active || user.role !== "ADMIN") {
+            throw new Error("Invalid username or credential.");
         }
 
         const row = db.prepare(`
@@ -524,8 +511,8 @@ function createUserModel(db) {
 
         const user = findById(userId);
 
-        if (!user.active) {
-            throw new Error("User is not active.");
+        if (!user.active || user.role !== "COUNTER") {
+            throw new Error("Invalid username or credential.");
         }
 
         const row = db.prepare(`
@@ -545,6 +532,19 @@ function createUserModel(db) {
         }
 
         return user;
+    }
+
+    function verifyPinByUsername(username, pin) {
+        const user = findByUsername(username);
+
+        if (
+            !user ||
+            user.role !== "COUNTER"
+        ) {
+            throw new Error("Invalid username or credential.");
+        }
+
+        return verifyPin(user.id, pin);
     }
 
     function requireAdmin(userId) {
@@ -572,6 +572,7 @@ function createUserModel(db) {
         setPin,
         verifyPassword,
         verifyPin,
+        verifyPinByUsername,
         requireAdmin
     };
 }

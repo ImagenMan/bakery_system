@@ -1557,3 +1557,13 @@ textarea {
         margin-bottom: 6px;
     }
 }
+
+
+/* Keep the logged-out header focused on login only. */
+body.login-only #mode-indicator,
+body.login-only #business-day-status,
+body.login-only #business-day-action,
+body.login-only #connection-status,
+body.login-only #training-mode {
+    display: none !important;
+}

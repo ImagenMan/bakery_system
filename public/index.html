@@ -680,136 +680,46 @@
     <!-- Login -->
 
     <section id="login-view" class="view">
-
         <div class="section-header">
-
             <h2>Login</h2>
         </div>
 
         <div class="form-group">
             <label for="login-mode">Application Mode</label>
-            <select id="login-mode" name="login-mode">
+            <select id="login-mode" name="login-mode" required>
+                <option value="" disabled selected>Choose a mode...</option>
                 <option value="NORMAL">Normal Mode</option>
                 <option value="TRAINING">Training Mode</option>
             </select>
         </div>
 
-        <div class="login-methods">
-
-            <button
-                type="button"
-                id="login-admin-tab"
-                class="login-method active"
-            >
-                Admin
-            </button>
-
-            <button
-                type="button"
-                id="login-counter-tab"
-                class="login-method"
-            >
-                Counter
-            </button>
-
-        </div>
-
         <form id="login-form">
-
-            <div
-                id="admin-login-fields"
-            >
-
-                <div class="form-group">
-
-                    <label for="login-username">
-                        Username
-                    </label>
-
-                    <input
-                        type="text"
-                        id="login-username"
-                        name="username"
-                        autocomplete="username"
-                        required
-                    >
-
-                </div>
-
-                <div class="form-group">
-
-                    <label for="login-password">
-                        Password
-                    </label>
-
-                    <input
-                        type="password"
-                        id="login-password"
-                        name="password"
-                        autocomplete="current-password"
-                        required
-                    >
-
-                </div>
-
+            <div class="form-group">
+                <label for="login-username">Username</label>
+                <input
+                    type="text"
+                    id="login-username"
+                    name="username"
+                    autocomplete="username"
+                    required
+                >
             </div>
 
-            <div
-                id="counter-login-fields"
-                class="hidden"
-            >
-
-                <div class="form-group">
-
-                    <label for="counter-user">
-                        Counter User
-                    </label>
-
-                    <select
-                        id="counter-user"
-                        name="counter-user"
-                    >
-                        <option value="">
-                            Loading Counter users...
-                        </option>
-                    </select>
-
-                </div>
-
-                <div class="form-group">
-
-                    <label for="counter-pin">
-                        PIN
-                    </label>
-
-                    <input
-                        type="password"
-                        id="counter-pin"
-                        name="counter-pin"
-                        inputmode="numeric"
-                        autocomplete="off"
-                        maxlength="4"
-                        pattern="[0-9]{4}"
-                    >
-
-                </div>
-
+            <div class="form-group">
+                <label for="login-credential">Password or 4-digit PIN</label>
+                <input
+                    type="password"
+                    id="login-credential"
+                    name="credential"
+                    autocomplete="current-password"
+                    required
+                >
             </div>
 
-            <p
-                id="login-error"
-                class="error hidden"
-            ></p>
+            <p id="login-error" class="error hidden"></p>
 
-            <button
-                type="submit"
-                id="login-submit"
-            >
-                Login
-            </button>
-
+            <button type="submit" id="login-submit">Login</button>
         </form>
-
     </section>
 
 

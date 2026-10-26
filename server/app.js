@@ -24,8 +24,8 @@ app.use(session({
 app.use(express.static("public"));
 
 app.use("/api/auth", attachModels, authRoutes);
-app.use("/api/production", requireAuth, attachModels, productionRoutes);
-app.use("/api", requireAuth, attachModels, apiRoutes);
+app.use("/api/production", attachModels, requireAuth, productionRoutes);
+app.use("/api", attachModels, requireAuth, apiRoutes);
 
 io.on("connection", (socket) => {
     console.log("Client connected:", socket.id);
@@ -35,7 +35,7 @@ io.on("connection", (socket) => {
     });
 });
 
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 server.listen(PORT, () => {
     console.log(`Bakery Server running on port ${PORT}`);
